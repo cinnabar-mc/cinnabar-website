@@ -68,6 +68,7 @@ def build(repository, output):
                       if value["rust_name"] == "CINNABAR_API_BASE_URL")
     config["online_count_url"] = api_origin.rstrip("/") + "/v1/presence/count"
     config["unique_count_url"] = api_origin.rstrip("/") + "/v1/users/count"
+    config["download_count_url"] = api_origin.rstrip("/") + "/v1/downloads/count"
     config["online_history_url"] = api_origin.rstrip("/") + "/v1/presence/history"
     icon = (repository / INPUTS["icon"]).read_text()
     red = ET.fromstring(icon).find("{http://www.w3.org/2000/svg}rect").attrib["fill"]
@@ -85,6 +86,7 @@ def build(repository, output):
     (output / "downloads.js").write_text("window.CINNABAR_DOWNLOADS = " + json.dumps(config) + ";\n")
     shutil.copyfile(HERE / "app.js", output / "app.js")
     shutil.copyfile(HERE / "presence.js", output / "presence.js")
+    shutil.copyfile(HERE / "download-count.js", output / "download-count.js")
     shutil.copyfile(HERE / "history.js", output / "history.js")
     shutil.copyfile(repository / INPUTS["title"], output / "title.png")
     rng = random.Random(27)

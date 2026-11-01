@@ -103,3 +103,17 @@ on each request. The API's shared cache still limits upstream reads to once per
 minute. Range changes cancel older requests; empty history and errors have
 explicit messages. Hover or touch the plot to inspect a sample, or focus it and
 use the arrow, Home and End keys.
+
+## Release downloads
+
+The line below the download button reads `GET /v1/downloads/count`
+(`{"downloads":0}`) from the shared API origin and links to the client release page.
+It counts installer and automatic update packages across published versioned
+releases and the current nightly, including repeat downloads. Update manifests,
+checksums and support files are excluded. Deleted or replaced assets cannot be
+counted, so this is neither a lifetime total nor a unique-user count.
+
+The website refreshes every five minutes while visible, with a five-second timeout.
+Unavailable or invalid totals leave the line empty without affecting downloads or
+player activity. The API shares a fifteen-minute GitHub snapshot plus a five-minute
+edge cache. Deploy the API endpoint before the website to enable the count.

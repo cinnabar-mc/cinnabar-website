@@ -99,21 +99,22 @@ class RenderTests(unittest.TestCase):
                 self.assertIn("header", [parent for parent, _ in ancestors])
                 self.assertNotIn("main", [parent for parent, _ in ancestors])
             key = attrs.get("id") or attrs.get("class")
-            if key in {"download", "disclaimer", "online-count", "unique-count", "history-plot"}:
+            if key in {"download", "download-count", "disclaimer", "online-count", "unique-count", "history-plot"}:
                 positions[key] = index
-                if key in {"download", "disclaimer"}:
+                if key in {"download", "download-count", "disclaimer"}:
                     self.assertTrue(any(parent.get("class") == "hero" for _, parent in ancestors))
                 else:
                     self.assertTrue(any(parent.get("aria-labelledby") == "history-title"
                                         for _, parent in ancestors))
         self.assertEqual(sorted(positions, key=positions.get),
-                         ["download", "disclaimer", "online-count", "unique-count", "history-plot"])
+                         ["download", "download-count", "disclaimer", "online-count", "unique-count", "history-plot"])
 
     def test_build_uses_declared_inputs_and_redirects_to_release_assets(self):
         RENDER.build(self.repository, self.output)
         config = self.config_from_output()
         self.assertEqual(config["online_count_url"], "https://fixture-api.invalid/v1/presence/count")
         self.assertEqual(config["unique_count_url"], "https://fixture-api.invalid/v1/users/count")
+        self.assertEqual(config["download_count_url"], "https://fixture-api.invalid/v1/downloads/count")
         self.assertEqual(config["online_history_url"], "https://fixture-api.invalid/v1/presence/history")
         self.assertEqual(config["assets"], self.config["assets"])
         self.assertEqual(config["manual_assets"], self.config["manual_assets"])
@@ -128,7 +129,7 @@ class RenderTests(unittest.TestCase):
                          f'https://github.com/{self.config["repository"]}/releases/download/nightly/')
         self.assertEqual(config["nightly_install_command"], config["install_command"] + " -s -- --channel nightly")
         self.assertEqual({path.name for path in self.output.iterdir()}, {
-            "index.html", "downloads.js", "app.js", "presence.js", "history.js", "title.png", "texture.svg", "docs",
+            "index.html", "downloads.js", "app.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
 
@@ -217,7 +218,7 @@ class RenderTests(unittest.TestCase):
         config = self.config_from_output()
         self.assertEqual(page.repository + "/releases/latest", config["release_url"])
         self.assertEqual([script["src"] for script in page.scripts],
-                         ["/downloads.js", "/app.js", "/presence.js", "/history.js"])
+                         ["/downloads.js", "/app.js", "/presence.js", "/download-count.js", "/history.js"])
         for script in page.scripts:
             self.assertIn("defer", script)
             self.assertTrue((self.output / script["src"].lstrip("/")).is_file())
