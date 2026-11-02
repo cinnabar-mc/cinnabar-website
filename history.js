@@ -128,7 +128,7 @@
     window.clearTimeout(timer);
     const request = ++sequence;
     if (controller) controller.abort();
-    if (document.visibilityState === "hidden") return;
+    if (!window.CINNABAR_ACTIVITY.active()) return;
     controller = new AbortController();
     try {
       const url = new URL(window.CINNABAR_DOWNLOADS.online_history_url);
@@ -153,7 +153,7 @@
     } catch (error) {
       if (request === sequence) showMessage("Player history is unavailable. Trying again shortly.");
     } finally {
-      if (request === sequence && document.visibilityState !== "hidden") timer = window.setTimeout(load, 60000);
+      if (request === sequence && window.CINNABAR_ACTIVITY.active()) timer = window.setTimeout(load, 300000);
     }
   }
 
@@ -187,7 +187,7 @@
     inspect(event.key === "Home" ? 0 : event.key === "End" ? data.points.length - 1
       : (selected < 0 ? data.points.length - 1 : selected) + (event.key === "ArrowLeft" ? -1 : 1));
   });
-  document.addEventListener("visibilitychange", load);
+  window.CINNABAR_ACTIVITY.subscribe(load);
   if (typeof ResizeObserver !== "undefined") new ResizeObserver(draw).observe(plot);
   load();
 })();

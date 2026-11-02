@@ -129,7 +129,7 @@ class RenderTests(unittest.TestCase):
                          f'https://github.com/{self.config["repository"]}/releases/download/nightly/')
         self.assertEqual(config["nightly_install_command"], config["install_command"] + " -s -- --channel nightly")
         self.assertEqual({path.name for path in self.output.iterdir()}, {
-            "index.html", "downloads.js", "app.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs",
+            "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
 
@@ -218,7 +218,7 @@ class RenderTests(unittest.TestCase):
         config = self.config_from_output()
         self.assertEqual(page.repository + "/releases/latest", config["release_url"])
         self.assertEqual([script["src"] for script in page.scripts],
-                         ["/downloads.js", "/app.js", "/presence.js", "/download-count.js", "/history.js"])
+                         ["/downloads.js", "/app.js", "/activity.js", "/presence.js", "/download-count.js", "/history.js"])
         for script in page.scripts:
             self.assertIn("defer", script)
             self.assertTrue((self.output / script["src"].lstrip("/")).is_file())

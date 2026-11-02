@@ -82,14 +82,22 @@ reconnects and devices, including accounts with presence visibility off. The API
 retains salted account digests and publishes only the total. Tracking starts at
 API deployment with no historical backfill; existing sessions count on their next
 successful login. Deploy that endpoint before the website to enable this count.
-It polls independently once per visible minute with the same timeout and failure
-handling as the online count; a missing endpoint leaves just this count empty.
+It polls independently every ten minutes with the same timeout, failure and
+attention handling as the online count; a missing endpoint leaves just this count empty.
 
 The player activity section shows unique connected, visible Cinnabar accounts
 from `GET /v1/presence/count`. The API origin comes from the shared bridge contract.
-It refreshes once per minute while the page is visible, bypassing the browser cache,
-with a five-second request timeout. Failed or invalid responses clear the count; background tabs stop polling.
+It refreshes once per minute while the page is attended, bypassing the browser cache,
+with a five-second request timeout. Failed or invalid responses clear the count.
 Deploy the API endpoint before the website to enable the count.
+
+Every API poll invokes the `cinnabar-api` Worker, even when its edge cache answers,
+and counts toward the account's daily Workers request limit. `activity.js` therefore
+pauses all polling, clearing the live counts, in hidden tabs and in visible tabs
+without pointer, keyboard, scroll or focus input for ten minutes. The next input or
+return to the tab refreshes everything at once, cancelling any request still in
+flight so its late failure cannot delay the fresh count. An attended page makes about 1.4
+requests per minute; an unattended one makes none.
 
 The player chart reads `GET /v1/presence/history?range=24h|7d|30d` from the same
 origin. The API collects one anonymous count per minute independently of website
@@ -98,7 +106,7 @@ and averages calculated from observed minutes only. Missing buckets appear as
 gaps; recorded zeroes sit on the baseline. History starts when the API collector
 is deployed, without backfilled estimates.
 
-The chart refreshes every minute while visible and bypasses the browser cache
+The chart refreshes every five minutes while attended and bypasses the browser cache
 on each request. The API's shared cache still limits upstream reads to once per
 minute. Range changes cancel older requests; empty history and errors have
 explicit messages. Hover or touch the plot to inspect a sample, or focus it and
@@ -113,7 +121,8 @@ releases and the current nightly, including repeat downloads. Update manifests,
 checksums and support files are excluded. Deleted or replaced assets cannot be
 counted, so this is neither a lifetime total nor a unique-user count.
 
-The website refreshes every five minutes while visible, with a five-second timeout.
+The website refreshes every fifteen minutes while attended, matching the API's
+GitHub snapshot, with a five-second timeout.
 Unavailable or invalid totals leave the line empty without affecting downloads or
 player activity. The API shares a fifteen-minute GitHub snapshot plus a five-minute
 edge cache. Deploy the API endpoint before the website to enable the count.
