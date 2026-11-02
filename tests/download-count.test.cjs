@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const test = require('node:test');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../download-count.js'), 'utf8');
 
-/** Models the DOM and polling clock so failures and visibility changes are deterministic. */
+/** Models the DOM and polling clock so failures and attention changes are deterministic. */
 async function page(initial = {downloads: 17753}, hidden = false) {
   const element = tag => ({tag, children: [], textContent: '', attributes: {},
     append(...children) { this.children.push(...children); },
@@ -13,12 +13,15 @@ async function page(initial = {downloads: 17753}, hidden = false) {
   const label = element('p');
   const timers = new Map();
   const requests = [];
-  const listeners = {};
+  const subscribers = [];
+  let idle = false;
   let response = initial;
   let nextId = 0;
   const document = {hidden, getElementById: () => label, createElement: element,
-    createElementNS: (_, tag) => element(tag), addEventListener: (key, callback) => { listeners[key] = callback; }};
-  const window = {CINNABAR_DOWNLOADS: {download_count_url: 'https://api.invalid/v1/downloads/count',
+    createElementNS: (_, tag) => element(tag)};
+  const active = () => !document.hidden && !idle;
+  const window = {CINNABAR_ACTIVITY: {active, subscribe: callback => { subscribers.push(callback); }},
+    CINNABAR_DOWNLOADS: {download_count_url: 'https://api.invalid/v1/downloads/count',
     release_url: 'https://github.com/fixture/client/releases/latest'},
     setTimeout(callback, delay) { timers.set(++nextId, {callback, delay}); return nextId; },
     clearTimeout(id) { timers.delete(id); }};
@@ -33,7 +36,8 @@ async function page(initial = {downloads: 17753}, hidden = false) {
   await settle();
   return {label, timers, requests,
     async refresh(next) { response = next; const callbacks = [...timers.values()]; timers.clear(); await Promise.all(callbacks.map(t => t.callback())); },
-    async visible(value) { document.hidden = !value; listeners.visibilitychange(); await settle(); }};
+    async visible(value) { document.hidden = !value; subscribers.forEach(callback => callback(active())); await settle(); },
+    async idle(value) { idle = value; subscribers.forEach(callback => callback(active())); await settle(); }};
 }
 
 test('links formatted zero, singular and plural package totals to the shared release destination', async () => {
@@ -52,7 +56,7 @@ test('links formatted zero, singular and plural package totals to the shared rel
   assert.equal(p.requests[0].options.credentials, 'omit');
   assert.equal(p.requests[0].options.referrerPolicy, 'no-referrer');
   assert.ok(p.requests[0].options.signal instanceof AbortSignal);
-  assert.equal([...p.timers.values()][0].delay, 300000);
+  assert.equal([...p.timers.values()][0].delay, 900000);
 });
 
 test('clears unavailable or malformed totals and recovers without showing a fabricated zero', async () => {
@@ -85,4 +89,16 @@ test('pauses in background tabs and does not paint requests completed while hidd
   finish({downloads: 4});
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(p.label.children[1].children[0].textContent, '4');
+});
+
+test('stops polling while a visible tab is unattended and refreshes when attention returns', async () => {
+  const p = await page({downloads: 8});
+  assert.equal(p.requests.length, 1);
+  await p.idle(true);
+  assert.equal(p.label.children.length, 0);
+  assert.equal(p.timers.size, 0);
+  await p.idle(false);
+  assert.equal(p.requests.length, 2);
+  assert.equal(p.timers.size, 1);
+  assert.equal(p.label.children[1].children[0].textContent, '8');
 });

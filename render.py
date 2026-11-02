@@ -85,6 +85,7 @@ def build(repository, output):
     (output / "index.html").write_text(page)
     (output / "downloads.js").write_text("window.CINNABAR_DOWNLOADS = " + json.dumps(config) + ";\n")
     shutil.copyfile(HERE / "app.js", output / "app.js")
+    shutil.copyfile(HERE / "activity.js", output / "activity.js")
     shutil.copyfile(HERE / "presence.js", output / "presence.js")
     shutil.copyfile(HERE / "download-count.js", output / "download-count.js")
     shutil.copyfile(HERE / "history.js", output / "history.js")

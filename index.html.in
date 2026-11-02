@@ -171,6 +171,7 @@
   </dialog>
   <script src="/downloads.js" defer></script>
   <script src="/app.js" defer></script>
+  <script src="/activity.js" defer></script>
   <script src="/presence.js" defer></script>
   <script src="/download-count.js" defer></script>
   <script src="/history.js" defer></script>

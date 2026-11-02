@@ -1,12 +1,13 @@
 (() => {
   const label = document.getElementById('download-count');
   const config = window.CINNABAR_DOWNLOADS;
+  const activity = window.CINNABAR_ACTIVITY;
   let timer;
   let pending = false;
 
-  /** Shows verified package downloads, hiding unavailable totals and pausing in background tabs. */
+  /** Shows verified package downloads, hiding unavailable totals and pausing in unattended tabs. */
   async function refresh() {
-    if (document.hidden || pending) return;
+    if (!activity.active() || pending) return;
     pending = true;
     window.clearTimeout(timer);
     try {
@@ -16,7 +17,7 @@
       if (!response.ok) throw new Error('Download count unavailable');
       const body = await response.json();
       if (!Number.isSafeInteger(body?.downloads) || body.downloads < 0) throw new Error('Invalid download count');
-      if (document.hidden) return;
+      if (!activity.active()) return;
       const link = document.createElement('a');
       link.href = config.release_url;
       link.title = 'Installer and update-package downloads, including repeat downloads';
@@ -34,14 +35,14 @@
       label.replaceChildren();
     } finally {
       pending = false;
-      if (!document.hidden) timer = window.setTimeout(refresh, 300_000);
+      if (activity.active()) timer = window.setTimeout(refresh, 900_000);
     }
   }
 
-  document.addEventListener('visibilitychange', () => {
+  activity.subscribe(active => {
     window.clearTimeout(timer);
     label.replaceChildren();
-    if (!document.hidden) void refresh();
+    if (active) void refresh();
   });
   void refresh();
 })();

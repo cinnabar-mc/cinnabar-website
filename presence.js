@@ -1,13 +1,15 @@
 (() => {
+  const activity = window.CINNABAR_ACTIVITY;
+
   /** Polls one aggregate independently, keeping failures from clearing the other count. */
-  function pollCount(id, url, field, format) {
+  function pollCount(id, url, field, interval, format) {
     const label = document.getElementById(id);
     let timer;
     let pending = false;
 
-    /** Refreshes the aggregate while visible and clears unavailable or invalid counts. */
+    /** Refreshes the aggregate while attended and clears unavailable or invalid counts. */
     async function refresh() {
-      if (document.hidden || pending) return;
+      if (!activity.active() || pending) return;
       pending = true;
       window.clearTimeout(timer);
       try {
@@ -17,27 +19,27 @@
         if (!response.ok) throw new Error('Count unavailable');
         const body = await response.json();
         if (!Number.isSafeInteger(body?.[field]) || body[field] < 0) throw new Error('Invalid count');
-        label.textContent = document.hidden ? '' : format(body[field]);
+        label.textContent = activity.active() ? format(body[field]) : '';
       } catch {
         label.textContent = '';
       } finally {
         pending = false;
-        if (!document.hidden) timer = window.setTimeout(refresh, 60_000);
+        if (activity.active()) timer = window.setTimeout(refresh, interval);
       }
     }
 
-    document.addEventListener('visibilitychange', () => {
+    activity.subscribe(active => {
       window.clearTimeout(timer);
       label.textContent = '';
-      if (!document.hidden) void refresh();
+      if (active) void refresh();
     });
     void refresh();
   }
 
-  pollCount('online-count', window.CINNABAR_DOWNLOADS.online_count_url, 'online', count => count === 1
+  pollCount('online-count', window.CINNABAR_DOWNLOADS.online_count_url, 'online', 60_000, count => count === 1
     ? '1 person is using Cinnabar right now'
     : `${count.toLocaleString()} people are using Cinnabar right now`);
-  pollCount('unique-count', window.CINNABAR_DOWNLOADS.unique_count_url, 'unique', count => count === 1
+  pollCount('unique-count', window.CINNABAR_DOWNLOADS.unique_count_url, 'unique', 600_000, count => count === 1
     ? '1 unique user'
     : `${count.toLocaleString()} unique users`);
 })();

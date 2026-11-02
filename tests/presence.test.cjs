@@ -6,18 +6,20 @@ const test = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '../presence.js'), 'utf8');
 
-/** Runs presence updates with controlled responses, visibility and scheduled callbacks. */
+/** Runs presence updates with controlled responses, attention and scheduled callbacks. */
 async function page(reply = {online: 42}, hidden = false) {
   const label = {textContent: ''};
   const unique = {textContent: ''};
-  const listeners = {};
+  const subscribers = [];
+  let idle = false;
   const timers = new Map();
   const requests = [];
   let response = reply;
   let timerId = 0;
-  const document = {hidden, getElementById: id => id === 'unique-count' ? unique : label,
-    addEventListener: (name, callback) => { (listeners[name] ??= []).push(callback); }};
-  const window = {CINNABAR_DOWNLOADS: {online_count_url: 'https://api.invalid/v1/presence/count',
+  const document = {hidden, getElementById: id => id === 'unique-count' ? unique : label};
+  const active = () => !document.hidden && !idle;
+  const window = {CINNABAR_ACTIVITY: {active, subscribe: callback => { subscribers.push(callback); }},
+    CINNABAR_DOWNLOADS: {online_count_url: 'https://api.invalid/v1/presence/count',
     unique_count_url: 'https://api.invalid/v1/users/count'},
     setTimeout(callback, delay) { timers.set(++timerId, {callback, delay}); return timerId; },
     clearTimeout(id) { timers.delete(id); }};
@@ -40,7 +42,12 @@ async function page(reply = {online: 42}, hidden = false) {
     },
     async visible(value) {
       document.hidden = !value;
-      listeners.visibilitychange.forEach(callback => callback());
+      subscribers.forEach(callback => callback(active()));
+      await settle();
+    },
+    async idle(value) {
+      idle = value;
+      subscribers.forEach(callback => callback(active()));
       await settle();
     }};
 }
@@ -60,7 +67,7 @@ test('shows live counts with singular, plural, zero and formatted numbers', asyn
   assert.equal(p.requests[0].options.credentials, 'omit');
   assert.equal(p.requests[0].options.referrerPolicy, 'no-referrer');
   assert.ok(p.requests[0].options.signal instanceof AbortSignal);
-  assert.equal([...p.timers.values()][0].delay, 60_000);
+  assert.deepEqual([...p.timers.values()].map(timer => timer.delay), [60_000, 600_000]);
   await p.refresh({online: 1});
   assert.equal(p.label.textContent, '1 person is using Cinnabar right now');
   await p.refresh({online: 0});
@@ -137,4 +144,31 @@ test('an unavailable unique-user endpoint leaves the online count working', asyn
   assert.equal(p.label.textContent, '4 people are using Cinnabar right now');
   await p.refresh({online: 4, unique: 40});
   assert.equal(p.unique.textContent, '40 unique users');
+});
+
+test('stops polling while a visible tab is unattended and refreshes when attention returns', async () => {
+  const p = await page({online: 3, unique: 30});
+  assert.equal(p.requests.length, 2);
+  await p.idle(true);
+  assert.equal(p.timers.size, 0);
+  assert.equal(p.label.textContent, '');
+  assert.equal(p.unique.textContent, '');
+  assert.equal(p.requests.length, 2);
+  await p.idle(false);
+  assert.equal(p.requests.length, 4);
+  assert.equal(p.timers.size, 2);
+  assert.equal(p.label.textContent, '3 people are using Cinnabar right now');
+  assert.equal(p.unique.textContent, '30 unique users');
+});
+
+test('discards a reply that arrives after the tab went unattended', async () => {
+  let release;
+  const reply = new Promise(resolve => { release = resolve; });
+  const p = await page({online: 5});
+  const pending = p.refresh(() => reply);
+  await p.idle(true);
+  release({online: 6, unique: 60});
+  await pending;
+  assert.equal(p.label.textContent, '');
+  assert.equal(p.timers.size, 0);
 });
