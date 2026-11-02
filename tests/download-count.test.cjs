@@ -25,7 +25,7 @@ async function page(initial = {downloads: 17753}, hidden = false) {
     release_url: 'https://github.com/fixture/client/releases/latest'},
     setTimeout(callback, delay) { timers.set(++nextId, {callback, delay}); return nextId; },
     clearTimeout(id) { timers.delete(id); }};
-  vm.runInNewContext(source, {window, document, AbortSignal,
+  vm.runInNewContext(source, {window, document, AbortSignal, AbortController,
     async fetch(url, options) {
       requests.push({url, options});
       const current = typeof response === 'function' ? await response() : response;
@@ -101,4 +101,20 @@ test('stops polling while a visible tab is unattended and refreshes when attenti
   assert.equal(p.requests.length, 2);
   assert.equal(p.timers.size, 1);
   assert.equal(p.label.children[1].children[0].textContent, '8');
+});
+
+test('resuming during a pending request cancels it and refreshes at once even if it later fails', async () => {
+  let fail;
+  const stale = new Promise((_, reject) => { fail = reject; });
+  let calls = 0;
+  const p = await page({downloads: 8});
+  const pending = p.refresh(() => calls++ ? {downloads: 9} : stale);
+  await p.idle(true);
+  assert.equal(p.requests[1].options.signal.aborted, true);
+  await p.idle(false);
+  assert.equal(p.requests.length, 3);
+  fail(new DOMException('aborted', 'AbortError'));
+  await pending;
+  assert.equal(p.label.children[1].children[0].textContent, '9');
+  assert.deepEqual([...p.timers.values()].map(timer => timer.delay), [900000]);
 });

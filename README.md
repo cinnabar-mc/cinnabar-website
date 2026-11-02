@@ -95,7 +95,8 @@ Every API poll invokes the `cinnabar-api` Worker, even when its edge cache answe
 and counts toward the account's daily Workers request limit. `activity.js` therefore
 pauses all polling, clearing the live counts, in hidden tabs and in visible tabs
 without pointer, keyboard, scroll or focus input for ten minutes. The next input or
-return to the tab refreshes everything at once. An attended page makes about 1.4
+return to the tab refreshes everything at once, cancelling any request still in
+flight so its late failure cannot delay the fresh count. An attended page makes about 1.4
 requests per minute; an unattended one makes none.
 
 The player chart reads `GET /v1/presence/history?range=24h|7d|30d` from the same

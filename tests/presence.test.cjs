@@ -23,7 +23,7 @@ async function page(reply = {online: 42}, hidden = false) {
     unique_count_url: 'https://api.invalid/v1/users/count'},
     setTimeout(callback, delay) { timers.set(++timerId, {callback, delay}); return timerId; },
     clearTimeout(id) { timers.delete(id); }};
-  vm.runInNewContext(source, {document, window, AbortSignal,
+  vm.runInNewContext(source, {document, window, AbortSignal, AbortController,
     async fetch(url, options) {
       requests.push({url, options});
       const current = typeof response === 'function' ? response(url) : response;
@@ -171,4 +171,22 @@ test('discards a reply that arrives after the tab went unattended', async () => 
   await pending;
   assert.equal(p.label.textContent, '');
   assert.equal(p.timers.size, 0);
+});
+
+test('resuming during a pending request cancels it and refreshes at once even if it later fails', async () => {
+  let fail;
+  const stale = new Promise((_, reject) => { fail = reject; });
+  let calls = 0;
+  const p = await page({online: 5, unique: 50});
+  const pending = p.refresh(() => calls++ < 2 ? stale : {online: 7, unique: 70});
+  await p.idle(true);
+  assert.equal(p.requests[2].options.signal.aborted, true);
+  assert.equal(p.requests[3].options.signal.aborted, true);
+  await p.idle(false);
+  assert.equal(p.requests.length, 6);
+  fail(new DOMException('aborted', 'AbortError'));
+  await pending;
+  assert.equal(p.label.textContent, '7 people are using Cinnabar right now');
+  assert.equal(p.unique.textContent, '70 unique users');
+  assert.deepEqual([...p.timers.values()].map(timer => timer.delay).sort((a, b) => a - b), [60_000, 600_000]);
 });

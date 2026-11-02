@@ -5,33 +5,35 @@
   function pollCount(id, url, field, interval, format) {
     const label = document.getElementById(id);
     let timer;
-    let pending = false;
+    let controller;
+    let sequence = 0;
 
-    /** Refreshes the aggregate while attended and clears unavailable or invalid counts. */
+    /** Refreshes the aggregate while attended; a newer call cancels and supersedes any request in flight. */
     async function refresh() {
-      if (!activity.active() || pending) return;
-      pending = true;
+      const request = ++sequence;
       window.clearTimeout(timer);
+      controller?.abort();
+      if (!activity.active()) return;
+      controller = new AbortController();
       try {
         const response = await fetch(url, {
-          cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: AbortSignal.timeout(5000),
+          cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
         });
         if (!response.ok) throw new Error('Count unavailable');
         const body = await response.json();
         if (!Number.isSafeInteger(body?.[field]) || body[field] < 0) throw new Error('Invalid count');
-        label.textContent = activity.active() ? format(body[field]) : '';
+        if (request === sequence) label.textContent = format(body[field]);
       } catch {
-        label.textContent = '';
+        if (request === sequence) label.textContent = '';
       } finally {
-        pending = false;
-        if (activity.active()) timer = window.setTimeout(refresh, interval);
+        if (request === sequence && activity.active()) timer = window.setTimeout(refresh, interval);
       }
     }
 
-    activity.subscribe(active => {
-      window.clearTimeout(timer);
+    activity.subscribe(() => {
       label.textContent = '';
-      if (active) void refresh();
+      void refresh();
     });
     void refresh();
   }

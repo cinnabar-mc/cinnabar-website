@@ -3,21 +3,25 @@
   const config = window.CINNABAR_DOWNLOADS;
   const activity = window.CINNABAR_ACTIVITY;
   let timer;
-  let pending = false;
+  let controller;
+  let sequence = 0;
 
   /** Shows verified package downloads, hiding unavailable totals and pausing in unattended tabs. */
   async function refresh() {
-    if (!activity.active() || pending) return;
-    pending = true;
+    const request = ++sequence;
     window.clearTimeout(timer);
+    controller?.abort();
+    if (!activity.active()) return;
+    controller = new AbortController();
     try {
       const response = await fetch(config.download_count_url, {
-        cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: AbortSignal.timeout(5000),
+        cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
       });
       if (!response.ok) throw new Error('Download count unavailable');
       const body = await response.json();
       if (!Number.isSafeInteger(body?.downloads) || body.downloads < 0) throw new Error('Invalid download count');
-      if (!activity.active()) return;
+      if (request !== sequence) return;
       const link = document.createElement('a');
       link.href = config.release_url;
       link.title = 'Installer and update-package downloads, including repeat downloads';
@@ -32,17 +36,15 @@
       icon.append(path);
       label.replaceChildren(icon, link);
     } catch {
-      label.replaceChildren();
+      if (request === sequence) label.replaceChildren();
     } finally {
-      pending = false;
-      if (activity.active()) timer = window.setTimeout(refresh, 900_000);
+      if (request === sequence && activity.active()) timer = window.setTimeout(refresh, 900_000);
     }
   }
 
-  activity.subscribe(active => {
-    window.clearTimeout(timer);
+  activity.subscribe(() => {
     label.replaceChildren();
-    if (active) void refresh();
+    void refresh();
   });
   void refresh();
 })();
