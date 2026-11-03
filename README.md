@@ -74,6 +74,13 @@ for `.html` pages redirect to the clean URL. With `404-page`, missing book paths
 return the book's generated `404.html` with status 404; other missing paths return
 a normal 404. No route falls back to the landing page.
 
+## Official Client
+
+`/client/` introduces the official HUD and module pack, with its promotional banner,
+feature overview and import steps. The download button uses the shared API origin
+and the anonymous `/v1/mod/download` endpoint. The home page, client page and book
+share the same navigation, with the current destination marked on each page.
+
 ## Player presence
 
 The activity section also shows unique Cinnabar users since tracking began, from

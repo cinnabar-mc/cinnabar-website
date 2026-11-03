@@ -36,7 +36,7 @@ def build_book(repository, output, red, header):
         stylesheet = theme / "cinnabar.css"
         stylesheet.write_text((HERE / "site-header.css").read_text()
                               + stylesheet.read_text().replace("@@RED@@", red))
-        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"'))
+        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"').replace("@@CLIENT_CURRENT@@", ""))
         environment = dict(os.environ, **{
             "MDBOOK_OUTPUT__HTML__THEME": "theme",
             "MDBOOK_OUTPUT__HTML__ADDITIONAL_CSS": '["theme/cinnabar.css"]',
@@ -77,12 +77,22 @@ def build(repository, output):
     header = header.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
     header = header.replace("@@REPOSITORY_URL@@", repository_url)
     page = (HERE / "index.html.in").read_text()
-    page = page.replace("@@SITE_HEADER@@", header.replace("@@DOCS_CURRENT@@", ""))
+    page = page.replace("@@SITE_HEADER@@", header.replace("@@DOCS_CURRENT@@", "").replace("@@CLIENT_CURRENT@@", ""))
     page = page.replace("@@SITE_HEADER_STYLES@@", (HERE / "site-header.css").read_text())
     page = page.replace("@@RED@@", red)
     page = page.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
     output.mkdir(parents=True, exist_ok=True)
     (output / "index.html").write_text(page)
+    client = (HERE / "client.html.in").read_text()
+    client = client.replace("@@SITE_HEADER@@", header.replace("@@DOCS_CURRENT@@", "").replace(
+        "@@CLIENT_CURRENT@@", ' aria-current="page"'))
+    client = client.replace("@@SITE_HEADER_STYLES@@", (HERE / "site-header.css").read_text())
+    client = client.replace("@@RED@@", red).replace("@@API_ORIGIN@@", api_origin.rstrip("/"))
+    client = client.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
+    client_output = output / "client"
+    client_output.mkdir(exist_ok=True)
+    (client_output / "index.html").write_text(client)
+    shutil.copyfile(HERE / "assets" / "client-release.png", client_output / "client-release.png")
     (output / "downloads.js").write_text("window.CINNABAR_DOWNLOADS = " + json.dumps(config) + ";\n")
     shutil.copyfile(HERE / "app.js", output / "app.js")
     shutil.copyfile(HERE / "activity.js", output / "activity.js")
