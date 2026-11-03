@@ -145,8 +145,10 @@ class RenderTests(unittest.TestCase):
         self.assertEqual([item["href"] for item in downloads],
                          ["https://fixture-api.invalid/v1/mod/download"])
         self.assertIn("Right Shift", client_html)
-        self.assertEqual((self.output / "client/client-release.png").read_bytes(),
-                         (SITE / "assets/client-release.png").read_bytes())
+        for capture in RENDER.CLIENT_CAPTURES:
+            self.assertIn(f'src="/client/{capture}"', client_html)
+            self.assertEqual((self.output / "client" / capture).read_bytes(),
+                             (SITE / "assets/client" / capture).read_bytes())
         for route in ["index.html", "client/index.html", "docs/modding/index.html"]:
             page = Page()
             page.feed((self.output / route).read_text())

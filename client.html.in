@@ -1,74 +1,165 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Official Client · Cinnabar</title>
-<link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
-<meta name="description" content="Make Cinnabar yours with the official HUD and module pack. Download Cinnabar Client and customize your setup.">
-<style>
-@@SITE_HEADER_STYLES@@
-:root { color-scheme: dark; --ground:#141815; --ink:#edf2eb; --soft:#c4cdc1; --quiet:#acb7a9; --line:#394337; --red:@@RED@@; --cinnabar-red:@@RED@@; --focus:#f8c1af; font-family:system-ui,sans-serif; }
-* { box-sizing:border-box; }
-html { scroll-behavior:smooth; scroll-padding-top:24px; }
-body { margin:0; color:var(--ink); }
-a { color:inherit; text-underline-offset:5px; }
-a:focus-visible, summary:focus-visible { outline:2px solid var(--focus); outline-offset:5px; }
-::selection { background:#a82c22; color:white; }
-.site { background:linear-gradient(#141815c9,#101511e6),url('/texture.svg') repeat; background-size:auto,256px; padding:16px 28px 24px; }
-.wrap { max-width:1100px; margin:auto; }
-.hero { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(250px,1fr); align-items:center; gap:38px; padding:52px 0 38px; }
-h1 { margin:0 0 12px; font-size:clamp(32px,4.5vw,54px); line-height:1.1; letter-spacing:-.03em; }
-.intro { margin:0; max-width:49ch; color:var(--soft); font-size:17px; line-height:1.65; text-wrap:pretty; }
-.hero-action { display:flex; flex-direction:column; align-items:flex-end; gap:16px; }
-.download { display:inline-flex; align-items:center; justify-content:center; gap:12px; min-height:60px; padding:14px 24px; border:2px solid #180d0b; background:var(--red); color:white; box-shadow:inset 0 3px #ffffff35,inset 3px 0 #ffffff16,inset -3px 0 #0002,inset 0 -4px #0004,0 5px #451510,0 7px #0d100d,0 14px 25px #0004; text-shadow:0 2px #0006; text-decoration:none; font:700 14px/1.5 ui-monospace,monospace; }
-.download:hover { filter:brightness(1.12); }
-.download:active { transform:translateY(3px); }
-.download svg { width:19px; height:19px; fill:currentColor; }
-.requires { margin:0; color:var(--quiet); font-size:12px; line-height:1.6; text-align:right; }
-.requires a:hover { color:white; }
-.showcase { margin:0; }
-.showcase img { display:block; width:100%; height:auto; }
-.caption { display:flex; justify-content:space-between; gap:16px; margin-top:12px; font-size:12px; line-height:1.6; color:var(--quiet); }
-.caption a { flex-shrink:0; }
-.features { display:grid; grid-template-columns:1fr 1fr; gap:48px; padding:54px 0; }
-h2 { margin:0 0 14px; font-size:28px; line-height:1.25; letter-spacing:-.02em; text-wrap:balance; }
-.features p { margin:0; color:var(--soft); font-size:15px; line-height:1.75; }
-.feature-list { margin:0; padding:0; list-style:none; }
-.feature-list li { padding:13px 0; border-bottom:1px solid var(--line); line-height:1.6; font-size:14px; color:var(--soft); }
-.feature-list li:first-child { padding-top:0; }
-.feature-list strong { display:block; color:var(--ink); font-size:15px; margin-bottom:3px; }
-.install { border-top:1px solid var(--line); padding-top:38px; }
-.install-lead { color:var(--soft); font-size:14px; line-height:1.7; margin:0 0 28px; }
-.steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:28px; list-style:none; padding:0; margin:0; counter-reset:steps; }
-.steps li { counter-increment:steps; }
-.steps li::before { content:counter(steps); display:block; color:var(--quiet); margin-bottom:12px; font:500 13px/1.5 ui-monospace,monospace; }
-h3 { margin:0 0 8px; font-size:16px; line-height:1.4; }
-.steps p { margin:0; color:var(--soft); font-size:14px; line-height:1.75; }
-code,kbd { font:12px/1.6 ui-monospace,monospace; }
-kbd { display:inline-block; padding:1px 6px; background:#232b23; border:1px solid #505b4c; border-radius:3px; color:var(--ink); }
-.help { margin-top:30px; padding:16px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); color:var(--quiet); font-size:13px; line-height:1.7; }
-.help a { color:var(--ink); }
-footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:28px 0 8px; color:var(--quiet); font-size:12px; line-height:1.7; }
-footer p { margin:0; }
-@media(max-width:760px) { .site { padding:16px 20px 20px; } .hero { gap:24px; grid-template-columns:minmax(0,1.1fr) minmax(220px,1fr); padding-top:38px; } .intro { font-size:15px; } .hero-action { gap:14px; } .download { font-size:13px; padding:13px 18px; } .features { gap:28px; padding:38px 0; } h2 { font-size:24px; } .steps { gap:20px; } }
-@media(max-width:560px) { .site { padding:16px; } .hero { display:block; padding:32px 0 28px; } h1 { font-size:36px; } .intro { font-size:15px; max-width:36ch; } .hero-action { margin-top:24px; align-items:flex-start; gap:15px; } .download { width:100%; font-size:14px; } .requires { text-align:left; } .caption { display:block; font-size:11px; } .caption a { display:inline-block; margin-top:5px; } .features { grid-template-columns:1fr; gap:24px; padding:34px 0; } .features p { font-size:14px; } .install { padding-top:30px; } .steps { grid-template-columns:1fr; gap:24px; } .steps li { display:grid; grid-template-columns:24px 1fr; column-gap:12px; } .steps li::before { grid-row:span 2; margin-top:2px; } .steps h3,.steps p { grid-column:2; } footer { display:block; } footer p+p { margin-top:10px; } }
-@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cinnabar Client is the official HUD and module pack for Cinnabar: 39 modules, a drag-and-drop HUD editor, profiles and waypoints.">
+  <title>Cinnabar Client</title>
+  <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
+  <style>
+    @@SITE_HEADER_STYLES@@
+    :root { --cinnabar-red: @@RED@@; --ink: #edf2eb; --soft: #c4cdc1; --quiet: #acb7a9; --rule: #394337; --slab: #1c231d; --slab-edge: #505b4c; font-family: system-ui, sans-serif; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html { scroll-padding-top: 24px; }
+    body { margin: 0; min-height: 100vh; min-height: 100svh; padding: 0 40px 40px; background: #141815; color: #fff; isolation: isolate; }
+    body::before { content: ''; position: fixed; inset: 0; z-index: -2; background: url('/texture.svg') repeat; background-size: 256px 256px; opacity: .45; }
+    body::after { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse at 50% 30%, transparent 0%, #11151266 55%, #0b100de6 100%), radial-gradient(ellipse at 50% 34%, color-mix(in srgb, var(--cinnabar-red) 5%, transparent), transparent 55%); }
+    ::selection { background: #a82c22; color: #fff; }
+    a { color: inherit; text-underline-offset: 4px; }
+    a:focus-visible { outline: 2px solid #f8c1af; outline-offset: 4px; }
+    main { width: min(100%, 1100px); margin: auto; }
+
+    .hero { display: flex; flex-direction: column; align-items: center; padding: 56px 0 48px; text-align: center; }
+    h1 { margin: 0; font: 800 clamp(2.5rem, 6vw, 4rem)/1.05 system-ui, sans-serif; letter-spacing: -.035em; }
+    h1 span { color: var(--cinnabar-red); }
+    .description { max-width: 34ch; margin: 18px 0 8px; color: var(--ink); font: 400 1.25rem/1.6 system-ui, sans-serif; text-wrap: balance; }
+    .edition { margin: 0; color: var(--quiet); text-wrap: balance; font: 400 .875rem/1.6 system-ui, sans-serif; }
+    .download { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 14px; max-width: 100%; min-height: 62px; margin-top: 32px; padding: 17px 28px; border: 2px solid #180d0b; background: var(--cinnabar-red); color: #fff; box-shadow: inset 0 3px #ffffff35, inset 3px 0 #ffffff16, inset -3px 0 #0002, inset 0 -4px #0004, 0 5px 0 #451510, 0 7px 0 #0d100d, 0 14px 25px #0004; text-decoration: none; text-shadow: 0 2px #0006; font: 700 1rem/1.5 ui-monospace, monospace; }
+    .download svg { width: 20px; height: 20px; flex: 0 0 20px; fill: currentColor; }
+    .download:hover { filter: brightness(1.12); }
+    .download:active { transform: translateY(4px); box-shadow: inset 0 3px #ffffff35, inset 0 -3px #0004, 0 1px 0 #451510, 0 3px 0 #0d100d; }
+    .download-note { margin: 22px 0 0; color: var(--quiet); font: 400 .8125rem/1.6 system-ui, sans-serif; }
+    .download-note a:hover { color: #fff; }
+
+    .shot { display: block; padding: 6px; border: 2px solid var(--slab-edge); background: var(--slab); box-shadow: 0 24px 60px #0009, 0 4px 0 #0d100d; }
+    .shot img { display: block; width: 100%; height: auto; }
+    .showcase figcaption, .layout figcaption { margin-top: 14px; color: var(--quiet); font: 400 .8125rem/1.6 system-ui, sans-serif; }
+    .showcase { margin: 0; }
+    .showcase figcaption { text-align: center; }
+    .download-note code { color: var(--soft); font: .75rem/1.6 ui-monospace, monospace; }
+
+    section { padding-top: 88px; }
+    h2 { margin: 0; color: #fff; font: 700 clamp(1.625rem, 3vw, 2.125rem)/1.2 system-ui, sans-serif; letter-spacing: -.02em; text-wrap: balance; }
+    .lead { max-width: 60ch; margin: 14px 0 0; color: var(--soft); font: 400 1.0625rem/1.7 system-ui, sans-serif; text-wrap: pretty; }
+
+    .catalog-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; padding-bottom: 28px; border-bottom: 1px solid var(--rule); }
+    .catalog-head .lead { max-width: 46ch; }
+    .catalog { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin: 32px 0 0; }
+    .catalog h3 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 16px; color: #fff; font: 600 1rem/1.5 system-ui, sans-serif; }
+    .catalog h3 data { color: var(--quiet); font: 500 .75rem/1.5 ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .catalog h3::before { content: ''; flex: 0 0 auto; width: 8px; height: 8px; background: var(--swatch); align-self: center; }
+    .catalog ul { margin: 0; padding: 0; list-style: none; color: var(--soft); font: 400 .9375rem/1.5 system-ui, sans-serif; }
+    .catalog li { padding: 7px 0; border-top: 1px solid #2a3329; }
+    .catalog .hud ul { columns: 2; column-gap: 32px; }
+    .catalog .hud li { break-inside: avoid; }
+    .hud { --swatch: var(--cinnabar-red); }
+    .visual { --swatch: #e0b25a; }
+    .mechanic { --swatch: #95c783; }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 491px); gap: 72px; align-items: center; }
+    .layout figure { margin: 0; }
+    .facts { margin: 32px 0 0; padding: 0; list-style: none; }
+    .facts li { padding: 16px 0; border-top: 1px solid var(--rule); color: var(--soft); font: 400 .9375rem/1.65 system-ui, sans-serif; }
+    .facts li:last-child { border-bottom: 1px solid var(--rule); }
+    .facts strong { display: block; margin-bottom: 2px; color: #fff; font-weight: 600; }
+    .keys { white-space: nowrap; }
+    kbd { display: inline-block; padding: 0 7px; border: 1px solid var(--slab-edge); border-bottom-width: 3px; background: #262f26; color: #fff; font: 600 .8125rem/1.6 ui-monospace, monospace; white-space: nowrap; }
+
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 36px 0 0; padding: 0; list-style: none; counter-reset: step; }
+    .steps li { counter-increment: step; padding: 24px; border: 2px solid var(--slab-edge); background: #1c231dd9; }
+    .steps li::before { content: counter(step); display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 20px; border: 2px solid #180d0b; background: var(--cinnabar-red); box-shadow: inset 0 3px #ffffff35, inset 0 -4px #0004; text-shadow: 0 2px #0006; font: 700 1rem/1 ui-monospace, monospace; }
+    .steps h3 { margin: 0 0 8px; color: #fff; font: 600 1.0625rem/1.4 system-ui, sans-serif; }
+    .steps p { margin: 0; color: var(--soft); font: 400 .9375rem/1.65 system-ui, sans-serif; }
+    .steps strong { color: #fff; font-weight: 600; }
+    .help { margin: 24px 0 0; color: var(--quiet); font: 400 .875rem/1.7 system-ui, sans-serif; }
+    .help a { color: var(--ink); }
+    .help a:hover { color: #fff; }
+
+    footer { width: min(100%, 1100px); margin: 88px auto 0; padding-top: 24px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 24px; color: var(--quiet); font: 400 .75rem/1.7 system-ui, sans-serif; }
+    footer p { margin: 0; }
+
+    @media (max-width: 900px) {
+      .catalog { grid-template-columns: 1fr 1fr; gap: 40px 32px; }
+      .catalog .hud { grid-column: 1 / -1; }
+      .layout { grid-template-columns: 1fr; gap: 36px; }
+      .layout figure { width: min(100%, 491px); margin: 0 auto; }
+      .steps { grid-template-columns: 1fr; }
+      .steps li { display: grid; grid-template-columns: 40px 1fr; column-gap: 18px; padding: 20px; }
+      .steps li::before { grid-row: span 2; margin: 0; }
+    }
+    @media (max-width: 700px) {
+      body { padding: 0 20px 32px; }
+      .hero { padding: 36px 0 36px; }
+      .description { font-size: 1.125rem; }
+      .download { width: 100%; }
+      .shot { padding: 4px; }
+      section { padding-top: 64px; }
+      footer { margin-top: 64px; }
+    }
+    @media (max-width: 480px) {
+      .download { padding: 16px 14px; gap: 10px; font-size: .875rem; }
+      .catalog { grid-template-columns: 1fr; }
+      .catalog ul, .catalog .hud ul { columns: 2; column-gap: 20px; }
+      .catalog li { font-size: .875rem; }
+      .catalog-head { padding-bottom: 20px; }
+    }
+  </style>
 </head>
 <body>
-<div class="site"><div class="wrap">
-@@SITE_HEADER@@
-<main>
-  <section class="hero" aria-labelledby="title">
-    <div><h1 id="title">Official Client</h1><p class="intro">Make Cinnabar yours. Customizable HUDs, modules, profiles, and waypoints in one official pack.</p></div>
-    <div class="hero-action"><a class="download" href="@@API_ORIGIN@@/v1/mod/download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Client</a><p class="requires">Requires <a href="/">Cinnabar</a> · Downloads a .wasm file<br><a href="#install">How to install ↓</a></p></div>
-  </section>
-  <figure class="showcase"><a href="/client/client-release.png" target="_blank" rel="noopener" aria-label="View the full-size client preview"><img src="/client/client-release.png" alt="Cinnabar Client's Mods menu with horizontal navigation, module cards, and customizable FPS, CPS, and keystrokes HUDs." width="1659" height="948"></a><figcaption class="caption"><span>Customize your HUD. Select the image for a closer look.</span><a href="#install">Set up in three steps</a></figcaption></figure>
-  <section class="features" aria-labelledby="features-title"><div><h2 id="features-title">Your HUD.<br>Your setup.</h2><p>Put the information you use where you want it. Switch between independent profiles for different ways to play, without rebuilding your layout.</p></div><ul class="feature-list"><li><strong>Arrange every detail</strong>Move and resize widgets. Adjust colors, backgrounds, and scale.</li><li><strong>Find your essentials</strong>FPS, CPS, armor status, potion effects, coordinates, and more. Search the menu and assign shortcuts.</li><li><strong>Keep your worlds organized</strong>Save independent profiles and world-specific waypoints.</li></ul></section>
-  <section class="install" id="install" aria-labelledby="install-title"><h2 id="install-title">A few clicks. Then make it yours.</h2><p class="install-lead">Install Cinnabar Client inside a compatible, up-to-date Cinnabar installation.</p><ol class="steps"><li><h3>Download the pack</h3><p>Save the <code>.wasm</code> file using the download button above.</p></li><li><h3>Import and enable</h3><p>In Cinnabar, open <strong>Settings → Mods → Import</strong>. Select the file, review its requested capabilities, then enable it.</p></li><li><h3>Build your layout</h3><p>Press <kbd>Right Shift</kbd> to open the HUD editor. Choose <strong>Modules</strong> to browse and configure your setup.</p></li></ol><p class="help">Need a hand? <a href="https://discord.gg/MeEz7BEHcM">Ask in Discord</a>. Don't have Cinnabar yet? <a href="/">Download Cinnabar first</a>.</p></section>
-</main>
-<footer><p>Cinnabar Client · The official HUD and module pack.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
-</div></div>
+  @@SITE_HEADER@@
+  <main>
+    <div class="hero">
+      <h1>Cinnabar <span>Client</span></h1>
+      <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
+      <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
+      <a class="download" href="@@API_ORIGIN@@/v1/mod/download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Client</a>
+      <p class="download-note">Downloads <code>CinnabarClient.wasm</code> · <a href="#install">How to install</a></p>
+    </div>
+
+    <figure class="showcase">
+      <a class="shot" href="/client/mods.png" aria-label="Open the full-size Mods menu capture"><img src="/client/mods.png" alt="The Cinnabar Client Mods menu: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1208" height="784"></a>
+      <figcaption>The Mods menu. Search, filter, toggle and bind every module from one grid.</figcaption>
+    </figure>
+
+    <section class="modules" aria-labelledby="modules-title">
+      <div class="catalog-head">
+        <h2 id="modules-title">39 modules, ready to switch on</h2>
+        <p class="lead">PvP essentials and everyday info. Every module has its own settings and an optional shortcut.</p>
+      </div>
+      <div class="catalog">
+        <div class="hud"><h3>HUD <data value="22">22</data></h3><ul><li>FPS</li><li>CPS</li><li>Keystrokes</li><li>Armor Status</li><li>Coordinates</li><li>Potion Effects</li><li>Ping</li><li>Direction HUD</li><li>Saturation</li><li>Scoreboard</li><li>Reach Display</li><li>Momentum</li><li>Playtime</li><li>Stopwatch</li><li>Item Counter</li><li>Inventory</li><li>View Angles</li><li>Potion Counter</li><li>Totem Counter</li><li>Speed Meter</li><li>Clock</li><li>Day Counter</li></ul></div>
+        <div class="visual"><h3>Visual <data value="10">10</data></h3><ul><li>Crosshair</li><li>Lighting</li><li>Menu Blur</li><li>Time Changer</li><li>Hit Color</li><li>Nametags</li><li>Hitbox</li><li>Damage Indicator</li><li>Hurt Cam</li><li>Weather Changer</li></ul></div>
+        <div class="mechanic"><h3>Mechanic <data value="7">7</data></h3><ul><li>Zoom</li><li>Toggle Sneak/Sprint</li><li>CPS Limiter</li><li>Inventory Cursor</li><li>No Swing Sounds</li><li>No Cam Reset</li><li>No Item Delay</li></ul></div>
+      </div>
+    </section>
+
+    <section class="layout" aria-labelledby="layout-title">
+      <div>
+        <h2 id="layout-title">Tune it, then put it where you want it</h2>
+        <p class="lead">Open any module for its settings and a live sample: color, background, opacity, scale and more. Press <kbd>Right Shift</kbd> in game to open HUD Layout, then drag and resize widgets on a snapping grid.</p>
+        <ul class="facts">
+          <li><strong>Profiles</strong>Keep separate modules, shortcuts and layouts for each way you play, and switch between them anytime.</li>
+          <li><strong>Waypoints</strong>Save places per world so they only show up where they belong.</li>
+          <li><strong>Saved as you go</strong>Every edit saves automatically. Undo with <span class="keys"><kbd>Ctrl</kbd> <kbd>Z</kbd></span>.</li>
+        </ul>
+      </div>
+      <figure>
+        <a class="shot" href="/client/settings.png" aria-label="Open the full-size Keystrokes settings capture"><img src="/client/settings.png" alt="Keystrokes settings: an enable switch, a shortcut button, a sample of the widget with an Edit position button, and controls for text color, background, background opacity, scale and text shadow." width="475" height="714" loading="lazy"></a>
+        <figcaption>Keystrokes settings, one of 39 modules.</figcaption>
+      </figure>
+    </section>
+
+    <section class="install" id="install" aria-labelledby="install-title">
+      <h2 id="install-title">Install in three steps</h2>
+      <p class="lead">You need an up-to-date copy of <a href="/">Cinnabar</a> first.</p>
+      <ol class="steps">
+        <li><h3>Download</h3><p>Save <strong>CinnabarClient.wasm</strong> with the button at the top of this page.</p></li>
+        <li><h3>Import</h3><p>In Cinnabar, open <strong>Settings → Mods → Import</strong>, pick the file and grant the capabilities it asks for.</p></li>
+        <li><h3>Play</h3><p>Join a world and press <kbd>Right Shift</kbd>. Choose <strong>Modules</strong> to start switching things on.</p></li>
+      </ol>
+      <p class="help">Stuck? <a href="https://discord.gg/MeEz7BEHcM">Ask in Discord</a>.</p>
+    </section>
+  </main>
+  <footer><p>Cinnabar Client · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
 </body>
 </html>

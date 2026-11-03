@@ -18,6 +18,8 @@ from mdbook import binary
 
 HERE = Path(__file__).resolve().parent
 INPUTS = load_config()["inputs"]
+# Offline native captures of the client mod shown on /client/.
+CLIENT_CAPTURES = ("mods.png", "settings.png")
 
 
 def build_book(repository, output, red, header):
@@ -92,7 +94,8 @@ def build(repository, output):
     client_output = output / "client"
     client_output.mkdir(exist_ok=True)
     (client_output / "index.html").write_text(client)
-    shutil.copyfile(HERE / "assets" / "client-release.png", client_output / "client-release.png")
+    for capture in CLIENT_CAPTURES:
+        shutil.copyfile(HERE / "assets" / "client" / capture, client_output / capture)
     (output / "downloads.js").write_text("window.CINNABAR_DOWNLOADS = " + json.dumps(config) + ";\n")
     shutil.copyfile(HERE / "app.js", output / "app.js")
     shutil.copyfile(HERE / "activity.js", output / "activity.js")
