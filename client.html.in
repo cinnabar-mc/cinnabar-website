@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Cinnabar Client is the official HUD and module pack for Cinnabar: 39 modules, a drag-and-drop HUD editor, profiles and waypoints.">
-  <title>Cinnabar Client</title>
+  <meta name="description" content="Cinnabar Mod is the official HUD and module pack for Cinnabar: 39 modules, a drag-and-drop HUD editor, profiles and waypoints.">
+  <title>Cinnabar Mod</title>
   <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
   <style>
     @@SITE_HEADER_STYLES@@
@@ -109,15 +109,15 @@
   @@SITE_HEADER@@
   <main>
     <div class="hero">
-      <h1>Cinnabar <span>Client</span></h1>
+      <h1>Cinnabar <span>Mod</span></h1>
       <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
       <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
-      <a class="download" href="@@API_ORIGIN@@/v1/mod/download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Client</a>
+      <a class="download" href="@@API_ORIGIN@@/v1/mod/download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Mod</a>
       <p class="download-note">Downloads <code>CinnabarClient.wasm</code> · <a href="#install">How to install</a></p>
     </div>
 
     <figure class="showcase">
-      <a class="shot" href="/client/mods.webp" aria-label="Open the full-size Mods menu screenshot"><img src="/client/mods.webp" alt="In game, the Cinnabar Client Mods menu over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"></a>
+      <a class="shot" href="/client/mods.webp" aria-label="Open the full-size Mods menu screenshot"><img src="/client/mods.webp" alt="In game, the Mods menu of Cinnabar Mod over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"></a>
       <figcaption>The Mods menu. Search, filter, toggle and bind every module from one grid.</figcaption>
     </figure>
 
@@ -166,6 +166,6 @@
       <p class="help">Stuck? <a href="https://discord.gg/MeEz7BEHcM">Ask in Discord</a>.</p>
     </section>
   </main>
-  <footer><p>Cinnabar Client · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
+  <footer><p>Cinnabar Mod · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
 </body>
 </html>

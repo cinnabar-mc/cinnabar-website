@@ -74,7 +74,7 @@ for `.html` pages redirect to the clean URL. With `404-page`, missing book paths
 return the book's generated `404.html` with status 404; other missing paths return
 a normal 404. No route falls back to the landing page.
 
-## Official Client
+## Official Mod
 
 `/client/` introduces the official HUD and module pack: its module list, settings,
 HUD Layout, profiles and import steps. The download button uses the shared API origin
@@ -85,7 +85,7 @@ share the same navigation, with the current destination marked on each page.
 local world, taken at 1920×1080 and saved as WebP: the Mods menu (`mods.webp`), Keystrokes settings
 (`settings.webp`), both cropped to 16:9 around the menu, and HUD Layout
 (`layout.webp`). Retake them, and update the module
-list in `client.html.in`, when the client's catalog or menu changes.
+list in `client.html.in`, when the mod's catalog or menu changes.
 
 ## Player presence
 
