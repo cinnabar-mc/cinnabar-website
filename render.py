@@ -18,8 +18,8 @@ from mdbook import binary
 
 HERE = Path(__file__).resolve().parent
 INPUTS = load_config()["inputs"]
-# Offline native captures of the client mod shown on /client/.
-CLIENT_CAPTURES = ("mods.png", "settings.png")
+# In-game screenshots of the client mod shown on /client/.
+CLIENT_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")
 
 
 def build_book(repository, output, red, header):

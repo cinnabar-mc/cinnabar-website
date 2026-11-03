@@ -81,11 +81,11 @@ HUD Layout, profiles and import steps. The download button uses the shared API o
 and the anonymous `/v1/mod/download` endpoint. The home page, client page and book
 share the same navigation, with the current destination marked on each page.
 
-`assets/client/` holds two offline captures of the released mod, made with the client
-repository's `cinnabar-client-snapshot --component CinnabarClient.wasm --all-routes
---bounds 1600x1000` and cropped to the panel: `mods.png` from the `mods` route and
-`settings.png` from the `options_keystrokes` drawer. Recapture them, and update the
-module list in `client.html.in`, when the client's catalog or menu changes.
+`assets/client/` holds three in-game screenshots of the released mod in a
+local world, taken at 1920×1080 and saved as WebP: the Mods menu (`mods.webp`), Keystrokes settings
+(`settings.webp`), both cropped to 16:9 around the menu, and HUD Layout
+(`layout.webp`). Retake them, and update the module
+list in `client.html.in`, when the client's catalog or menu changes.
 
 ## Player presence
 
