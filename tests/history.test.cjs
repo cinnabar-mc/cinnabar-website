@@ -55,16 +55,21 @@ function page(hidden = false) {
   const elements = Object.fromEntries(['history-plot', 'history-message', 'history-summary', 'history-detail'].map(id => [id, node()]));
   elements['history-plot'].setAttribute('hidden', '');
   const buttons = ['24h', '7d', '30d'].map(range => Object.assign(node(), {dataset: {historyRange: range}}));
-  const listeners = {}, requests = [], timers = new Map();
+  const subscribers = [], requests = [], timers = new Map();
+  let idle = false;
   const document = {visibilityState: hidden ? 'hidden' : 'visible',
     getElementById: id => elements[id], querySelectorAll: () => buttons,
-    createElementNS: node, addEventListener: (name, callback) => { listeners[name] = callback; }};
-  const window = {CINNABAR_DOWNLOADS: {online_history_url: 'https://api.invalid/v1/presence/history'},
+    createElementNS: node};
+  const active = () => document.visibilityState !== 'hidden' && !idle;
+  const window = {CINNABAR_ACTIVITY: {active, subscribe: callback => { subscribers.push(callback); }},
+    CINNABAR_DOWNLOADS: {online_history_url: 'https://api.invalid/v1/presence/history'},
     setTimeout(callback, delay) { const id = {}; timers.set(id, {callback, delay}); return id; },
     clearTimeout(id) { timers.delete(id); }};
   vm.runInNewContext(source, {document, window, URL, AbortController, AbortSignal, Intl,
     fetch(url, options) { return new Promise(resolve => requests.push({url, options, resolve})); }});
-  return {elements, buttons, requests, timers, document, listeners,
+  return {elements, buttons, requests, timers,
+    visible(value) { document.visibilityState = value ? 'visible' : 'hidden'; subscribers.forEach(callback => callback(active())); },
+    idle(value) { idle = value; subscribers.forEach(callback => callback(active())); },
     async reply(index, body, ok = true) {
       requests[index].resolve({ok, json: async () => body});
       await new Promise(resolve => setImmediate(resolve));
@@ -89,7 +94,7 @@ test('renders measured data, supports keyboard inspection, and retries after err
   plot.events.focus();
   plot.events.pointerleave({pointerType: 'touch'});
   assert.match(p.elements['history-detail'].textContent, /0 players/);
-  assert.equal([...p.timers.values()][0].delay, 60000);
+  assert.equal([...p.timers.values()][0].delay, 300000);
   [...p.timers.values()][0].callback();
   await p.reply(1, null, false);
   assert.equal(plot.hasAttribute('hidden'), true);
@@ -117,15 +122,29 @@ test('bypasses browser caching on every poll so the peak follows new samples', a
 test('ignores obsolete responses on range changes and pauses requests in background tabs', async () => {
   const p = page(true);
   assert.equal(p.requests.length, 0);
-  p.document.visibilityState = 'visible'; p.listeners.visibilitychange();
+  p.visible(true);
   p.buttons[1].events.click();
   assert.equal(p.requests[0].options.signal.aborted, true);
   await p.reply(1, history('7d'));
   await p.reply(0, {...history(), points: []});
   assert.equal(p.elements['history-plot'].hasAttribute('hidden'), false);
   assert.equal(p.buttons[1].attributes['aria-pressed'], 'true');
-  p.document.visibilityState = 'hidden'; p.listeners.visibilitychange();
+  p.visible(false);
   assert.equal(p.timers.size, 0);
-  p.document.visibilityState = 'visible'; p.listeners.visibilitychange();
+  p.visible(true);
   assert.equal(p.requests.length, 3);
+});
+
+test('stops polling while a visible tab is unattended and reloads when attention returns', async () => {
+  const p = page();
+  await p.reply(0, history());
+  assert.equal(p.timers.size, 1);
+  p.idle(true);
+  assert.equal(p.timers.size, 0);
+  assert.equal(p.requests.length, 1);
+  assert.equal(p.elements['history-plot'].hasAttribute('hidden'), false);
+  p.idle(false);
+  assert.equal(p.requests.length, 2);
+  await p.reply(1, history());
+  assert.equal(p.timers.size, 1);
 });

@@ -8,12 +8,28 @@
   <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
   <link rel="stylesheet" href="/site.css">
   <style>
+    @@SITE_HEADER_STYLES@@
+    :root { --cinnabar-red: @@RED@@; font-family: system-ui, sans-serif; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; min-height: 100svh; padding: 0 40px 40px; background: #141815; color: #fff; isolation: isolate; }
+    body::before { content: ''; position: fixed; inset: 0; z-index: -2; background: url('/texture.svg') repeat; background-size: 256px 256px; opacity: .45; }
+    body::after { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse at 50% 43%, transparent 0%, #11151266 55%, #0b100de6 100%), radial-gradient(ellipse at 50% 47%, color-mix(in srgb, var(--cinnabar-red) 4%, transparent), transparent 55%); }
     main { width: min(100%, 640px); margin: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
     .edition { margin: 0; color: var(--muted); font: 400 .875rem/1.6 system-ui, sans-serif; }
     .logo-motion { width: min(100%, 580px); margin-bottom: 8px; }
     .description { margin: 0 0 8px; color: var(--text); font: 400 1.25rem/1.7 system-ui, sans-serif; }
     .actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 16px; max-width: 100%; margin-top: 32px; }
-    .online-count { min-height: 1.6em; margin: 4px 0 16px; color: var(--sage); text-align: left; font: 400 .8125rem/1.6 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+    .download-count { min-height: 1.6em; display: flex; align-items: center; justify-content: center; gap: 7px; margin: 22px 0 0; color: #acb7a9; font: 400 .8125rem/1.6 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+    .download-count:empty { visibility: hidden; }
+    .download-count svg { width: 13px; height: 13px; fill: currentColor; }
+    .download-count a { color: inherit; text-decoration: none; text-underline-offset: 4px; }
+    .download-count strong { color: #edf2eb; font-weight: 600; }
+    .download-count a:hover { color: #fff; text-decoration: underline; }
+    .download-count a:focus-visible { outline: 2px solid #f8c1af; outline-offset: 4px; }
+    .download-count + .disclaimer { margin-top: 24px; }
+    .online-count { min-height: 1.6em; margin: 4px 0 16px; color: #c4cdc1; text-align: left; font: 400 .8125rem/1.6 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+    .unique-count { min-height: 1.6em; margin: -12px 0 16px; color: #acb7a9; font-size: .75rem; line-height: 1.6; font-variant-numeric: tabular-nums; }
+    .unique-count:empty { visibility: hidden; }
     .online-count:empty { visibility: hidden; }
     .online-count::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 9px; background: #95c783; vertical-align: .1em; }
     .player-history { --chart-height: 148px; width: 100%; margin: 0 0 24px; padding: 24px 0 0; border-top: 1px solid var(--line); text-align: left; }
@@ -33,9 +49,14 @@
     .chart-grid { stroke: #3c483a; stroke-width: 1; }
     .chart-line { fill: none; stroke: #a1ce8f; stroke-width: 2; stroke-linejoin: round; }
     .chart-point { fill: #a1ce8f; }
-    .chart-cursor { stroke: var(--sage); stroke-width: 1; stroke-dasharray: 3 3; }
-    #history-message { margin: 0; color: var(--muted); text-align: center; font-size: .8125rem; line-height: 1.7; }
-    .chart-detail { min-height: 1.5em; margin: 0; color: var(--muted); font: .6875rem/1.5 ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .chart-cursor { stroke: #c4cdc1; stroke-width: 1; stroke-dasharray: 3 3; }
+    #history-message { margin: 0; color: #acb7a9; text-align: center; font-size: .8125rem; line-height: 1.7; }
+    .chart-detail { min-height: 1.5em; margin: 0; color: #acb7a9; font: .6875rem/1.5 ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    button { border: 2px solid var(--button-border, #180d0b); border-radius: 0; background: var(--button-face, var(--cinnabar-red)); color: #fff; box-shadow: inset 0 3px #ffffff35, inset 3px 0 #ffffff16, inset -3px 0 #0002, inset 0 -4px #0004, 0 5px 0 var(--button-base, #451510), 0 7px 0 #0d100d, 0 14px 25px #0004; cursor: pointer; }
+    button { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 14px; padding: 17px 28px; min-height: 62px; max-width: 100%; font: 700 1rem/1.5 ui-monospace, monospace; text-shadow: 0 2px #0006; }
+    button svg { width: 20px; height: 20px; flex: 0 0 20px; fill: currentColor; }
+    button:hover { filter: brightness(1.12); }
+    button:active { transform: translateY(4px); box-shadow: inset 0 3px #ffffff35, inset 0 -3px #0004, 0 1px 0 var(--button-base, #451510), 0 3px 0 #0d100d; }
     .split { position: relative; display: inline-flex; max-width: 100%; }
     #download { min-width: 0; }
     #channel-toggle { margin-left: -2px; padding: 17px 16px; gap: 0; flex: 0 0 auto; }
@@ -65,8 +86,11 @@
     .first-open { margin: 20px 0 0; font-size: .875rem; }
     .first-open code { display: block; margin-top: 8px; padding: 10px; background: var(--input-ground); overflow-wrap: anywhere; font: .8125rem/1.6 ui-monospace, monospace; }
     #copy-status { margin-bottom: 0; font-size: .875rem; }
+    button:focus-visible { outline: 2px solid #f8c1af; outline-offset: 4px; }
+    ::selection { background: #a82c22; color: #fff; }
     .hero { width: 100%; display: flex; flex-direction: column; align-items: center; padding: 36px 0 32px; }
     @media (max-width: 700px) {
+      body { padding: 0 20px 32px; }
       .hero { padding: 28px 0; }
       .logo-motion { margin-bottom: 12px; }
       .description { font-size: 1.125rem; }
@@ -98,6 +122,7 @@
           </div>
         </div>
       </div>
+      <p class="download-count" id="download-count" role="status" aria-atomic="true"></p>
       <p class="disclaimer" role="note">Cinnabar is a non-vanilla client and still in development. Its movement and combat may not yet match the official client exactly, so server anticheats may flag you and some servers may ban you. Play on servers at your own risk.</p>
     </div>
     <section class="player-history" aria-labelledby="history-title">
@@ -110,6 +135,7 @@
         </div>
       </div>
       <p class="online-count" id="online-count" role="status" aria-atomic="true"></p>
+      <p class="unique-count" id="unique-count" role="status" aria-atomic="true"></p>
       <p class="chart-summary" id="history-summary"></p>
       <div class="chart-body">
         <svg id="history-plot" role="img" tabindex="0" aria-label="Player count history. Use left and right arrow keys to inspect samples." aria-describedby="history-summary history-detail" hidden></svg>
@@ -144,7 +170,9 @@
   </dialog>
   <script src="/downloads.js" defer></script>
   <script src="/app.js" defer></script>
+  <script src="/activity.js" defer></script>
   <script src="/presence.js" defer></script>
+  <script src="/download-count.js" defer></script>
   <script src="/history.js" defer></script>
 </body>
 </html>

@@ -6,41 +6,59 @@ const test = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '../presence.js'), 'utf8');
 
-/** Runs presence updates with controlled responses, visibility and scheduled callbacks. */
+/** Runs presence updates with controlled responses, attention and scheduled callbacks. */
 async function page(reply = {online: 42}, hidden = false) {
   const label = {textContent: ''};
-  const listeners = {};
+  const unique = {textContent: ''};
+  const subscribers = [];
+  let idle = false;
   const timers = new Map();
   const requests = [];
   let response = reply;
   let timerId = 0;
-  const document = {hidden, getElementById: () => label,
-    addEventListener: (name, callback) => { listeners[name] = callback; }};
-  const window = {CINNABAR_DOWNLOADS: {online_count_url: 'https://api.invalid/v1/presence/count'},
+  const document = {hidden, getElementById: id => id === 'unique-count' ? unique : label};
+  const active = () => !document.hidden && !idle;
+  const window = {CINNABAR_ACTIVITY: {active, subscribe: callback => { subscribers.push(callback); }},
+    CINNABAR_DOWNLOADS: {online_count_url: 'https://api.invalid/v1/presence/count',
+    unique_count_url: 'https://api.invalid/v1/users/count'},
     setTimeout(callback, delay) { timers.set(++timerId, {callback, delay}); return timerId; },
     clearTimeout(id) { timers.delete(id); }};
-  vm.runInNewContext(source, {document, window, AbortSignal,
+  vm.runInNewContext(source, {document, window, AbortSignal, AbortController,
     async fetch(url, options) {
       requests.push({url, options});
-      if (response instanceof Error) throw response;
-      return {ok: response !== 'http-error', json: async () => response};
+      const current = typeof response === 'function' ? response(url) : response;
+      if (current instanceof Error) throw current;
+      return {ok: current !== 'http-error', json: async () => current};
     }});
   const settle = () => new Promise(resolve => setImmediate(resolve));
   await settle();
-  return {label, requests, timers,
+  return {label, unique, requests, timers,
     async refresh(next) {
       response = next;
-      const timer = timers.values().next().value;
-      assert.ok(timer);
+      const callbacks = [...timers.values()];
+      assert.ok(callbacks.length);
       timers.clear();
-      await timer.callback();
+      await Promise.all(callbacks.map(timer => timer.callback()));
     },
     async visible(value) {
       document.hidden = !value;
-      listeners.visibilitychange();
+      subscribers.forEach(callback => callback(active()));
+      await settle();
+    },
+    async idle(value) {
+      idle = value;
+      subscribers.forEach(callback => callback(active()));
       await settle();
     }};
 }
+
+test('bypasses browser caching on every poll so the count follows new samples', async () => {
+  const p = await page({online: 1});
+  assert.equal(p.requests[0].options.cache, 'no-store');
+  await p.refresh({online: 19});
+  assert.equal(p.requests[2].options.cache, 'no-store');
+  assert.equal(p.label.textContent, '19 people are using Cinnabar right now');
+});
 
 test('shows live counts with singular, plural, zero and formatted numbers', async () => {
   const p = await page();
@@ -49,7 +67,7 @@ test('shows live counts with singular, plural, zero and formatted numbers', asyn
   assert.equal(p.requests[0].options.credentials, 'omit');
   assert.equal(p.requests[0].options.referrerPolicy, 'no-referrer');
   assert.ok(p.requests[0].options.signal instanceof AbortSignal);
-  assert.equal([...p.timers.values()][0].delay, 60_000);
+  assert.deepEqual([...p.timers.values()].map(timer => timer.delay), [60_000, 600_000]);
   await p.refresh({online: 1});
   assert.equal(p.label.textContent, '1 person is using Cinnabar right now');
   await p.refresh({online: 0});
@@ -75,12 +93,100 @@ test('pauses polling in background tabs and refreshes on return', async () => {
   assert.equal(p.requests.length, 0);
   assert.equal(p.timers.size, 0);
   await p.visible(true);
-  assert.equal(p.requests.length, 1);
-  assert.equal(p.timers.size, 1);
+  assert.equal(p.requests.length, 2);
+  assert.equal(p.timers.size, 2);
   await p.visible(false);
   assert.equal(p.label.textContent, '');
   assert.equal(p.timers.size, 0);
   await p.visible(true);
-  assert.equal(p.requests.length, 2);
+  assert.equal(p.requests.length, 4);
   assert.equal(p.label.textContent, '2 people are using Cinnabar right now');
+});
+
+
+test('shows unique users independently with zero, singular and formatted totals', async () => {
+  const p = await page({online: 4, unique: 1});
+  assert.equal(p.unique.textContent, '1 unique user');
+  assert.equal(p.requests[1].url, 'https://api.invalid/v1/users/count');
+  assert.equal(p.requests[1].options.cache, 'no-store');
+  assert.equal(p.requests[1].options.credentials, 'omit');
+  await p.refresh({online: 0, unique: 0});
+  assert.equal(p.unique.textContent, '0 unique users');
+  await p.refresh({online: 1, unique: 12345});
+  assert.equal(p.unique.textContent, `${(12345).toLocaleString()} unique users`);
+  await p.visible(false);
+  assert.equal(p.unique.textContent, '');
+  assert.equal(p.timers.size, 0);
+  await p.visible(true);
+  assert.notEqual(p.unique.textContent, '');
+});
+
+test('invalid or missing unique totals clear only that count and recover', async () => {
+  const p = await page({online: 2, unique: 42});
+  for (const unique of [undefined, null, -1, 1.5, '2', Number.MAX_SAFE_INTEGER + 1, '<script>']) {
+    await p.refresh({online: 2, unique});
+    assert.equal(p.unique.textContent, '');
+    assert.equal(p.label.textContent, '2 people are using Cinnabar right now');
+    await p.refresh({online: 2, unique: 42});
+    assert.equal(p.unique.textContent, '42 unique users');
+  }
+  await p.refresh({unique: 42});
+  assert.equal(p.label.textContent, '');
+  assert.notEqual(p.unique.textContent, '');
+  await p.refresh(new Error('offline'));
+  assert.equal(p.unique.textContent, '');
+});
+
+
+test('an unavailable unique-user endpoint leaves the online count working', async () => {
+  const p = await page(url => url.endsWith('/users/count') ? new Error('offline') : {online: 4});
+  assert.equal(p.unique.textContent, '');
+  assert.equal(p.label.textContent, '4 people are using Cinnabar right now');
+  await p.refresh({online: 4, unique: 40});
+  assert.equal(p.unique.textContent, '40 unique users');
+});
+
+test('stops polling while a visible tab is unattended and refreshes when attention returns', async () => {
+  const p = await page({online: 3, unique: 30});
+  assert.equal(p.requests.length, 2);
+  await p.idle(true);
+  assert.equal(p.timers.size, 0);
+  assert.equal(p.label.textContent, '');
+  assert.equal(p.unique.textContent, '');
+  assert.equal(p.requests.length, 2);
+  await p.idle(false);
+  assert.equal(p.requests.length, 4);
+  assert.equal(p.timers.size, 2);
+  assert.equal(p.label.textContent, '3 people are using Cinnabar right now');
+  assert.equal(p.unique.textContent, '30 unique users');
+});
+
+test('discards a reply that arrives after the tab went unattended', async () => {
+  let release;
+  const reply = new Promise(resolve => { release = resolve; });
+  const p = await page({online: 5});
+  const pending = p.refresh(() => reply);
+  await p.idle(true);
+  release({online: 6, unique: 60});
+  await pending;
+  assert.equal(p.label.textContent, '');
+  assert.equal(p.timers.size, 0);
+});
+
+test('resuming during a pending request cancels it and refreshes at once even if it later fails', async () => {
+  let fail;
+  const stale = new Promise((_, reject) => { fail = reject; });
+  let calls = 0;
+  const p = await page({online: 5, unique: 50});
+  const pending = p.refresh(() => calls++ < 2 ? stale : {online: 7, unique: 70});
+  await p.idle(true);
+  assert.equal(p.requests[2].options.signal.aborted, true);
+  assert.equal(p.requests[3].options.signal.aborted, true);
+  await p.idle(false);
+  assert.equal(p.requests.length, 6);
+  fail(new DOMException('aborted', 'AbortError'));
+  await pending;
+  assert.equal(p.label.textContent, '7 people are using Cinnabar right now');
+  assert.equal(p.unique.textContent, '70 unique users');
+  assert.deepEqual([...p.timers.values()].map(timer => timer.delay).sort((a, b) => a - b), [60_000, 600_000]);
 });

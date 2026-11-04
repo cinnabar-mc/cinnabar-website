@@ -11,6 +11,13 @@ const mod2 = { xuid: '4', gamertag: 'ModTwo', role: 'moderator' };
 const admin = { xuid: '5', gamertag: 'Admin', role: 'admin' };
 const owner = { xuid: '6', gamertag: 'Owner', role: 'owner' };
 
+test('current clock and sound permissions retain their observation and presentation review groups', () => {
+  assert.equal(M.reachOf({ clock: true }), 1);
+  assert.equal(M.reachOf({ audio: true }), 0);
+  assert.equal(M.capability('packets').packet_only, true);
+  assert.throws(() => M.reachOf({ unrecognized_permission: true }), /Unknown capability/);
+});
+
 /** A submitted version with the given grants. */
 function version(grants, approvals = []) {
   return { creator: creator.xuid, status: 'submitted', approvals, reach: M.reachOf(grants), grants };
