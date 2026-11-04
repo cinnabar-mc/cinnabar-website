@@ -117,7 +117,7 @@
     </div>
 
     <figure class="showcase">
-      <a class="shot" href="/client/mods.webp" aria-label="Open the full-size Mods menu screenshot"><img src="/client/mods.webp" alt="In game, the Mods menu of Cinnabar Mod over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"></a>
+      <a class="shot" href="/mod/mods.webp" aria-label="Open the full-size Mods menu screenshot"><img src="/mod/mods.webp" alt="In game, the Mods menu of Cinnabar Mod over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"></a>
       <figcaption>The Mods menu. Search, filter, toggle and bind every module from one grid.</figcaption>
     </figure>
 
@@ -140,11 +140,11 @@
       </div>
       <div class="pair">
         <figure>
-          <a class="shot" href="/client/settings.webp" aria-label="Open the full-size Keystrokes settings screenshot"><img src="/client/settings.webp" alt="In game, the Keystrokes settings drawer beside the module grid: an enable switch, a shortcut button, a sample with an Edit position button, and controls for text color, background, background opacity, scale and text shadow." width="1532" height="862" loading="lazy"></a>
+          <a class="shot" href="/mod/settings.webp" aria-label="Open the full-size Keystrokes settings screenshot"><img src="/mod/settings.webp" alt="In game, the Keystrokes settings drawer beside the module grid: an enable switch, a shortcut button, a sample with an Edit position button, and controls for text color, background, background opacity, scale and text shadow." width="1532" height="862" loading="lazy"></a>
           <figcaption>Every module has its own settings and a live sample.</figcaption>
         </figure>
         <figure>
-          <a class="shot" href="/client/layout.webp" aria-label="Open the full-size HUD Layout screenshot"><img src="/client/layout.webp" alt="In game, HUD Layout over the world: FPS, CPS, Keystrokes and Armor Status widgets on a snapping grid, with a Modules button in the center." width="1920" height="1080" loading="lazy"></a>
+          <a class="shot" href="/mod/layout.webp" aria-label="Open the full-size HUD Layout screenshot"><img src="/mod/layout.webp" alt="In game, HUD Layout over the world: FPS, CPS, Keystrokes and Armor Status widgets on a snapping grid, with a Modules button in the center." width="1920" height="1080" loading="lazy"></a>
           <figcaption>HUD Layout: drag widgets anywhere on screen.</figcaption>
         </figure>
       </div>

@@ -76,16 +76,16 @@ a normal 404. No route falls back to the landing page.
 
 ## Official Mod
 
-`/client/` introduces the official HUD and module pack: its module list, settings,
+`/mod/` introduces the official HUD and module pack: its module list, settings,
 HUD Layout, profiles and import steps. The download button uses the shared API origin
-and the anonymous `/v1/mod/download` endpoint. The home page, client page and book
+and the anonymous `/v1/mod/download` endpoint. The home page, mod page and book
 share the same navigation, with the current destination marked on each page.
 
-`assets/client/` holds three in-game screenshots of the released mod in a
+`assets/mod/` holds three in-game screenshots of the released mod in a
 local world, taken at 1920×1080 and saved as WebP: the Mods menu (`mods.webp`), Keystrokes settings
 (`settings.webp`), both cropped to 16:9 around the menu, and HUD Layout
 (`layout.webp`). Retake them, and update the module
-list in `client.html.in`, when the mod's catalog or menu changes.
+list in `mod.html.in`, when the mod's catalog or menu changes.
 
 ## Player presence
 
