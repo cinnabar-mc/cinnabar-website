@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cinnabar Mod is the official HUD and module pack for Cinnabar: 39 modules, a drag-and-drop HUD editor, profiles and waypoints.">
+  <title>Cinnabar Mod</title>
+  <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
+  <style>
+    @@SITE_HEADER_STYLES@@
+    :root { --cinnabar-red: @@RED@@; --ink: #edf2eb; --soft: #c4cdc1; --quiet: #acb7a9; --rule: #394337; --slab: #1c231d; --slab-edge: #505b4c; font-family: system-ui, sans-serif; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html { scroll-padding-top: 24px; }
+    body { margin: 0; min-height: 100vh; min-height: 100svh; padding: 0 40px 40px; background: #141815; color: #fff; isolation: isolate; }
+    body::before { content: ''; position: fixed; inset: 0; z-index: -2; background: url('/texture.svg') repeat; background-size: 256px 256px; opacity: .45; }
+    body::after { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse at 50% 30%, transparent 0%, #11151266 55%, #0b100de6 100%), radial-gradient(ellipse at 50% 34%, color-mix(in srgb, var(--cinnabar-red) 5%, transparent), transparent 55%); }
+    ::selection { background: #a82c22; color: #fff; }
+    a { color: inherit; text-underline-offset: 4px; }
+    a:focus-visible { outline: 2px solid #f8c1af; outline-offset: 4px; }
+    main { width: min(100%, 1100px); margin: auto; }
+
+    .hero { display: flex; flex-direction: column; align-items: center; padding: 56px 0 48px; text-align: center; }
+    h1 { margin: 0; font: 800 clamp(2.5rem, 6vw, 4rem)/1.05 system-ui, sans-serif; letter-spacing: -.035em; }
+    h1 span { color: var(--cinnabar-red); }
+    .description { max-width: 34ch; margin: 18px 0 8px; color: var(--ink); font: 400 1.25rem/1.6 system-ui, sans-serif; text-wrap: balance; }
+    .edition { margin: 0; color: var(--quiet); text-wrap: balance; font: 400 .875rem/1.6 system-ui, sans-serif; }
+    .download { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 14px; max-width: 100%; min-height: 62px; margin-top: 32px; padding: 17px 28px; border: 2px solid #180d0b; background: var(--cinnabar-red); color: #fff; box-shadow: inset 0 3px #ffffff35, inset 3px 0 #ffffff16, inset -3px 0 #0002, inset 0 -4px #0004, 0 5px 0 #451510, 0 7px 0 #0d100d, 0 14px 25px #0004; text-decoration: none; text-shadow: 0 2px #0006; font: 700 1rem/1.5 ui-monospace, monospace; }
+    .download svg { width: 20px; height: 20px; flex: 0 0 20px; fill: currentColor; }
+    .download:hover { filter: brightness(1.12); }
+    .download:active { transform: translateY(4px); box-shadow: inset 0 3px #ffffff35, inset 0 -3px #0004, 0 1px 0 #451510, 0 3px 0 #0d100d; }
+    .download-note { margin: 22px 0 0; color: var(--quiet); font: 400 .8125rem/1.6 system-ui, sans-serif; }
+    .download-note a:hover { color: #fff; }
+
+    .shot { display: block; padding: 6px; border: 2px solid var(--slab-edge); background: var(--slab); box-shadow: 0 24px 60px #0009, 0 4px 0 #0d100d; }
+    .shot img { display: block; width: 100%; height: auto; }
+    .showcase figcaption, .pair figcaption { margin-top: 14px; color: var(--quiet); font: 400 .8125rem/1.6 system-ui, sans-serif; }
+    .showcase { margin: 0; }
+    .showcase figcaption { text-align: center; }
+    .download-note code { color: var(--soft); font: .75rem/1.6 ui-monospace, monospace; }
+
+    section { padding-top: 88px; }
+    h2 { margin: 0; color: #fff; font: 700 clamp(1.625rem, 3vw, 2.125rem)/1.2 system-ui, sans-serif; letter-spacing: -.02em; text-wrap: balance; }
+    .lead { max-width: 60ch; margin: 14px 0 0; color: var(--soft); font: 400 1.0625rem/1.7 system-ui, sans-serif; text-wrap: pretty; }
+
+    .catalog-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; padding-bottom: 28px; border-bottom: 1px solid var(--rule); }
+    .catalog-head .lead { max-width: 46ch; }
+    .catalog { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin: 32px 0 0; }
+    .catalog h3 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 16px; color: #fff; font: 600 1rem/1.5 system-ui, sans-serif; }
+    .catalog h3 data { color: var(--quiet); font: 500 .75rem/1.5 ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .catalog h3::before { content: ''; flex: 0 0 auto; width: 8px; height: 8px; background: var(--swatch); align-self: center; }
+    .catalog ul { margin: 0; padding: 0; list-style: none; color: var(--soft); font: 400 .9375rem/1.5 system-ui, sans-serif; }
+    .catalog li { padding: 7px 0; border-top: 1px solid #2a3329; }
+    .catalog .hud ul { columns: 2; column-gap: 32px; }
+    .catalog .hud li { break-inside: avoid; }
+    .hud { --swatch: var(--cinnabar-red); }
+    .visual { --swatch: #e0b25a; }
+    .mechanic { --swatch: #95c783; }
+
+    .layout-head { max-width: 62ch; }
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 36px; }
+    .pair figure { margin: 0; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; margin: 40px 0 0; padding: 0; list-style: none; }
+    .facts li { padding: 18px 0 0; border-top: 1px solid var(--rule); color: var(--soft); font: 400 .9375rem/1.65 system-ui, sans-serif; }
+    .facts strong { display: block; margin-bottom: 2px; color: #fff; font-weight: 600; }
+    .keys { white-space: nowrap; }
+    kbd { display: inline-block; padding: 0 7px; border: 1px solid var(--slab-edge); border-bottom-width: 3px; background: #262f26; color: #fff; font: 600 .8125rem/1.6 ui-monospace, monospace; white-space: nowrap; }
+
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 36px 0 0; padding: 0; list-style: none; counter-reset: step; }
+    .steps li { counter-increment: step; padding: 24px; border: 2px solid var(--slab-edge); background: #1c231dd9; }
+    .steps li::before { content: counter(step); display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 20px; border: 2px solid #180d0b; background: var(--cinnabar-red); box-shadow: inset 0 3px #ffffff35, inset 0 -4px #0004; text-shadow: 0 2px #0006; font: 700 1rem/1 ui-monospace, monospace; }
+    .steps h3 { margin: 0 0 8px; color: #fff; font: 600 1.0625rem/1.4 system-ui, sans-serif; }
+    .steps p { margin: 0; color: var(--soft); font: 400 .9375rem/1.65 system-ui, sans-serif; }
+    .steps strong { color: #fff; font-weight: 600; }
+    .help { margin: 24px 0 0; color: var(--quiet); font: 400 .875rem/1.7 system-ui, sans-serif; }
+    .help a { color: var(--ink); }
+    .help a:hover { color: #fff; }
+
+    footer { width: min(100%, 1100px); margin: 88px auto 0; padding-top: 24px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 24px; color: var(--quiet); font: 400 .75rem/1.7 system-ui, sans-serif; }
+    footer p { margin: 0; }
+
+    @media (max-width: 900px) {
+      .catalog { grid-template-columns: 1fr 1fr; gap: 40px 32px; }
+      .catalog .hud { grid-column: 1 / -1; }
+      .pair { grid-template-columns: 1fr; gap: 32px; }
+      .facts { grid-template-columns: 1fr; gap: 18px; }
+      .steps { grid-template-columns: 1fr; }
+      .steps li { display: grid; grid-template-columns: 40px 1fr; column-gap: 18px; padding: 20px; }
+      .steps li::before { grid-row: span 2; margin: 0; }
+    }
+    @media (max-width: 700px) {
+      body { padding: 0 20px 32px; }
+      .hero { padding: 36px 0 36px; }
+      .description { font-size: 1.125rem; }
+      .download { width: 100%; }
+      .shot { padding: 4px; }
+      section { padding-top: 64px; }
+      footer { margin-top: 64px; }
+    }
+    @media (max-width: 480px) {
+      .download { padding: 16px 14px; gap: 10px; font-size: .875rem; }
+      .catalog { grid-template-columns: 1fr; }
+      .catalog ul, .catalog .hud ul { columns: 2; column-gap: 20px; }
+      .catalog li { font-size: .875rem; }
+      .catalog-head { padding-bottom: 20px; }
+    }
+  </style>
+</head>
+<body>
+  @@SITE_HEADER@@
+  <main>
+    <div class="hero">
+      <h1>Cinnabar <span>Mod</span></h1>
+      <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
+      <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
+      <a class="download" href="@@API_ORIGIN@@/v1/mod/download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Mod</a>
+      <p class="download-note">Downloads <code>CinnabarClient.wasm</code> · <a href="#install">How to install</a></p>
+    </div>
+
+    <figure class="showcase">
+      <a class="shot" href="/mod/mods.webp" aria-label="Open the full-size Mods menu screenshot"><img src="/mod/mods.webp" alt="In game, the Mods menu of Cinnabar Mod over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"></a>
+      <figcaption>The Mods menu. Search, filter, toggle and bind every module from one grid.</figcaption>
+    </figure>
+
+    <section class="modules" aria-labelledby="modules-title">
+      <div class="catalog-head">
+        <h2 id="modules-title">39 modules, ready to switch on</h2>
+        <p class="lead">PvP essentials and everyday info. Every module has its own settings and an optional shortcut.</p>
+      </div>
+      <div class="catalog">
+        <div class="hud"><h3>HUD <data value="22">22</data></h3><ul><li>FPS</li><li>CPS</li><li>Keystrokes</li><li>Armor Status</li><li>Coordinates</li><li>Potion Effects</li><li>Ping</li><li>Direction HUD</li><li>Saturation</li><li>Scoreboard</li><li>Reach Display</li><li>Momentum</li><li>Playtime</li><li>Stopwatch</li><li>Item Counter</li><li>Inventory</li><li>View Angles</li><li>Potion Counter</li><li>Totem Counter</li><li>Speed Meter</li><li>Clock</li><li>Day Counter</li></ul></div>
+        <div class="visual"><h3>Visual <data value="10">10</data></h3><ul><li>Crosshair</li><li>Lighting</li><li>Menu Blur</li><li>Time Changer</li><li>Hit Color</li><li>Nametags</li><li>Hitbox</li><li>Damage Indicator</li><li>Hurt Cam</li><li>Weather Changer</li></ul></div>
+        <div class="mechanic"><h3>Mechanic <data value="7">7</data></h3><ul><li>Zoom</li><li>Toggle Sneak/Sprint</li><li>CPS Limiter</li><li>Inventory Cursor</li><li>No Swing Sounds</li><li>No Cam Reset</li><li>No Item Delay</li></ul></div>
+      </div>
+    </section>
+
+    <section class="layout" aria-labelledby="layout-title">
+      <div class="layout-head">
+        <h2 id="layout-title">Tune it, then put it where you want it</h2>
+        <p class="lead">Open any module for its settings and a live sample: color, background, opacity, scale and more. Press <kbd>Right Shift</kbd> in game to open HUD Layout, then drag and resize widgets on a snapping grid.</p>
+      </div>
+      <div class="pair">
+        <figure>
+          <a class="shot" href="/mod/settings.webp" aria-label="Open the full-size Keystrokes settings screenshot"><img src="/mod/settings.webp" alt="In game, the Keystrokes settings drawer beside the module grid: an enable switch, a shortcut button, a sample with an Edit position button, and controls for text color, background, background opacity, scale and text shadow." width="1532" height="862" loading="lazy"></a>
+          <figcaption>Every module has its own settings and a live sample.</figcaption>
+        </figure>
+        <figure>
+          <a class="shot" href="/mod/layout.webp" aria-label="Open the full-size HUD Layout screenshot"><img src="/mod/layout.webp" alt="In game, HUD Layout over the world: FPS, CPS, Keystrokes and Armor Status widgets on a snapping grid, with a Modules button in the center." width="1920" height="1080" loading="lazy"></a>
+          <figcaption>HUD Layout: drag widgets anywhere on screen.</figcaption>
+        </figure>
+      </div>
+      <ul class="facts">
+        <li><strong>Profiles</strong>Keep separate modules, shortcuts and layouts for each way you play, and switch between them anytime.</li>
+        <li><strong>Waypoints</strong>Save places per world so they only show up where they belong.</li>
+        <li><strong>Saved as you go</strong>Every edit saves automatically. Undo with <span class="keys"><kbd>Ctrl</kbd> <kbd>Z</kbd></span>.</li>
+      </ul>
+    </section>
+
+    <section class="install" id="install" aria-labelledby="install-title">
+      <h2 id="install-title">Install in three steps</h2>
+      <p class="lead">You need an up-to-date copy of <a href="/">Cinnabar</a> first.</p>
+      <ol class="steps">
+        <li><h3>Download</h3><p>Save <strong>CinnabarClient.wasm</strong> with the button at the top of this page.</p></li>
+        <li><h3>Import</h3><p>In Cinnabar, open <strong>Settings → Mods → Import</strong>, pick the file and grant the capabilities it asks for.</p></li>
+        <li><h3>Play</h3><p>Join a world and press <kbd>Right Shift</kbd>. Choose <strong>Modules</strong> to start switching things on.</p></li>
+      </ol>
+      <p class="help">Stuck? <a href="https://discord.gg/MeEz7BEHcM">Ask in Discord</a>.</p>
+    </section>
+  </main>
+  <footer><p>Cinnabar Mod · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
+</body>
+</html>

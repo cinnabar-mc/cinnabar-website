@@ -18,6 +18,8 @@ from mdbook import binary
 
 HERE = Path(__file__).resolve().parent
 INPUTS = load_config()["inputs"]
+# In-game screenshots of the mod shown on /mod/.
+MOD_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")
 
 
 def build_book(repository, output, red, header):
@@ -36,7 +38,7 @@ def build_book(repository, output, red, header):
         stylesheet = theme / "cinnabar.css"
         stylesheet.write_text((HERE / "site-header.css").read_text()
                               + stylesheet.read_text().replace("@@RED@@", red))
-        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"'))
+        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"').replace("@@MOD_CURRENT@@", ""))
         environment = dict(os.environ, **{
             "MDBOOK_OUTPUT__HTML__THEME": "theme",
             "MDBOOK_OUTPUT__HTML__ADDITIONAL_CSS": '["theme/cinnabar.css"]',
@@ -77,12 +79,23 @@ def build(repository, output):
     header = header.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
     header = header.replace("@@REPOSITORY_URL@@", repository_url)
     page = (HERE / "index.html.in").read_text()
-    page = page.replace("@@SITE_HEADER@@", header.replace("@@DOCS_CURRENT@@", ""))
+    page = page.replace("@@SITE_HEADER@@", header.replace("@@DOCS_CURRENT@@", "").replace("@@MOD_CURRENT@@", ""))
     page = page.replace("@@SITE_HEADER_STYLES@@", (HERE / "site-header.css").read_text())
     page = page.replace("@@RED@@", red)
     page = page.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
     output.mkdir(parents=True, exist_ok=True)
     (output / "index.html").write_text(page)
+    mod_page = (HERE / "mod.html.in").read_text()
+    mod_page = mod_page.replace("@@SITE_HEADER@@", header.replace("@@DOCS_CURRENT@@", "").replace(
+        "@@MOD_CURRENT@@", ' aria-current="page"'))
+    mod_page = mod_page.replace("@@SITE_HEADER_STYLES@@", (HERE / "site-header.css").read_text())
+    mod_page = mod_page.replace("@@RED@@", red).replace("@@API_ORIGIN@@", api_origin.rstrip("/"))
+    mod_page = mod_page.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
+    mod_output = output / "mod"
+    mod_output.mkdir(exist_ok=True)
+    (mod_output / "index.html").write_text(mod_page)
+    for capture in MOD_CAPTURES:
+        shutil.copyfile(HERE / "assets" / "mod" / capture, mod_output / capture)
     (output / "downloads.js").write_text("window.CINNABAR_DOWNLOADS = " + json.dumps(config) + ";\n")
     shutil.copyfile(HERE / "app.js", output / "app.js")
     shutil.copyfile(HERE / "activity.js", output / "activity.js")

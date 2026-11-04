@@ -129,9 +129,37 @@ class RenderTests(unittest.TestCase):
                          f'https://github.com/{self.config["repository"]}/releases/download/nightly/')
         self.assertEqual(config["nightly_install_command"], config["install_command"] + " -s -- --channel nightly")
         self.assertEqual({path.name for path in self.output.iterdir()}, {
-            "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs",
+            "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
+
+    def test_official_mod_page_download_and_shared_navigation(self):
+        """Keep the pack reachable and use the configured API for anonymous downloads."""
+        RENDER.build(self.repository, self.output)
+        mod_html = (self.output / "mod/index.html").read_text()
+        self.assertNotIn("@@", mod_html)
+        mod_page = Page()
+        mod_page.feed(mod_html)
+        downloads = [attrs for tag, attrs, _ in mod_page.elements
+                     if tag == "a" and attrs.get("class") == "download"]
+        self.assertEqual([item["href"] for item in downloads],
+                         ["https://fixture-api.invalid/v1/mod/download"])
+        self.assertIn("Right Shift", mod_html)
+        for capture in RENDER.MOD_CAPTURES:
+            self.assertIn(f'src="/mod/{capture}"', mod_html)
+            self.assertEqual((self.output / "mod" / capture).read_bytes(),
+                             (SITE / "assets/mod" / capture).read_bytes())
+        for route in ["index.html", "mod/index.html", "docs/modding/index.html"]:
+            page = Page()
+            page.feed((self.output / route).read_text())
+            links = [attrs for tag, attrs, parents in page.elements
+                     if tag == "a" and attrs.get("class") == "official-mod"
+                     and any(parent == "nav" for parent, _ in parents)]
+            self.assertEqual(len(links), 1)
+            self.assertEqual(links[0]["href"], "/mod/")
+            self.assertEqual(links[0].get("aria-current"),
+                             "page" if route == "mod/index.html" else None)
+        self.assertIn((SITE / "site-header.css").read_text(), mod_html)
 
     def test_docs_link_is_in_the_main_navigation(self):
         """Give desktop and mobile the same accessible link to the book."""
