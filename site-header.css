@@ -14,8 +14,13 @@
     .site-header { gap: 16px; }
     .site-header .brand-home span { display: none; }
     .site-header .socials { gap: 16px; }
+    .site-header .socials { flex-wrap: wrap; justify-content: flex-end; }
+    .site-header .brand-home { min-height: 44px; }
 }
 
 @media (max-width: 480px) {
+    :root { --site-header-height: calc(2 * var(--site-header-padding) + 89px); }
+    .site-header { min-height: var(--site-header-height); align-items: flex-start; }
+    .site-header .socials { gap: 0 12px; }
     .site-header .github span, .site-header .discord span { display: none; }
 }

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import random
+import re
 import shutil
 import subprocess
 import tempfile
@@ -36,9 +37,9 @@ def build_book(repository, output, red, header):
         shutil.copytree(HERE / "docs-theme", theme, dirs_exist_ok=True)
         shutil.copyfile(repository / INPUTS["icon"], theme / "favicon.svg")
         stylesheet = theme / "cinnabar.css"
-        stylesheet.write_text((HERE / "site-header.css").read_text()
-                              + stylesheet.read_text().replace("@@RED@@", red))
-        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"').replace("@@MOD_CURRENT@@", ""))
+        stylesheet.write_text((HERE / "site-header.css").read_text(encoding="utf-8")
+                              + stylesheet.read_text(encoding="utf-8").replace("@@RED@@", red))
+        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"').replace("@@MOD_CURRENT@@", "").replace("@@MARKETPLACE_CURRENT@@", ""))
         environment = dict(os.environ, **{
             "MDBOOK_OUTPUT__HTML__THEME": "theme",
             "MDBOOK_OUTPUT__HTML__ADDITIONAL_CSS": '["theme/cinnabar.css"]',
@@ -54,9 +55,27 @@ def build_book(repository, output, red, header):
                        env=environment, check=True)
 
 
-def build(repository, output):
+def capability_descriptors(text):
+    """Extract the pinned client's declarative fields, failing on unsupported types."""
+    body = text.split("grants! {", 1)[1].split("\n}", 1)[0]
+    pattern = r'(?:\s*///[^\n]*\n)+\s*#\[permission\(("(?:[^"\\]|\\.)*"), (true|false)(?:, (true|false))?\)\]\s*pub (\w+): ([^,]+),'
+    result = []
+    for match in re.finditer(pattern, body):
+        label, sensitive, packet_only, name, kind = match.groups()
+        if kind not in {"bool", "Vec<String>"}:
+            raise ValueError("unsupported grant type: " + kind)
+        docs = " ".join(re.findall(r'///\s*(.*)', match.group(0)))
+        result.append({"name": name, "label": json.loads(label), "description": docs,
+                       "sensitive": sensitive == "true", "packet_only": packet_only == "true",
+                       "type": "commands" if kind == "Vec<String>" else "boolean"})
+    if not result or len(result) != len(re.findall(r'pub \w+:', body)):
+        raise ValueError("client capability declarations changed; update the extractor")
+    return result
+
+
+def build(repository, output, marketplace_backend="http"):
     """Render site files from the declared inputs in a client checkout."""
-    config = json.loads((repository / INPUTS["release_manifest"]).read_text())
+    config = json.loads((repository / INPUTS["release_manifest"]).read_text(encoding="utf-8"))
     repository_url = "https://github.com/" + config["repository"]
     config["release_url"] = repository_url + "/releases/latest"
     config["download_base"] = config["release_url"] + "/download/"
@@ -65,37 +84,55 @@ def build(repository, output):
     )
     config["nightly_base"] = repository_url + "/releases/download/nightly/"
     config["nightly_install_command"] = config["install_command"] + " -s -- --channel nightly"
-    contract = json.loads((repository / INPUTS["api_contract"]).read_text())
+    contract = json.loads((repository / INPUTS["api_contract"]).read_text(encoding="utf-8"))
     api_origin = next(value["value"] for value in contract["constants"]
                       if value["rust_name"] == "CINNABAR_API_BASE_URL")
     config["online_count_url"] = api_origin.rstrip("/") + "/v1/presence/count"
     config["unique_count_url"] = api_origin.rstrip("/") + "/v1/users/count"
     config["download_count_url"] = api_origin.rstrip("/") + "/v1/downloads/count"
     config["online_history_url"] = api_origin.rstrip("/") + "/v1/presence/history"
-    icon = (repository / INPUTS["icon"]).read_text()
+    if marketplace_backend not in {"http", "mock"}:
+        raise ValueError("marketplace backend must be http or mock")
+    config["marketplace"] = {"api_url": api_origin.rstrip("/") + "/v1", "backend": marketplace_backend}
+    capabilities = capability_descriptors((repository / INPUTS["mod_grants"]).read_text(encoding="utf-8"))
+    icon = (repository / INPUTS["icon"]).read_text(encoding="utf-8")
     red = ET.fromstring(icon).find("{http://www.w3.org/2000/svg}rect").attrib["fill"]
-    header = (HERE / "site-header.html.in").read_text()
-    header = header.replace("@@DISCORD_MARK@@", (repository / INPUTS["discord_mark"]).read_text().strip())
-    header = header.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
-    header = header.replace("@@REPOSITORY_URL@@", repository_url)
-    page = (HERE / "index.html.in").read_text()
-    page = page.replace("@@SITE_HEADER@@", header.replace("@@DOCS_CURRENT@@", "").replace("@@MOD_CURRENT@@", ""))
-    page = page.replace("@@SITE_HEADER_STYLES@@", (HERE / "site-header.css").read_text())
-    page = page.replace("@@RED@@", red)
-    page = page.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
+    replacements = {
+        "@@DISCORD_MARK@@": (repository / INPUTS["discord_mark"]).read_text(encoding="utf-8").strip(),
+        "@@RED@@": red,
+        "@@FAVICON@@": "data:image/svg+xml," + quote(icon, safe=""),
+        "@@REPOSITORY_URL@@": repository_url,
+        "@@API_ORIGIN@@": api_origin.rstrip("/"),
+        "@@SITE_HEADER_STYLES@@": (HERE / "site-header.css").read_text(encoding="utf-8"),
+    }
     output.mkdir(parents=True, exist_ok=True)
-    (output / "index.html").write_text(page)
-    mod_page = (HERE / "mod.html.in").read_text()
-    mod_page = mod_page.replace("@@SITE_HEADER@@", header.replace("@@DOCS_CURRENT@@", "").replace(
-        "@@MOD_CURRENT@@", ' aria-current="page"'))
-    mod_page = mod_page.replace("@@SITE_HEADER_STYLES@@", (HERE / "site-header.css").read_text())
-    mod_page = mod_page.replace("@@RED@@", red).replace("@@API_ORIGIN@@", api_origin.rstrip("/"))
-    mod_page = mod_page.replace("@@FAVICON@@", "data:image/svg+xml," + quote(icon, safe=""))
-    mod_output = output / "mod"
-    mod_output.mkdir(exist_ok=True)
-    (mod_output / "index.html").write_text(mod_page)
+    header = (HERE / "site-header.html.in").read_text(encoding="utf-8")
+    for marker, value in replacements.items():
+        header = header.replace(marker, value)
+    for template, target in (("index.html.in", "index.html"), ("mod.html.in", "mod/index.html"), ("mods.html.in", "mods/index.html")):
+        page_header = header.replace("@@DOCS_CURRENT@@", "").replace(
+            "@@MOD_CURRENT@@", ' aria-current="page"' if target.startswith("mod/") else "").replace(
+            "@@MARKETPLACE_CURRENT@@", ' aria-current="page"' if target.startswith("mods/") else "")
+        page = (HERE / template).read_text(encoding="utf-8").replace("@@SITE_HEADER@@", page_header)
+        for marker, value in replacements.items():
+            page = page.replace(marker, value)
+        destination = output / target
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(page, encoding="utf-8")
     for capture in MOD_CAPTURES:
-        shutil.copyfile(HERE / "assets" / "mod" / capture, mod_output / capture)
+        shutil.copyfile(HERE / "assets" / "mod" / capture, output / "mod" / capture)
+    for stylesheet in ("site.css", "marketplace.css"):
+        (output / stylesheet).write_text((HERE / stylesheet).read_text(encoding="utf-8").replace("@@RED@@", red), encoding="utf-8")
+    serialized = json.dumps(capabilities, ensure_ascii=True)
+    (output / "marketplace-capabilities.js").write_text(
+        '(function(data){if(typeof module!=="undefined"&&module.exports)module.exports=data;'
+        'else window.CinnabarCapabilities=data;})(' + serialized + ');\n', encoding="utf-8")
+    (output / "marketplace").mkdir(exist_ok=True)
+    shutil.copyfile(output / "mods/index.html", output / "marketplace/index.html")
+    for script in ("marketplace-core.js", "marketplace-mock.js", "marketplace-http.js",
+                   "marketplace-content.js", "marketplace-validation.js", "marketplace.js"):
+        shutil.copyfile(HERE / script, output / script)
+    subprocess.run(["node", str(HERE / "build-validator.mjs"), str(output / "validator")], check=True)
     (output / "downloads.js").write_text("window.CINNABAR_DOWNLOADS = " + json.dumps(config) + ";\n")
     shutil.copyfile(HERE / "app.js", output / "app.js")
     shutil.copyfile(HERE / "activity.js", output / "activity.js")
@@ -119,5 +156,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=CHECKOUT)
     parser.add_argument("--output", type=Path, default=HERE / "dist")
+    parser.add_argument("--marketplace-backend", choices=("http", "mock"), default="http",
+                        help="use mock only for an explicitly labelled local preview")
     args = parser.parse_args()
-    build(args.source, args.output)
+    build(args.source, args.output, args.marketplace_backend)
