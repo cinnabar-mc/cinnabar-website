@@ -562,7 +562,7 @@
         h('div', { class: 'scan-status' }, h('div', {}, h('span', {}, 'Browser component syntax'), h('span', { class: checked ? 'good' : 'warning' }, checked ? 'Passed' : validationPending ? 'Checking…' : 'Choose a release file')),
           h('div', {}, h('span', {}, 'Server validation & AI triage'), h('span', { class: 'muted' }, backend.backend === 'http' ? 'Queued after upload' : 'Not connected')),
           h('div', {}, h('span', {}, 'Automatic publication'), h('span', { class: 'muted' }, backend.backend === 'http' ? 'Evaluated after server checks' : 'Unavailable')),
-          h('div', {}, h('span', {}, 'Publication route'), h('span', {}, backend.backend === 'http' ? 'Quarantine → checks → publication or review' : 'Submit for review'))),
+          h('div', {}, h('span', {}, 'Publication route'), h('span', {}, backend.backend === 'http' ? 'Checks → publication or review' : 'Submit for review'))),
         h('div', { class: 'notice gap' }, backend.backend === 'mock' ? 'Preview submissions stay in this browser. Staff decisions simulate publication; they do not distribute code.' : 'The service must independently validate and review the artifact. A browser check cannot authorize publication.'),
         h('label', { class: 'row gap small' }, h('input', { type: 'checkbox', id: 'distribution-rights' }), 'I have permission to distribute this code and these images.'));
     }
@@ -601,7 +601,7 @@
         if (M.parseRoute(location.hash).view === 'submit') await render();
         return announce(result.body.error, true);
       }
-      announce(backend.backend === 'mock' ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded to quarantine. Follow its checks and publication status in Your projects.');
+      announce(backend.backend === 'mock' ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded. Follow its checks and publication status in Your projects.');
       safeStorage().removeItem('cinnabar.marketplace.draft.' + owner);
       draft = null; step = 'project'; location.hash = '#/mine';
     });
@@ -725,7 +725,7 @@
         h('dt', {}, 'Approvals'), h('dd', {}, version.approvals.map(person => person.gamertag || person.xuid).join(', ') || 'None'),
         h('dt', {}, 'Source'), h('dd', {}, C.externalUrl(version.source) ? h('a', { href: C.externalUrl(version.source), rel: 'noopener noreferrer' }, version.source) : 'Not linked'))),
     h('aside', { class: 'verdict' }, h('h3', {}, 'Decision'), h('p', { class: 'small muted gap' }, approve.ok ? 'Compare the file, permissions and description before approving. Explain any AI flags in your note.' : approve.reason),
-      backend.fileUrl && backend.fileUrl(version.id) ? h('a', { class: 'btn quiet gap', href: backend.fileUrl(version.id), rel: 'noopener noreferrer', target: '_blank' }, 'Download quarantined component') : null,
+      backend.fileUrl && backend.fileUrl(version.id) ? h('a', { class: 'btn quiet gap', href: backend.fileUrl(version.id), rel: 'noopener noreferrer', target: '_blank' }, 'Download component') : null,
       h('label', { class: 'field gap', for: 'review-note' }, 'Note to creator', notes), decisions, decisionStatus,
       backend.backend === 'http' && version.status === 'submitted' ? button('Request a rescan', async () => {
         const response = await call('POST', '/staff/versions/' + encodeURIComponent(version.id) + '/rescan');

@@ -83,7 +83,7 @@ client value types fail the build rather than silently becoming booleans.
    state, exact redirect/origin allowlists, Secure HttpOnly cookies, CSRF, role
    revocation and account-switch isolation on the real site/API domains.
 2. Merge and deploy [the API implementation](https://github.com/cinnabar-mc/cinnabar-api/pull/32)
-   before deploying this website. Provision private quarantine/distribution buckets,
+   before deploying this website. Provision the private artifact bucket,
    the separate scanner and its limited credentials, signing and Microsoft secrets.
    The API owns static validation, raster decoding, bounded AI triage, trust,
    signed publication and recovery. Browser checks can be bypassed.

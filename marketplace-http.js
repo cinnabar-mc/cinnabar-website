@@ -46,7 +46,7 @@
       signIn: function () {
         location.assign(base + "/auth/microsoft/start?return_to=" + encodeURIComponent(location.href));
       },
-      /** Link to an authenticated attachment download of the exact quarantined release. */
+      /** Link to an authenticated attachment download of the exact submitted release. */
       fileUrl: function (id) { return /^[0-9]{1,12}$/.test(String(id)) ? base + '/staff/versions/' + id + '/file' : null; },
       /** Upload re-encoded local raster bytes and their ordered captions/alt text alongside the exact component. */
       submit: async function (fields, file, gallery = []) {
