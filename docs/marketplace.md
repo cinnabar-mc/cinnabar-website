@@ -8,6 +8,9 @@ No SPA fallback or dynamic Worker is required.
 
 ## Website behavior
 
+- Compact catalogue rows show each mod's creator, summary, category and version.
+  Project pages keep the install action prominent, with expandable permissions
+  and dedicated overview, version and permission tabs.
 - Search/filter state survives a project visit. The library belongs to the chosen
   account; unavailable selections remain visible and removable in both backends.
   Adding a mod never grants runtime permissions or installs code.

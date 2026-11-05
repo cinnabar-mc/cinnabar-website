@@ -132,15 +132,16 @@
 
   /** Keep the shared site header and marketplace account/navigation consistent. */
   function chrome(route) {
+    document.querySelector('.market-heading').classList.toggle('market-heading-compact', route.view === 'mod');
     const box = document.getElementById('account');
     const account = session.account;
     box.replaceChildren(account ? h('div', { class: 'row' }, h('span', { class: 'who small' }, account.gamertag,
       h('small', {}, backend.backend === 'mock' ? 'Preview account · ' + account.role : account.role)),
     button(backend.backend === 'mock' ? 'Switch account' : 'Sign out', backend.backend === 'mock' ? signIn : signOut, 'btn quiet', 'account'))
-      : button(backend.backend === 'mock' ? 'Try a preview account' : 'Sign in with Microsoft', signIn, 'btn', 'account'));
-    const links = [['catalogue', '#/', 'Explore mods'], ['library', '#/library', 'My library (' + session.library.length + ')']];
+      : button(backend.backend === 'mock' ? 'Preview account' : 'Sign in', signIn, 'btn quiet', 'account'));
+    const links = [['catalogue', '#/', 'Explore'], ['library', '#/library', 'My library (' + session.library.length + ')']];
     if (account) links.push(['mine', '#/mine', 'Your projects']);
-    if (M.atLeast(account, 'moderator')) links.push(['staff', '#/staff/queue', 'Review workspace']);
+    if (M.atLeast(account, 'moderator')) links.push(['staff', '#/staff/queue', 'Review']);
     links.push(['submit', '#/submit', 'Publish a mod']);
     document.getElementById('navigation').replaceChildren(...links.map(([view, href, label]) => h('a', {
       href, 'aria-current': route.view === view ? 'page' : null, class: view === 'submit' ? 'publish-link' : '',
@@ -216,7 +217,7 @@
   function galleryView(mod) {
     const gallery = h('div');
     const images = (Array.isArray(mod.gallery) ? mod.gallery : []).filter(item => C.imageUrl(item.url));
-    if (!images.length) return h('div', { class: 'empty' }, h('p', {}, 'No screenshots uploaded.'));
+    if (!images.length) return h('p', { class: 'gallery-empty small muted' }, 'No screenshots uploaded.');
     const error = h('p', { class: 'notice', hidden: true, role: 'status' }, 'This image is unavailable. Refresh your session or the release status to retry.');
     const picture = h('img', { class: 'gallery-picture', alt: images[0].alt || '', referrerpolicy: 'no-referrer',
       crossorigin: images[0].private ? 'use-credentials' : null,
@@ -272,15 +273,6 @@
     }
   }
 
-  /** Present a clearly illustrative UI preview without fictional download counts. */
-  function hudPreview() {
-    return h('div', { class: 'hud-preview' }, h('span', { class: 'preview-caption' }, 'Illustrative mod interface'),
-      h('div', { class: 'hud-widget' }, h('div', { class: 'direction' }, h('span', {}, 'PLAINS'), h('span', {}, 'N')),
-        h('div', { class: 'coord' }, '128 / 64 / −256'), h('div', { class: 'meters' }, Array.from({ length: 10 }, () => h('i'))),
-        h('div', { class: 'divider' }, 'Compact HUD layout')),
-      h('span', { class: 'preview-footnote small' }, 'Sample interface · no game capture'));
-  }
-
   /** Render category browsing and the saved library with search state retained. */
   async function catalogue(token, libraryOnly) {
     if (libraryOnly) {
@@ -294,15 +286,10 @@
     if (response.status !== 200) return mount(token, failure(response.body.error));
     const mods = response.body;
     const saved = new Set(session.library.filter(item => !item.pulled).map(item => item.slug));
-    const rail = h('aside');
+    const rail = h('aside', { 'aria-label': 'Filter mods' });
     const grid = h('div', { class: 'catalog-grid', 'aria-label': libraryOnly ? 'Saved mods' : 'Mod results' });
     const count = h('span', { class: 'small muted', role: 'status' });
-    const feature = !libraryOnly && backend.backend === 'mock' && mods.find(mod => mod.slug === 'coords-hud');
-    const spotlight = feature ? h('article', { class: 'featured' }, hudPreview(), h('div', { class: 'feature-copy' },
-      h('span', { class: 'tag' }, 'Community spotlight · sample'), h('h2', {}, 'Less HUD. More world.'),
-      h('p', {}, feature.summary), h('span', { class: 'small good' }, 'HUD + player status · Free'),
-      h('a', { class: 'btn primary', href: '#/mod/' + feature.slug }, 'Explore ' + feature.name, icon('arrow')))) : null;
-    const search = h('input', { id: 'mod-search', type: 'search', placeholder: 'Search mods, creators or features', value: query,
+    const search = h('input', { id: 'mod-search', type: 'search', placeholder: 'Search mods', value: query,
       'aria-label': 'Search mods', 'data-focus-key': 'catalog:search', oninput: event => { query = event.target.value; results(); } });
     const sort = h('select', { 'aria-label': 'Sort mods', onchange: event => { order = event.target.value; results(); } },
       h('option', { value: 'recommended' }, 'Recommended'), h('option', { value: 'name' }, 'Name: A–Z'));
@@ -314,9 +301,8 @@
     });
     rail.append(h('div', { class: 'filter-section' }, h('p', { class: 'filter-title' }, 'Categories'),
       h('div', { class: 'filters' }, categoryButtons.map(([, control]) => control))),
-    h('div', { class: 'filter-section' }, h('p', { class: 'filter-title' }, 'Permissions'),
-      h('p', { class: 'small muted' }, 'See what a mod can do before adding it.'),
-      h('label', { class: 'row small gap' }, h('input', { type: 'checkbox', checked: limited, onchange: event => { limited = event.target.checked; results(); } }), 'No gameplay changes')));
+    h('div', { class: 'filter-section' },
+      h('label', { class: 'row small' }, h('input', { type: 'checkbox', checked: limited, onchange: event => { limited = event.target.checked; results(); } }), 'No gameplay changes')));
 
     /** Update just the results, keeping search, filter focus and selection intact. */
     function results() {
@@ -325,13 +311,14 @@
         (!limited || !mod.capabilities.some(name => M.capability(name)?.sensitive)));
       if (order === 'name') visible = visible.slice().sort((a, b) => a.name.localeCompare(b.name));
       categoryButtons.forEach(([category, control]) => { control.className = category === selectedCategory ? 'active' : ''; control.setAttribute('aria-pressed', String(category === selectedCategory)); });
-      if (spotlight) spotlight.hidden = Boolean(query || selectedCategory !== 'all' || limited);
       grid.replaceChildren(...visible.map(mod => h('article', { class: 'mod-card' },
-        h('div', { class: 'top' }, modIcon(mod), h('div', {}, h('h3', {}, h('a', { href: '#/mod/' + mod.slug, 'data-focus-key': 'mod:' + mod.slug }, mod.name)),
-          h('span', { class: 'small muted' }, mod.creator_name)), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, 'Free')),
-        h('p', {}, mod.summary), h('div', { class: 'meta' }, h('span', {}, C.category(mod)),
-          h('span', {}, mod.capabilities.map(name => M.capability(name)?.label || name).join(' + ') || 'No optional permissions')),
-        libraryOnly ? removalControl(session.library.find(item => item.slug === mod.slug), 'btn quiet gap') : null)));
+        h('div', { class: 'mod-result' }, modIcon(mod),
+          h('div', { class: 'mod-card-title' }, h('h3', {}, h('a', { href: '#/mod/' + mod.slug, 'data-focus-key': 'mod:' + mod.slug }, mod.name)),
+            h('span', { class: 'small muted' }, 'by ' + mod.creator_name)),
+          h('p', { class: 'mod-card-summary' }, mod.summary),
+          h('span', { class: 'mod-category' }, C.category(mod)),
+          h('span', { class: 'release-version', 'aria-label': 'Version ' + mod.version }, mod.version)),
+        libraryOnly ? removalControl(session.library.find(item => item.slug === mod.slug), 'btn quiet library-remove') : null)));
       if (libraryOnly) {
         for (const selection of session.library.filter(item => item.pulled || !mods.some(mod => mod.slug === item.slug))) {
           grid.append(h('article', { class: 'mod-card' }, h('h3', {}, selection.slug),
@@ -345,8 +332,8 @@
         h('p', {}, libraryOnly ? 'Explore the catalogue and inspect a mod before adding it.' : 'Try another search or category.'),
         button('Clear filters', () => { query = ''; selectedCategory = 'all'; limited = false; search.value = ''; render(); }, 'btn quiet', 'catalog:recovery')));
     }
-    const content = h('div', {}, h('div', { class: 'search-tools' }, h('label', { class: 'search-wrap' }, icon('search'), search), sort),
-      spotlight, h('div', { class: 'row between', style: 'margin-bottom:14px' }, h('h2', {}, libraryOnly ? 'Your library' : 'Find your next addition'), count), grid);
+    const content = h('div', { class: 'catalog-results' }, h('div', { class: 'search-tools' }, h('label', { class: 'search-wrap' }, icon('search'), search), sort),
+      h('div', { class: 'catalog-count' }, libraryOnly ? h('h2', {}, 'Your library') : null, count), grid);
     if (libraryOnly) content.insertBefore(h('p', { class: 'small muted' }, 'Removing a library selection stops queued delivery. Manage installed mods in Cinnabar.'), grid);
     mount(token, h('section', { class: 'catalog-layout' }, rail, content)); results();
     if (libraryOnly && !session.account) announce('Choose an account to keep a library. Browsing is public.');
@@ -367,16 +354,15 @@
     const content = h('div');
     const tabs = h('nav', { class: 'tabs', 'aria-label': 'Project information' });
     const add = button('Add to Cinnabar', () => addToLibrary(mod, add), 'btn primary full', 'project:add');
-    const sidebar = h('aside', { class: 'stack', style: 'align-content:start' },
-      h('section', { class: 'sidebox' }, h('div', { class: 'row between' }, h('h2', {}, mod.name + ' ' + mod.version), h('span', { class: 'tag' }, 'Free')),
-        h('p', { class: 'small muted' }, 'Your game asks before allowing permissions.'), add,
-        h('dl', { class: 'fact-list' }, h('div', {}, h('dt', {}, 'Artifact'), h('dd', {}, 'Wasm component')),
-          h('div', {}, h('dt', {}, 'Publication'), h('dd', {}, mod.publication === 'automatic' ? 'Automatic · checks completed' : mod.reviewed_by || 'Not provided')),
+    const sidebar = h('aside', { class: 'stack project-sidebar' },
+      h('section', { class: 'sidebox' }, add,
+        h('p', { class: 'small muted install-caption' }, 'Enable it in Settings → Mods.'),
+        h('dl', { class: 'fact-list' }, h('div', {}, h('dt', {}, 'Version'), h('dd', {}, mod.version)),
           h('div', {}, h('dt', {}, 'License'), h('dd', {}, mod.license || 'Not provided')))),
-      h('section', { class: 'sidebox' }, h('h2', {}, 'Requested permissions'), permissions(mod, mod.grants),
-        h('p', { class: 'rule small muted' }, 'Requests are not grants. Review every permission in Cinnabar before enabling a mod.')),
+      h('details', { class: 'sidebox permission-disclosure' }, h('summary', {}, 'Permissions (' + (mod.capabilities || []).length + ')'),
+        h('p', { class: 'small muted' }, 'You choose what to allow in Cinnabar.'), permissions(mod, mod.grants)),
       M.atLeast(session.account, 'moderator') && mod.version_id ? h('a', { class: 'btn quiet', href: '#/staff/queue/' + mod.version_id }, 'Review this release') : null,
-      button('Report a concern', () => reportForm(mod, content), 'btn quiet', 'project:report'));
+      button('Report a concern', () => reportForm(mod, content), 'btn quiet report-link', 'project:report'));
     const buttons = [];
     /** Keep the selected information tab local so it does not discard catalogue state. */
     function select(tab) {
@@ -392,12 +378,12 @@
           scanEvidence(mod),
           h('dl', { class: 'facts' }, h('dt', {}, 'SHA-256'), h('dd', {}, mod.sha256), h('dt', {}, 'Size'), h('dd', {}, mod.bytes + ' bytes')));
       } else {
-        content.replaceChildren(galleryView(mod), h('p', { class: 'gap soft' }, mod.summary), C.markdown(document, mod.description));
+        content.replaceChildren(galleryView(mod), C.markdown(document, mod.description));
         const source = C.externalUrl(mod.source);
         if (source) content.append(h('a', { class: 'btn quiet gap', href: source, rel: 'noopener noreferrer' }, 'View source'));
       }
     }
-    for (const [name, label] of [['description', 'Description & gallery'], ['versions', 'Versions'], ['permissions', 'Permissions & checks']]) {
+    for (const [name, label] of [['description', 'Overview'], ['versions', 'Versions'], ['permissions', 'Permissions']]) {
       const control = button(label, () => select(name), '', 'detail:' + name); tabs.append(control); buttons.push([name, control]);
     }
     select('description');

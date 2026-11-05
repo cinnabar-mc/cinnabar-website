@@ -67,6 +67,19 @@ test('search retains input focus, category state survives a detail round trip, a
   assert.equal(p.document.querySelectorAll('.mod-card').length, 1);
 });
 
+test('compact project overview keeps declared permissions available for review', async () => {
+  const p = await page('#/mod/coords-hud');
+  assert.match(p.document.querySelector('summary').textContent, /Permissions \(2\)/);
+  assert.equal(p.document.querySelector('details').hasAttribute('open'), false);
+  await p.click(p.document.querySelector('[data-focus-key="detail:permissions"]'));
+  assert.match(p.text(), /HUD/);
+  assert.match(p.text(), /Player status/);
+  assert.match(p.text(), /SHA-256/);
+  await p.click(p.document.querySelector('[data-focus-key="detail:description"]'));
+  assert.match(p.text(), /No screenshots uploaded/);
+  assert.ok(p.document.querySelector('[data-focus-key="project:add"]'));
+});
+
 test('library selections are isolated by identity and removal keeps a usable focus target', async () => {
   const p = await page();
   await p.signIn('MossyCobble');
@@ -151,7 +164,8 @@ test('pending removal rejects duplicate clicks and cannot replace a later route 
   assert.match(p.document.getElementById('account').textContent, /Other player/);
   await p.route('#/');
   finish({ status: 200, body: { removed: true } }); await settle();
-  assert.match(p.text(), /Find your next addition/);
+  assert.equal(p.win.location.hash, '#/');
+  assert.ok(p.document.querySelector('[aria-label="Mod results"]'));
   assert.doesNotMatch(p.document.getElementById('feedback').textContent, /Removed/);
 });
 
