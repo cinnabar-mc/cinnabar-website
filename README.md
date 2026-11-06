@@ -91,8 +91,9 @@ list in `mod.html.in`, when the mod's catalog or menu changes.
 
 `assets/gameplay/` holds in-game screenshots from the
 [client README](https://github.com/cinnabar-mc/cinnabar#readme), published at
-`/assets/gameplay/`. They are cropped to remove window title bars, and `pvp.webp` also
-to remove player chat and a debug overlay, and the crosshair is retouched out of
+`/assets/gameplay/`. They are cropped to remove window title bars, `pvp.webp` also to
+remove player chat and a debug overlay, and `forest.webp` also to remove a server
+scoreboard. Other players' names are retouched out of `pvp.webp`, and the crosshair out of
 `sunset.webp` because it opens the home page. Self-hosted fonts (Schibsted Grotesk and
 JetBrains Mono, both OFL) live in `assets/fonts/` beside their licenses and publish at `/assets/fonts/`.
 

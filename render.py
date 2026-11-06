@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import random
 import shutil
@@ -54,6 +55,25 @@ def build_book(repository, output, red, header):
             shutil.rmtree(destination)
         subprocess.run([str(executable), "build", str(staged), "--dest-dir", str(destination)],
                        env=environment, check=True)
+    label_chapter_links(destination)
+
+
+def label_chapter_links(book):
+    """Name the destination of each chapter's Previous and Next card, which mdBook leaves blank."""
+    card = re.compile(r'(<a rel="[^"]*" href="([^"#]+)[^"]*" class="mobile-nav-chapters (previous|next)" '
+                      r'title="[^"]*" aria-label=")[^"]*("[^>]*>)')
+    for page in book.rglob("*.html"):
+        def named(match):
+            """Rewrite one card from the title of the chapter it links to."""
+            target = (page.parent / match[2]).resolve()
+            source = re.search(r"<title>(.*?)</title>", target.read_text(), re.S)
+            name = source[1].rpartition(" - ")[0].strip() or source[1].strip()
+            direction = "Previous" if match[3] == "previous" else "Next"
+            return f'{match[1]}{direction} chapter: {name}{match[4]}<span class="chapter-name">{name}</span>'
+        html = page.read_text()
+        labelled = card.sub(named, html)
+        if labelled != html:
+            page.write_text(labelled)
 
 
 def build(repository, output):
