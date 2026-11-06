@@ -3,10 +3,10 @@ name: Cinnabar
 description: A familiar world. A new client.
 colors:
   cinnabar-red: "#B8281E"
-  red-hover: "#ca3125"
-  red-press: "#8f1c14"
-  red-line: "#e2483a"
-  red-text: "#f27a63"
+  red-hover: "color-mix(in oklab, #B8281E 90%, #fff)"
+  red-press: "color-mix(in oklab, #B8281E 78%, #000)"
+  red-line: "color-mix(in oklab, #B8281E 74%, #ffb199)"
+  red-text: "color-mix(in oklab, #B8281E 44%, #ffb199)"
   ground: "#141312"
   raise: "#1d1b1a"
   raise-2: "#292624"
@@ -26,45 +26,55 @@ colors:
   ground-veil: "#1413128c"
   raise-veil: "#1d1b1af0"
   backdrop: "#0b0a09c7"
+  hero-tint-centre: "#ad8f7c"
+  hero-tint-mid: "#cdb5a2"
+  hero-tint-edge: "#f0e4d8"
+  scrim-desktop-strong: "#2412098c"
+  scrim-desktop-soft: "#24120973"
+  scrim-phone-strong: "#241209d0"
+  scrim-phone-soft: "#241209c8"
+  logo-shadow: "#00000099"
+  text-shadow-strong: "#000000aa"
+  press-inset: "#0000004d"
   hover-wash: "#ffffff1a"
   press-wash: "#ffffff0f"
   hairline-on-capture: "#ffffff33"
   underline-rest: "#ffffff59"
-  underline-rest-docs: "#f27a6359"
+  underline-rest-docs: "color-mix(in srgb, #B8281E 35%, transparent)"
 typography:
   display:
     fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
-    fontSize: "clamp(3.25rem, 8.6vw, 6rem)"
+    fontSize: "clamp(40px, 4vw, 56px)"
     fontWeight: 700
-    lineHeight: 0.98
-    letterSpacing: "-0.04em"
+    lineHeight: 1
+    letterSpacing: "-0.035em"
   headline-tagline:
     fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
-    fontSize: "clamp(24px, 3.1vw, 44px)"
+    fontSize: "clamp(24px, 2.4vw, 34px)"
     fontWeight: 700
-    lineHeight: 1.12
+    lineHeight: 1.14
     letterSpacing: "-0.028em"
   headline-section:
     fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
-    fontSize: "clamp(34px, 4.4vw, 60px)"
+    fontSize: "clamp(26px, 2.5vw, 34px)"
     fontWeight: 700
-    lineHeight: 1.04
+    lineHeight: 1.12
     letterSpacing: "-0.032em"
   headline-closing:
     fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
-    fontSize: "clamp(30px, 4.2vw, 60px)"
+    fontSize: "clamp(26px, 2.6vw, 36px)"
     fontWeight: 700
-    lineHeight: 1.08
+    lineHeight: 1.12
     letterSpacing: "-0.032em"
   headline-chart:
     fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
-    fontSize: "clamp(28px, 2.9vw, 40px)"
+    fontSize: "clamp(26px, 2.2vw, 32px)"
     fontWeight: 700
-    lineHeight: 1.08
+    lineHeight: 1.1
     letterSpacing: "-0.035em"
   headline-docs:
     fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
-    fontSize: "clamp(34px, 4vw, 46px)"
+    fontSize: "clamp(30px, 2.8vw, 38px)"
     fontWeight: 700
     lineHeight: 1.08
     letterSpacing: "-0.032em"
@@ -155,6 +165,9 @@ typography:
     fontWeight: 400
     fontFeature: "tnum"
 rounded:
+  hairline: "1px"
+  marker-fine: "1.5px"
+  marker: "2px"
   focus: "4px"
   key: "5px"
   item: "6px"
@@ -184,8 +197,8 @@ components:
     textColor: "{colors.on-red}"
     typography: "{typography.action}"
     rounded: "{rounded.action}"
-    padding: "0 28px"
-    height: "60px"
+    padding: "0 24px"
+    height: "52px"
   button-primary-hover:
     backgroundColor: "{colors.red-hover}"
   button-primary-active:
@@ -194,7 +207,7 @@ components:
     backgroundColor: "{colors.cinnabar-red}"
     textColor: "{colors.on-red}"
     width: "56px"
-    height: "60px"
+    height: "52px"
   channel-menu:
     backgroundColor: "{colors.raise}"
     rounded: "{rounded.panel}"
@@ -326,12 +339,12 @@ A warm, slightly brown-black neutral range carrying a single red family drawn fr
 
 ### Primary
 - **Cinnabar Red** (#B8281E): The solid fill of the download actions on the home and mod pages. The value is the icon's body fill, read at render time from the client repository's icon, never set as a website constant.
-- **Lit Cinnabar** (#ca3125): Hover on the download actions.
-- **Pressed Cinnabar** (#8f1c14): Pressed download actions, text selection and search-result marks.
+- **Lit Cinnabar** (icon red mixed 10% toward white): Hover on the download actions.
+- **Pressed Cinnabar** (icon red mixed 22% toward black): Pressed download actions, text selection and search-result marks.
 
 ### Secondary
-- **Signal Red** (#e2483a): Red as a thin mark: the player chart line and point stroke, the current-page underline in the header, the checked channel radio, and the small active marker in the docs sidebar.
-- **Ember Text** (#f27a63): Red as readable text or icon: docs links, docs syntax keywords, docs warning callouts, footnote highlights, the risk notice's warning icon, and the input caret.
+- **Signal Red** (icon red mixed 26% toward #ffb199): Red as a thin mark: the player chart line and point stroke, the current-page underline in the header, the checked channel radio, and the small active marker in the docs sidebar.
+- **Ember Text** (icon red mixed 56% toward #ffb199): Red as readable text or icon: docs links, docs syntax keywords, docs warning callouts, footnote highlights, the risk notice's warning icon, and the input caret.
 
 ### Neutral
 - **Warm Ground** (#141312): The page, the book, the solid header, and inset fields inside dialogs. Also matches the browser theme color.
@@ -347,7 +360,7 @@ A warm, slightly brown-black neutral range carrying a single red family drawn fr
 - **Reading Ink** (#ece8e2) and **Code Ink** (#e6e1da): Slightly softened body and code text in the book, for long reading on the dark ground.
 - **Syntax set** (comment #a39d96, string #dcc9a3, number #efb7a4, type #c9c3bb): Warm, low-chroma docs highlighting, so code stays in the world and keywords are the only red.
 - **Veils and washes** (#1413128c, #1d1b1af0, #0b0a09c7, #ffffff1a, #ffffff0f, #ffffff33): Translucent versions for surfaces over captures, the modal backdrop, nav hover and press, and hairlines on imagery.
-- **Resting underlines** (#ffffff59, #f27a6359): Link underlines at rest, which rise to full color on hover.
+- **Resting underlines** (#ffffff59, Ember Text at 35%): Link underlines at rest, which rise to full color on hover.
 
 ### Named Rules
 
@@ -368,8 +381,8 @@ A warm, slightly brown-black neutral range carrying a single red family drawn fr
 Fonts are self-hosted: the grotesk at 400, 500 and 700, the mono at 400 and 500.
 
 ### Hierarchy
-- **Display** (700, up to 96px, 0.98): The typeset title of the mod page. The home page has no typeset display; its logotype image takes that role.
-- **Headline** (700, up to 60px, 1.04 to 1.12): Tagline, closing line, mod section heads, chart head and docs page title, each with its own clamp in the frontmatter, tracked between -0.028em and -0.035em.
+- **Display** (700, up to 56px, 1): The word "Mod" beside the logotype in the mod page title. The logotype image is the display object on every page.
+- **Headline** (700, up to 38px, 1.08 to 1.14): Tagline, closing line, mod section heads, chart head and docs page title, each with its own clamp in the frontmatter, tracked between -0.028em and -0.035em.
 - **Title** (700, 20px to 28px, 1.18 to 1.3): Dialog heads, catalog and step heads, fact heads, docs section heads, tracked -0.012em to -0.022em.
 - **Lead and live figure** (500, up to 28px, 1.28 to 1.3): The mod page's description and the current online count. Supporting leads use 400 at up to 20px and 1.5.
 - **Body** (400, 17px, 1.6): Default text. The book uses the same size at 1.68 in a 64ch column.
@@ -379,7 +392,7 @@ Fonts are self-hosted: the grotesk at 400, 500 and 700, the mono at 400 and 500.
 
 ### Named Rules
 
-**The One Voice Rule.** Schibsted Grotesk sets all prose, headlines and controls, up to the 96px mod title. The textured logotype image is the only other display object.
+**The One Voice Rule.** Schibsted Grotesk sets all prose, headlines and controls. The textured logotype image is the only other display object.
 
 **The Machine Values Rule.** JetBrains Mono is for commands, code, keys, chart axes and small catalog counters. Headline figures such as the online count and download total stay in the grotesk.
 
@@ -389,9 +402,9 @@ Fonts are self-hosted: the grotesk at 400, 500 and 700, the mono at 400 and 500.
 
 A centred page of up to 1360px inside a fluid gutter (16px to 64px), under a 64px header. Sizes use px throughout the shared styles because the book's root is 10px.
 
-The home page opens with a capture filling the full small viewport: logotype, tagline, edition line, split download and download count are centred in the free space, and the risk notice is pinned to the bottom edge of the opening. A live-data section, gallery and full-bleed closing capture follow. The mod page opens differently, with a typeset two-column head on the plain ground followed by an edge-to-edge capture; its catalog and layout heads repeat the same 7:5 split. The book is a fixed 288px sidebar and a 64ch reading column.
+Captures and type stop growing on large displays: the home capture renders at 125% of the window width or 186% of its height, whichever is larger, and headlines cap well below their old sizes, so a 2560px screen shows more of the world, not a bigger page. The home page opens with a capture filling the full small viewport: logotype, tagline, edition line, split download and download count are centred in the free space, and the risk notice is pinned to the bottom edge of the opening. A live-data section, gallery and full-bleed closing capture follow. The mod page opens differently, with a two-column head on the plain ground, the logotype and "Mod" beside the summary and download, followed by a framed capture capped at 1120px so it never upscales on a large display; its catalog and layout heads repeat the same 7:5 split. The book is a fixed 288px sidebar and a 64ch reading column.
 
-Vertical rhythm is large and even: 128px between major sections, falling to 80px at 900px and under, with 96px below the home opening and between gallery rows. Inside sections, spacing steps through 8, 12, 16, 24, 32, 40, 56 and 64px.
+Vertical rhythm is even: 88px to 96px between major sections, falling to 80px at 900px and under, with 72px between gallery rows. Inside sections, spacing steps through 8, 12, 16, 24, 32, 40, 56 and 64px.
 
 The gallery sits on a 12-column grid (6 columns at 900px and under). Images hang from different columns, and the outer ones bleed off the page edge, losing their outer corners as they do. The mod catalog runs four columns, then two, then one; list rows are separated by hairlines rather than boxed.
 
@@ -430,7 +443,7 @@ Restrained, gently rounded rectangles that scale with the object: 5px for keys a
 Tactile and confident on the one primary action, quiet everywhere else.
 
 - **Shape:** Softly rounded (10px) on primary; 8px on secondary controls.
-- **Primary:** Solid Cinnabar Red with white 700 text at 18px, 60px tall with 28px side padding and a filled download icon. On the home page it is a split button: the action plus a 56px channel toggle, divided by a dark hairline.
+- **Primary:** Solid Cinnabar Red with white 700 text at 16px, 52px tall with 24px side padding and a filled download icon. On the home page it is a split button: the action plus a 56px channel toggle, divided by a dark hairline.
 - **Hover / Focus:** Hover lightens the fill; press darkens it, flips the top light to shade and drops 1px. Color changes take .15s ease-out, the press .1s ease-out. Focus is a 2px white ring at 3px offset.
 - **Copy:** An inverted ink button with ground text (48px) beside the command field, turning pure white on hover.
 - **Icon close:** A transparent 44px square that gains Raise Two on hover.
@@ -469,7 +482,7 @@ A signature component. A wide bar (up to 880px, 12px radius) with a nearly opaqu
 A signature component. A thin Signal Red line (1.75px) over hairline gridlines, with mono tabular axis labels in Quiet Ink, an ink point with a red stroke, and a soft-ink cursor. Live counts above it are ink text with a small near-square ink marker. Empty live values stay hidden while holding their layout space; a missing chart shows a plain message between two hairlines.
 
 ### Screenshot Frame
-A clickable capture with a 1px hairline and 12px radius on Raise. Hover strengthens the border, lifts it 2px and adds the shot-hover shadow; press settles it. The edge-to-edge variant drops the frame entirely and fades into the page through a mask at top and bottom.
+A clickable capture with a 1px hairline and 12px radius on Raise. Hover strengthens the border, lifts it 2px and adds the shot-hover shadow; press settles it.
 
 ### Numbered Steps
 A single Raise panel (three columns divided by hairlines, stacking at 900px) for real sequential instructions, each led by a large ink numeral in tabular figures. The numeral is the only ornament.

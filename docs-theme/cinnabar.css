@@ -96,7 +96,7 @@ html .page #mdbook-menu-bar { position: fixed; top: 0 !important; left: calc(var
 .section { padding-inline-start: 14px; }
 
 /* Reading column. */
-.content { padding: 56px 0 64px; overflow-y: visible; font-size: 17px; line-height: 1.68; }
+.content { padding: 56px 0 64px; overflow-y: visible; font-size: 16px; line-height: 1.65; }
 .content main { max-width: var(--content-max-width); color: var(--fg); }
 .content p, .content ol, .content ul { line-height: 1.68; }
 .content li { margin-block: 6px; }
@@ -104,13 +104,13 @@ html .page #mdbook-menu-bar { position: fixed; top: 0 !important; left: calc(var
 :target { scroll-margin-top: calc(var(--site-header-height) + 24px); }
 h1:target::before, h2:target::before, h3:target::before, h4:target::before, h5:target::before, h6:target::before, dt:target::before { display: none; }
 .content h1, .content h2, .content h3, .content h4, .content h5 { color: var(--ink); font-family: var(--sans); text-wrap: balance; }
-.content h1 { margin: 0 0 16px; font-size: clamp(34px, 4vw, 46px); font-weight: 700; line-height: 1.08; letter-spacing: -.032em; }
-.content h1 + p { color: var(--soft); font-size: 19px; line-height: 1.55; }
-.content h2 { margin-block: 56px 16px; padding-top: 40px; border-top: 1px solid var(--line); font-size: 28px; font-weight: 700; line-height: 1.18; letter-spacing: -.022em; }
-.content h3 { margin-block: 40px 12px; font-size: 21px; font-weight: 700; line-height: 1.25; letter-spacing: -.014em; }
-.content h4, .content h5 { margin-block: 32px 8px; font-size: 17px; font-weight: 700; line-height: 1.3; }
-.content .header:hover::after { content: "#"; margin-left: .35em; color: var(--quiet); font-weight: 400; }
-.content a:not(.header):not(.mobile-nav-chapters) { text-decoration: underline; text-decoration-color: #f27a6359; text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-color .15s ease-out; }
+.content h1 { margin: 0 0 16px; font-size: clamp(30px, 2.8vw, 38px); font-weight: 700; line-height: 1.08; letter-spacing: -.032em; }
+.content h1 + p { color: var(--soft); font-size: 17px; line-height: 1.55; }
+.content h2 { margin-block: 56px 16px; padding-top: 40px; border-top: 1px solid var(--line); font-size: 24px; font-weight: 700; line-height: 1.18; letter-spacing: -.022em; }
+.content h3 { margin-block: 40px 12px; font-size: 18px; font-weight: 700; line-height: 1.25; letter-spacing: -.014em; }
+.content h4, .content h5 { margin-block: 32px 8px; font-size: 16px; font-weight: 700; line-height: 1.3; }
+.content .header:hover::after, .content .header:focus-visible::after { content: "#"; margin-left: .35em; color: var(--quiet); font-weight: 400; }
+.content a:not(.header):not(.mobile-nav-chapters) { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--red-text) 35%, transparent); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-color .15s ease-out; }
 .content a:not(.header):not(.mobile-nav-chapters):hover { text-decoration-color: currentColor; }
 .content hr { height: 1px; margin-block: 40px; border: 0; background: var(--line); }
 
@@ -174,15 +174,19 @@ ul#mdbook-searchresults span.teaser em { color: var(--ink); font-weight: 500; }
 /* Previous and next stay in the reading flow at every width. */
 .nav-wrapper { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: var(--content-max-width); margin: 56px auto 0; padding-top: 32px; border-top: 1px solid var(--line); }
 .nav-wrapper > div { display: none; }
-.mobile-nav-chapters, .mobile-nav-chapters:visited { display: flex; align-items: center; gap: 12px; float: none; width: auto; min-height: 64px; padding: 0 20px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); font: 500 16px/1.2 var(--sans); text-decoration: none; transition: background-color .15s ease-out, border-color .15s ease-out, transform .1s ease-out; }
+.mobile-nav-chapters, .mobile-nav-chapters:visited { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; align-content: center; gap: 2px 12px; text-align: left; float: none; width: auto; min-height: 72px; padding: 12px 20px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); font: 500 16px/1.2 var(--sans); text-decoration: none; transition: background-color .15s ease-out, border-color .15s ease-out, transform .1s ease-out; }
 .content a.mobile-nav-chapters:link, .content a.mobile-nav-chapters:visited { color: var(--ink); }
-.mobile-nav-chapters .fa-svg { color: var(--quiet); font-size: 14px; }
+.mobile-nav-chapters .fa-svg { grid-row: 1 / span 2; color: var(--quiet); font-size: 14px; }
+.mobile-nav-chapters .chapter-name { grid-area: 2 / 2; overflow-wrap: anywhere; }
+.mobile-nav-chapters::after { grid-area: 1 / 2; color: var(--quiet); font: 400 13px/1.3 var(--sans); }
 .mobile-nav-chapters:hover { border-color: var(--line-strong); background: var(--raise); }
 .mobile-nav-chapters:active { transform: translateY(1px); }
 .mobile-nav-chapters.previous { grid-column: 1; }
 .mobile-nav-chapters.previous::after { content: "Previous"; }
-.mobile-nav-chapters.next { grid-column: 2; flex-direction: row-reverse; right: auto; }
-.mobile-nav-chapters.next::after { content: "Next"; margin-left: auto; }
+.mobile-nav-chapters.next { grid-column: 2; grid-template-columns: minmax(0, 1fr) auto; right: auto; text-align: right; }
+.mobile-nav-chapters.next .fa-svg { grid-column: 2; }
+.mobile-nav-chapters.next .chapter-name, .mobile-nav-chapters.next::after { grid-column: 1; }
+.mobile-nav-chapters.next::after { content: "Next"; }
 
 /* Below the wide layout the sidebar is a drawer over the page, under the fixed header. */
 @media (max-width: 1079px) {
@@ -192,9 +196,9 @@ ul#mdbook-searchresults span.teaser em { color: var(--ink); font-weight: 500; }
 }
 @media (max-width: 700px) {
     :root, .navy, .light, .rust, .coal, .ayu { --page-padding: 20px; }
-    .content { padding-top: 36px; font-size: 16.5px; }
-    .content h1 + p { font-size: 18px; }
-    .content h2 { margin-top: 44px; padding-top: 32px; font-size: 25px; }
+    .content { padding-top: 36px; font-size: 16px; }
+    .content h1 + p { font-size: 17px; }
+    .content h2 { margin-top: 44px; padding-top: 32px; font-size: 22px; }
     .content pre { margin-inline: -8px; }
     .table-wrapper { margin-inline: -8px; }
 }
@@ -212,3 +216,10 @@ ul#mdbook-searchresults span.teaser em { color: var(--ink); font-weight: 500; }
     .site-header, #mdbook-menu-bar { display: none; }
     .page-wrapper { padding-top: 0; }
 }
+
+/* mdBook hides this checkbox, which leaves its sidebar toggle out of the keyboard order. */
+#mdbook-sidebar-toggle-anchor.hidden { display: block !important; position: fixed; top: 0; left: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+#mdbook-sidebar-toggle-anchor:focus-visible ~ .page-wrapper #mdbook-sidebar-toggle { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Long code lines scroll inside their block; the visible bar says there is more. */
+.content pre, .content pre > code { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }

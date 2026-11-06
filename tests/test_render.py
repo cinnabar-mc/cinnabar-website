@@ -202,6 +202,44 @@ class RenderTests(unittest.TestCase):
         themes = list((self.output / "docs/modding").rglob("*.css"))
         self.assertTrue(any(rule in theme.read_text() for theme in themes))
 
+    def test_install_command_is_fully_readable(self):
+        """Wrap the Linux command in a multi-line field so no one pastes what they cannot read."""
+        RENDER.build(self.repository, self.output)
+        page = Page()
+        page.feed((self.output / "index.html").read_text())
+        fields = [(tag, attrs) for tag, attrs, _ in page.elements if attrs.get("id") == "install-command"]
+        self.assertEqual([tag for tag, _ in fields], ["textarea"])
+        self.assertIn("readonly", fields[0][1])
+
+    def test_each_capture_appears_once_on_the_home_page(self):
+        """Show the hero capture once and keep the caption its source gives it."""
+        RENDER.build(self.repository, self.output)
+        html = (self.output / "index.html").read_text()
+        self.assertEqual(html.count('src="/assets/gameplay/sunset.webp"'), 1)
+        self.assertIn("Sunset with a shader pack", html)
+
+    def test_mod_page_title_leads_with_the_logotype(self):
+        """Keep the accessible title reading Cinnabar Mod with the logotype as its first element."""
+        RENDER.build(self.repository, self.output)
+        page = Page()
+        page.feed((self.output / "mod/index.html").read_text())
+        logos = [attrs for tag, attrs, parents in page.elements
+                 if tag == "img" and any(parent == "h1" for parent, _ in parents)]
+        self.assertEqual([(logo["src"], logo["alt"]) for logo in logos], [("/title.png", "Cinnabar")])
+
+    def test_chapter_cards_name_their_destination(self):
+        """Rewrite each generated Previous and Next card with the linked chapter's title."""
+        book = self.root / "book"
+        (book / "guides").mkdir(parents=True)
+        (book / "guides/next.html").write_text("<title>The next one - Fixture Book</title>")
+        chapter = book / "guides/first.html"
+        chapter.write_text('<a rel="next prefetch" href="../guides/next.html" class="mobile-nav-chapters next" '
+                           'title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right"><svg></svg></a>')
+        RENDER.label_chapter_links(book)
+        html = chapter.read_text()
+        self.assertIn('aria-label="Next chapter: The next one"', html)
+        self.assertIn('<span class="chapter-name">The next one</span><svg></svg>', html)
+
     def test_docs_link_is_in_the_main_navigation(self):
         """Give desktop and mobile the same accessible link to the book."""
         RENDER.build(self.repository, self.output)

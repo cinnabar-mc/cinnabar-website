@@ -16,10 +16,10 @@
   --ink: #f6f3ef;
   --soft: #d2cdc7;
   --quiet: #aaa49d;
-  --red-hover: #ca3125;
-  --red-press: #8f1c14;
-  --red-line: #e2483a;
-  --red-text: #f27a63;
+  --red-hover: color-mix(in oklab, var(--cinnabar-red) 90%, #fff);
+  --red-press: color-mix(in oklab, var(--cinnabar-red) 78%, #000);
+  --red-line: color-mix(in oklab, var(--cinnabar-red) 74%, #ffb199);
+  --red-text: color-mix(in oklab, var(--cinnabar-red) 44%, #ffb199);
   --focus: #fff;
   --gutter: clamp(16px, 4vw, 64px);
   --page: 1360px;
@@ -28,7 +28,7 @@
 
 html { scrollbar-color: var(--line-strong) var(--ground); scroll-padding-top: calc(var(--site-header-height) + 24px); }
 ::selection { background: var(--red-press); color: #fff; }
-input { caret-color: var(--red-text); }
+input, textarea { caret-color: var(--red-text); }
 
 .site-header { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: var(--site-header-height); padding-inline: var(--gutter); border-bottom: 1px solid transparent; }
 .site-header a { box-sizing: border-box; transition: color .15s ease-out, background-color .15s ease-out, transform .1s ease-out; }
@@ -51,8 +51,8 @@ input { caret-color: var(--red-text); }
 @supports not (animation-timeline: scroll()) { .site .site-header { background: var(--ground); border-bottom-color: var(--line); } }
 
 /* The primary action on the home and mod pages. */
-.cta, a.download { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 60px; padding: 0 28px; border: 0; border-radius: 10px; background: var(--cinnabar-red); box-shadow: inset 0 1px #ffffff2e, 0 12px 28px -12px #000c; color: #fff; font: 700 18px/1.2 var(--sans); letter-spacing: -.01em; text-decoration: none; cursor: pointer; transition: background-color .15s ease-out, transform .1s ease-out, box-shadow .15s ease-out; }
-.cta svg, a.download svg { width: 20px; height: 20px; flex: none; fill: currentColor; }
+.cta, a.download { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 24px; border: 0; border-radius: 10px; background: var(--cinnabar-red); box-shadow: inset 0 1px #ffffff2e, 0 12px 28px -12px #000c; color: #fff; font: 700 16px/1.2 var(--sans); letter-spacing: -.01em; text-decoration: none; cursor: pointer; transition: background-color .15s ease-out, transform .1s ease-out, box-shadow .15s ease-out; }
+.cta svg, a.download svg { width: 18px; height: 18px; flex: none; fill: currentColor; }
 .cta:hover, a.download:hover { background: var(--red-hover); }
 .cta:active, a.download:active { background: var(--red-press); box-shadow: inset 0 1px #0000004d; transform: translateY(1px); }
 .cta:focus-visible, a.download:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
