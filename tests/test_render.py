@@ -4,6 +4,7 @@ from html.parser import HTMLParser
 import importlib.util
 import json
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import unittest
@@ -129,7 +130,7 @@ class RenderTests(unittest.TestCase):
                          f'https://github.com/{self.config["repository"]}/releases/download/nightly/')
         self.assertEqual(config["nightly_install_command"], config["install_command"] + " -s -- --channel nightly")
         self.assertEqual({path.name for path in self.output.iterdir()}, {
-            "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod",
+            "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod", "assets",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
 
@@ -160,6 +161,46 @@ class RenderTests(unittest.TestCase):
             self.assertEqual(links[0].get("aria-current"),
                              "page" if route == "mod/index.html" else None)
         self.assertIn((SITE / "site-header.css").read_text(), mod_html)
+
+    def test_gameplay_captures_are_published_unchanged(self):
+        """Serve every capture from the repository at its stable /assets/ path."""
+        RENDER.build(self.repository, self.output)
+        captures = sorted((SITE / "assets/gameplay").iterdir())
+        self.assertTrue(captures)
+        for capture in captures:
+            self.assertEqual((self.output / "assets/gameplay" / capture.name).read_bytes(), capture.read_bytes())
+
+    def test_closing_links_lead_to_real_destinations(self):
+        """Offer every direct download and the mod where the home page ends, with no self-links."""
+        RENDER.build(self.repository, self.output)
+        page = Page()
+        page.feed((self.output / "index.html").read_text())
+        closing = [attrs for tag, attrs, parents in page.elements
+                   if tag == "a" and any(parent == "section" and values.get("class") == "closing"
+                                         for parent, values in parents)]
+        self.assertEqual({link["data-release-asset"] for link in closing if "data-release-asset" in link},
+                         {"windows/x86_64", "linux/x86_64", "macos/arm64", "macos/x86_64", "android/arm64"})
+        self.assertEqual([link["href"] for link in closing if "data-release-asset" not in link], ["/mod/"])
+
+    def test_self_hosted_fonts_are_published_with_their_licenses(self):
+        """Keep every declared webfont served from /assets/fonts/ and its license in the repository."""
+        RENDER.build(self.repository, self.output)
+        css = (SITE / "site-header.css").read_text()
+        fonts = re.findall(r"/assets/fonts/([\w.-]+\.woff2)", css)
+        self.assertTrue(fonts)
+        for font in fonts:
+            self.assertTrue((self.output / "assets/fonts" / font).is_file(), font)
+            family = font.split("-latin-")[0]
+            self.assertTrue((SITE / "assets/fonts" / f"{family}-LICENSE.txt").is_file(), family)
+
+    def test_shared_styles_respect_reduced_motion(self):
+        """Stop press and hover lifts on every page for visitors who ask for less motion."""
+        RENDER.build(self.repository, self.output)
+        rule = "@media (prefers-reduced-motion: reduce)"
+        self.assertIn(rule, (self.output / "index.html").read_text())
+        self.assertIn(rule, (self.output / "mod/index.html").read_text())
+        themes = list((self.output / "docs/modding").rglob("*.css"))
+        self.assertTrue(any(rule in theme.read_text() for theme in themes))
 
     def test_docs_link_is_in_the_main_navigation(self):
         """Give desktop and mobile the same accessible link to the book."""

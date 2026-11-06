@@ -20,6 +20,8 @@ HERE = Path(__file__).resolve().parent
 INPUTS = load_config()["inputs"]
 # In-game screenshots of the mod shown on /mod/.
 MOD_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")
+# Files served under /assets/: gameplay captures and any self-hosted fonts.
+PUBLIC_ASSETS = ("gameplay", "fonts")
 
 
 def build_book(repository, output, red, header):
@@ -103,6 +105,9 @@ def build(repository, output):
     shutil.copyfile(HERE / "download-count.js", output / "download-count.js")
     shutil.copyfile(HERE / "history.js", output / "history.js")
     shutil.copyfile(repository / INPUTS["title"], output / "title.png")
+    for directory in PUBLIC_ASSETS:
+        if (HERE / "assets" / directory).is_dir():
+            shutil.copytree(HERE / "assets" / directory, output / "assets" / directory, dirs_exist_ok=True)
     rng = random.Random(27)
     colors = ["#1c221d", "#202620", "#242a23", "#262d25", "#1f251f"]
     pixels = "".join(

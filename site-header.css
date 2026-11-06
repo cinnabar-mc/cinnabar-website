@@ -1,21 +1,76 @@
-/* Include the 44px navigation row and 1px border when sizing the sticky header. */
-:root { --site-header-width: 1100px; --site-header-padding: 24px; --site-header-height: calc(2 * var(--site-header-padding) + 45px); }
-.site-header { box-sizing: border-box; width: min(100%, var(--site-header-width)); margin: auto; padding: var(--site-header-padding) 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid #394337; }
-.site-header .brand-home { display: flex; align-items: center; gap: 12px; color: #d5dfd1; text-decoration: none; font: 600 14px/1.5 system-ui, sans-serif; }
-.site-header .socials { display: flex; align-items: center; gap: 24px; }
-.site-header .socials a { display: flex; align-items: center; gap: 8px; min-height: 44px; color: #c4cdc1; font: 500 13px/1.5 system-ui, sans-serif; text-decoration: none; white-space: nowrap; }
-.site-header .socials svg { width: 18px; height: 18px; fill: currentColor; }
-.site-header .socials a:hover, .site-header .socials a[aria-current="page"] { color: #fff; }
-.site-header .socials a[aria-current="page"] { box-shadow: inset 0 -2px var(--cinnabar-red); }
-.site-header a:focus-visible { outline: 2px solid #f8c1af; outline-offset: 4px; }
+/* Shared type, palette and navigation for the home page, the mod page and the book. Sizes use px because the book's root is 10px. */
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 400; font-display: swap; src: url("/assets/fonts/schibsted-grotesk-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 500; font-display: swap; src: url("/assets/fonts/schibsted-grotesk-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 700; font-display: swap; src: url("/assets/fonts/schibsted-grotesk-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap; src: url("/assets/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 500; font-display: swap; src: url("/assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
 
-@media (max-width: 700px) {
-    :root { --site-header-padding: 12px; }
-    .site-header { gap: 16px; }
-    .site-header .brand-home span { display: none; }
-    .site-header .socials { gap: 16px; }
+:root {
+  --sans: "Schibsted Grotesk", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --ground: #141312;
+  --raise: #1d1b1a;
+  --raise-2: #292624;
+  --line: #322f2c;
+  --line-strong: #4d4843;
+  --ink: #f6f3ef;
+  --soft: #d2cdc7;
+  --quiet: #aaa49d;
+  --red-hover: #ca3125;
+  --red-press: #8f1c14;
+  --red-line: #e2483a;
+  --red-text: #f27a63;
+  --focus: #fff;
+  --gutter: clamp(16px, 4vw, 64px);
+  --page: 1360px;
+  --site-header-height: 64px;
 }
 
+html { scrollbar-color: var(--line-strong) var(--ground); scroll-padding-top: calc(var(--site-header-height) + 24px); }
+::selection { background: var(--red-press); color: #fff; }
+input { caret-color: var(--red-text); }
+
+.site-header { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: var(--site-header-height); padding-inline: var(--gutter); border-bottom: 1px solid transparent; }
+.site-header a { box-sizing: border-box; transition: color .15s ease-out, background-color .15s ease-out, transform .1s ease-out; }
+.site-header .brand-home { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; border-radius: 8px; color: var(--ink); font: 700 18px/1 var(--sans); letter-spacing: -.02em; text-decoration: none; }
+.site-header .brand-home:active { transform: translateY(1px); }
+.site-header .socials { display: flex; align-items: center; gap: 4px; margin-right: -12px; }
+.site-header .socials a { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--soft); font: 500 15px/1 var(--sans); text-decoration: none; white-space: nowrap; }
+.site-header .socials svg { width: 20px; height: 20px; fill: currentColor; }
+.site-header .socials .github, .site-header .socials .discord { width: 44px; padding: 0; }
+.site-header .github span, .site-header .discord span { display: none; }
+.site-header .socials a:hover { background: #ffffff1a; color: var(--ink); }
+.site-header .socials a:active { background: #ffffff0f; transform: translateY(1px); }
+.site-header .socials a[aria-current="page"] { color: var(--ink); }
+.site-header .socials a[aria-current="page"]::after { content: ""; position: absolute; inset: auto 12px 6px; height: 2px; border-radius: 1px; background: var(--red-line); }
+.site-header a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* On the home and mod pages the header floats transparent over the opening, then turns solid past it. */
+.site .site-header { position: fixed; inset: 0 0 auto; z-index: 50; animation: header-solid linear both; animation-timeline: scroll(root); animation-range: calc(var(--solid-at) - 96px) var(--solid-at); }
+@keyframes header-solid { to { background: var(--ground); border-bottom-color: var(--line); } }
+@supports not (animation-timeline: scroll()) { .site .site-header { background: var(--ground); border-bottom-color: var(--line); } }
+
+/* The primary action on the home and mod pages. */
+.cta, a.download { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 60px; padding: 0 28px; border: 0; border-radius: 10px; background: var(--cinnabar-red); box-shadow: inset 0 1px #ffffff2e, 0 12px 28px -12px #000c; color: #fff; font: 700 18px/1.2 var(--sans); letter-spacing: -.01em; text-decoration: none; cursor: pointer; transition: background-color .15s ease-out, transform .1s ease-out, box-shadow .15s ease-out; }
+.cta svg, a.download svg { width: 20px; height: 20px; flex: none; fill: currentColor; }
+.cta:hover, a.download:hover { background: var(--red-hover); }
+.cta:active, a.download:active { background: var(--red-press); box-shadow: inset 0 1px #0000004d; transform: translateY(1px); }
+.cta:focus-visible, a.download:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 @media (max-width: 480px) {
-    .site-header .github span, .site-header .discord span { display: none; }
+  .site-header { gap: 4px; padding-inline: 12px; }
+  .site-header .brand-home span { display: none; }
+  .site-header .socials { gap: 0; margin-right: 0; }
+  .site-header .socials a { padding: 0 8px; font-size: 14px; }
+}
+
+@media (max-width: 380px) {
+  .site-header .socials a { padding: 0 6px; font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; }
+  :is(a, button, label, .shot):is(:hover, :active) { transform: none !important; }
 }
