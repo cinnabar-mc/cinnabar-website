@@ -87,6 +87,15 @@ local world, taken at 1920×1080 and saved as WebP: the Mods menu (`mods.webp`),
 (`layout.webp`). Retake them, and update the module
 list in `mod.html.in`, when the mod's catalog or menu changes.
 
+## Gameplay captures
+
+`assets/gameplay/` holds in-game screenshots from the
+[client README](https://github.com/cinnabar-mc/cinnabar#readme), published at
+`/assets/gameplay/`. They are cropped to remove window title bars, and `pvp.webp` also
+to remove player chat and a debug overlay, and the crosshair is retouched out of
+`sunset.webp` because it opens the home page. Self-hosted fonts (Schibsted Grotesk and
+JetBrains Mono, both OFL) live in `assets/fonts/` beside their licenses and publish at `/assets/fonts/`.
+
 ## Player presence
 
 The activity section also shows unique Cinnabar users since tracking began, from
