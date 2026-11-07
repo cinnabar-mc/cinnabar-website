@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import random
 import re
@@ -21,6 +22,8 @@ HERE = Path(__file__).resolve().parent
 INPUTS = load_config()["inputs"]
 # In-game screenshots of the mod shown on /mod/.
 MOD_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")
+# Files served under /assets/: gameplay captures and any self-hosted fonts.
+PUBLIC_ASSETS = ("gameplay", "fonts")
 
 
 def build_book(repository, output, red, header):
@@ -53,6 +56,25 @@ def build_book(repository, output, red, header):
             shutil.rmtree(destination)
         subprocess.run([str(executable), "build", str(staged), "--dest-dir", str(destination)],
                        env=environment, check=True)
+    label_chapter_links(destination)
+
+
+def label_chapter_links(book):
+    """Name the destination of each chapter's Previous and Next card, which mdBook leaves blank."""
+    card = re.compile(r'(<a rel="[^"]*" href="([^"#]+)[^"]*" class="mobile-nav-chapters (previous|next)" '
+                      r'title="[^"]*" aria-label=")[^"]*("[^>]*>)')
+    for page in book.rglob("*.html"):
+        def named(match):
+            """Rewrite one card from the title of the chapter it links to."""
+            target = (page.parent / match[2]).resolve()
+            source = re.search(r"<title>(.*?)</title>", target.read_text(), re.S)
+            name = source[1].rpartition(" - ")[0].strip() or source[1].strip()
+            direction = "Previous" if match[3] == "previous" else "Next"
+            return f'{match[1]}{direction} chapter: {name}{match[4]}<span class="chapter-name">{name}</span>'
+        html = page.read_text()
+        labelled = card.sub(named, html)
+        if labelled != html:
+            page.write_text(labelled)
 
 
 def capability_descriptors(text):
@@ -140,6 +162,9 @@ def build(repository, output, marketplace_backend="http"):
     shutil.copyfile(HERE / "download-count.js", output / "download-count.js")
     shutil.copyfile(HERE / "history.js", output / "history.js")
     shutil.copyfile(repository / INPUTS["title"], output / "title.png")
+    for directory in PUBLIC_ASSETS:
+        if (HERE / "assets" / directory).is_dir():
+            shutil.copytree(HERE / "assets" / directory, output / "assets" / directory, dirs_exist_ok=True)
     rng = random.Random(27)
     colors = ["#1c221d", "#202620", "#242a23", "#262d25", "#1f251f"]
     pixels = "".join(

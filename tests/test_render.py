@@ -4,6 +4,7 @@ from html.parser import HTMLParser
 import importlib.util
 import json
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import unittest
@@ -129,11 +130,10 @@ class RenderTests(unittest.TestCase):
                          f'https://github.com/{self.config["repository"]}/releases/download/nightly/')
         self.assertEqual(config["nightly_install_command"], config["install_command"] + " -s -- --channel nightly")
         self.assertEqual({path.name for path in self.output.iterdir()}, {
-            "index.html", "downloads.js", "app.js", "presence.js", "history.js", "title.png", "texture.svg",
+            "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod", "assets",
             "mods", "marketplace", "site.css", "marketplace.css", "marketplace-capabilities.js",
             "marketplace-core.js", "marketplace-mock.js", "marketplace-http.js", "marketplace-content.js",
             "marketplace-validation.js", "marketplace.js", "validator",
-            "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
 
@@ -173,6 +173,84 @@ class RenderTests(unittest.TestCase):
                      if tag == "a" and attrs.get("class") == "marketplace-link"]
             self.assertEqual(link["href"], "/mods/")
             self.assertEqual(link.get("aria-current"), "page" if route == "mods/index.html" else None)
+
+    def test_gameplay_captures_are_published_unchanged(self):
+        """Serve every capture from the repository at its stable /assets/ path."""
+        RENDER.build(self.repository, self.output)
+        captures = sorted((SITE / "assets/gameplay").iterdir())
+        self.assertTrue(captures)
+        for capture in captures:
+            self.assertEqual((self.output / "assets/gameplay" / capture.name).read_bytes(), capture.read_bytes())
+
+    def test_closing_links_lead_to_real_destinations(self):
+        """Offer every direct download and the mod where the home page ends, with no self-links."""
+        RENDER.build(self.repository, self.output)
+        page = Page()
+        page.feed((self.output / "index.html").read_text())
+        closing = [attrs for tag, attrs, parents in page.elements
+                   if tag == "a" and any(parent == "section" and values.get("class") == "closing"
+                                         for parent, values in parents)]
+        self.assertEqual({link["data-release-asset"] for link in closing if "data-release-asset" in link},
+                         {"windows/x86_64", "linux/x86_64", "macos/arm64", "macos/x86_64", "android/arm64"})
+        self.assertEqual([link["href"] for link in closing if "data-release-asset" not in link], ["/mod/"])
+
+    def test_self_hosted_fonts_are_published_with_their_licenses(self):
+        """Keep every declared webfont served from /assets/fonts/ and its license in the repository."""
+        RENDER.build(self.repository, self.output)
+        css = (SITE / "site-header.css").read_text()
+        fonts = re.findall(r"/assets/fonts/([\w.-]+\.woff2)", css)
+        self.assertTrue(fonts)
+        for font in fonts:
+            self.assertTrue((self.output / "assets/fonts" / font).is_file(), font)
+            family = font.split("-latin-")[0]
+            self.assertTrue((SITE / "assets/fonts" / f"{family}-LICENSE.txt").is_file(), family)
+
+    def test_shared_styles_respect_reduced_motion(self):
+        """Stop press and hover lifts on every page for visitors who ask for less motion."""
+        RENDER.build(self.repository, self.output)
+        rule = "@media (prefers-reduced-motion: reduce)"
+        self.assertIn(rule, (self.output / "index.html").read_text())
+        self.assertIn(rule, (self.output / "mod/index.html").read_text())
+        themes = list((self.output / "docs/modding").rglob("*.css"))
+        self.assertTrue(any(rule in theme.read_text() for theme in themes))
+
+    def test_install_command_is_fully_readable(self):
+        """Wrap the Linux command in a multi-line field so no one pastes what they cannot read."""
+        RENDER.build(self.repository, self.output)
+        page = Page()
+        page.feed((self.output / "index.html").read_text())
+        fields = [(tag, attrs) for tag, attrs, _ in page.elements if attrs.get("id") == "install-command"]
+        self.assertEqual([tag for tag, _ in fields], ["textarea"])
+        self.assertIn("readonly", fields[0][1])
+
+    def test_each_capture_appears_once_on_the_home_page(self):
+        """Show the hero capture once and keep the caption its source gives it."""
+        RENDER.build(self.repository, self.output)
+        html = (self.output / "index.html").read_text()
+        self.assertEqual(html.count('src="/assets/gameplay/sunset.webp"'), 1)
+        self.assertIn("Sunset with a shader pack", html)
+
+    def test_mod_page_title_leads_with_the_logotype(self):
+        """Keep the accessible title reading Cinnabar Mod with the logotype as its first element."""
+        RENDER.build(self.repository, self.output)
+        page = Page()
+        page.feed((self.output / "mod/index.html").read_text())
+        logos = [attrs for tag, attrs, parents in page.elements
+                 if tag == "img" and any(parent == "h1" for parent, _ in parents)]
+        self.assertEqual([(logo["src"], logo["alt"]) for logo in logos], [("/title.png", "Cinnabar")])
+
+    def test_chapter_cards_name_their_destination(self):
+        """Rewrite each generated Previous and Next card with the linked chapter's title."""
+        book = self.root / "book"
+        (book / "guides").mkdir(parents=True)
+        (book / "guides/next.html").write_text("<title>The next one - Fixture Book</title>")
+        chapter = book / "guides/first.html"
+        chapter.write_text('<a rel="next prefetch" href="../guides/next.html" class="mobile-nav-chapters next" '
+                           'title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right"><svg></svg></a>')
+        RENDER.label_chapter_links(book)
+        html = chapter.read_text()
+        self.assertIn('aria-label="Next chapter: The next one"', html)
+        self.assertIn('<span class="chapter-name">The next one</span><svg></svg>', html)
 
     def test_docs_link_is_in_the_main_navigation(self):
         """Give desktop and mobile the same accessible link to the book."""

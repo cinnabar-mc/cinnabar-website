@@ -4,128 +4,226 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Download Cinnabar for your platform.">
+  <meta name="theme-color" content="#141312">
   <title>Cinnabar</title>
   <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
-  <link rel="stylesheet" href="/site.css">
+  <link rel="preload" href="/assets/fonts/schibsted-grotesk-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/schibsted-grotesk-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <style>
     @@SITE_HEADER_STYLES@@
-    :root { --cinnabar-red: @@RED@@; font-family: system-ui, sans-serif; color-scheme: dark; }
+    :root { --cinnabar-red: @@RED@@; --solid-at: 100svh; color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; min-height: 100svh; padding: 0 40px 40px; background: #141815; color: #fff; isolation: isolate; }
-    body::before { content: ''; position: fixed; inset: 0; z-index: -2; background: url('/texture.svg') repeat; background-size: 256px 256px; opacity: .45; }
-    body::after { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse at 50% 43%, transparent 0%, #11151266 55%, #0b100de6 100%), radial-gradient(ellipse at 50% 47%, color-mix(in srgb, var(--cinnabar-red) 4%, transparent), transparent 55%); }
-    main { width: min(100%, 640px); margin: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
-    .edition { margin: 0; color: var(--muted); font: 400 .875rem/1.6 system-ui, sans-serif; }
-    .logo-motion { width: min(100%, 580px); margin-bottom: 8px; }
-    .description { margin: 0 0 8px; color: var(--text); font: 400 1.25rem/1.7 system-ui, sans-serif; }
-    .actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 16px; max-width: 100%; margin-top: 32px; }
-    .download-count { min-height: 1.6em; display: flex; align-items: center; justify-content: center; gap: 7px; margin: 22px 0 0; color: #acb7a9; font: 400 .8125rem/1.6 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-    .download-count:empty { visibility: hidden; }
-    .download-count svg { width: 13px; height: 13px; fill: currentColor; }
-    .download-count a { color: inherit; text-decoration: none; text-underline-offset: 4px; }
-    .download-count strong { color: #edf2eb; font-weight: 600; }
-    .download-count a:hover { color: #fff; text-decoration: underline; }
-    .download-count a:focus-visible { outline: 2px solid #f8c1af; outline-offset: 4px; }
-    .download-count + .disclaimer { margin-top: 24px; }
-    .online-count { min-height: 1.6em; margin: 4px 0 16px; color: #c4cdc1; text-align: left; font: 400 .8125rem/1.6 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-    .unique-count { min-height: 1.6em; margin: -12px 0 16px; color: #acb7a9; font-size: .75rem; line-height: 1.6; font-variant-numeric: tabular-nums; }
-    .unique-count:empty { visibility: hidden; }
-    .online-count:empty { visibility: hidden; }
-    .online-count::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 9px; background: #95c783; vertical-align: .1em; }
-    .player-history { --chart-height: 148px; width: 100%; margin: 0 0 24px; padding: 24px 0 0; border-top: 1px solid var(--line); text-align: left; }
-    .chart-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-    .chart-header h2 { margin: 0; color: #e1e8de; font: 600 1rem/1.5 system-ui, sans-serif; }
-    .chart-ranges { display: flex; gap: 4px; }
-    .chart-ranges button { min-width: 44px; min-height: 44px; padding: 4px 8px; border: 1px solid transparent; background: transparent; box-shadow: none; text-shadow: none; color: var(--muted); font: 500 .75rem/1.5 ui-monospace, monospace; }
-    .chart-ranges button[aria-pressed="true"] { border-color: #63725c; background: var(--raised); color: #fff; }
-    .chart-ranges button:active { transform: none; box-shadow: none; }
-    .chart-ranges button:focus-visible { outline-offset: 2px; }
-    .chart-summary { min-height: 1.5em; margin: 8px 0 0; color: var(--sage); font-size: .75rem; font-variant-numeric: tabular-nums; }
-    .chart-body { position: relative; min-height: var(--chart-height); display: grid; align-items: center; }
-    #history-plot { display: block; width: 100%; height: var(--chart-height); margin: 8px 0; overflow: visible; touch-action: pan-y; }
-    #history-plot[hidden] { display: none; }
-    #history-plot:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    #history-plot text { fill: var(--muted); font: 11px ui-monospace, monospace; }
-    .chart-grid { stroke: #3c483a; stroke-width: 1; }
-    .chart-line { fill: none; stroke: #a1ce8f; stroke-width: 2; stroke-linejoin: round; }
-    .chart-point { fill: #a1ce8f; }
-    .chart-cursor { stroke: #c4cdc1; stroke-width: 1; stroke-dasharray: 3 3; }
-    #history-message { margin: 0; color: #acb7a9; text-align: center; font-size: .8125rem; line-height: 1.7; }
-    .chart-detail { min-height: 1.5em; margin: 0; color: #acb7a9; font: .6875rem/1.5 ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-    button { border: 2px solid var(--button-border, #180d0b); border-radius: 0; background: var(--button-face, var(--cinnabar-red)); color: #fff; box-shadow: inset 0 3px #ffffff35, inset 3px 0 #ffffff16, inset -3px 0 #0002, inset 0 -4px #0004, 0 5px 0 var(--button-base, #451510), 0 7px 0 #0d100d, 0 14px 25px #0004; cursor: pointer; }
-    button { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 14px; padding: 17px 28px; min-height: 62px; max-width: 100%; font: 700 1rem/1.5 ui-monospace, monospace; text-shadow: 0 2px #0006; }
-    button svg { width: 20px; height: 20px; flex: 0 0 20px; fill: currentColor; }
-    button:hover { filter: brightness(1.12); }
-    button:active { transform: translateY(4px); box-shadow: inset 0 3px #ffffff35, inset 0 -3px #0004, 0 1px 0 var(--button-base, #451510), 0 3px 0 #0d100d; }
-    .split { position: relative; display: inline-flex; max-width: 100%; }
-    #download { min-width: 0; }
-    #channel-toggle { margin-left: -2px; padding: 17px 16px; gap: 0; flex: 0 0 auto; }
-    #channel-toggle svg { width: 16px; height: 16px; flex-basis: 16px; transition: transform .1s; }
+    html { background: var(--ground); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    body { margin: 0; overflow-x: clip; background: var(--ground); color: var(--ink); font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+    p, h1, h2, figure { margin: 0; }
+    a { color: inherit; text-underline-offset: 4px; }
+    a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    img { display: block; max-width: 100%; height: auto; }
+    .wrap { width: min(100% - 2 * var(--gutter), var(--page)); margin-inline: auto; }
+
+    /* Opening: the capture sits behind the content and drifts down slower than the page scrolls. */
+    .hero { position: relative; isolation: isolate; min-height: 100svh; display: grid; grid-template-rows: 1fr auto; justify-items: center; gap: 32px; padding: calc(var(--site-header-height) + 16px) var(--gutter) 32px; overflow: clip; text-align: center; }
+    .hero-media { position: absolute; inset: 0; z-index: -2; --w: max(125vw, 186svh); --sun-x: calc(var(--w) * .5417); --sun-y: calc(var(--w) * .1247); }
+    .hero-media img { position: absolute; left: 0; top: calc(var(--w) * -.055); width: var(--w); max-width: none; filter: saturate(1.1); }
+    /* Multiplying a warm tone keeps the sky a dusk colour where a dark overlay would turn it grey; the tint moves with the capture so the sun keeps its glow. */
+    .hero-media::after { content: ""; position: absolute; inset: 0; mix-blend-mode: multiply; background: radial-gradient(calc(var(--w) * .1) calc(var(--w) * .1) at var(--sun-x) var(--sun-y), #ffe6c4 0, #ffe6c400 100%), radial-gradient(62% 58% at 50% 46%, #ad8f7c 0, #cdb5a2 62%, #f0e4d8 100%); }
+    .hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to bottom, #141312b8 0, #14131200 20%), linear-gradient(to bottom, #14131200 60%, #141312eb 92%, var(--ground) 100%); }
+    @media (prefers-reduced-motion: no-preference) {
+      @supports (animation-timeline: scroll()) {
+        .hero-media { animation: hero-drift linear both; animation-timeline: scroll(root); animation-range: 0 100svh; }
+      }
+    }
+    @keyframes hero-drift { to { transform: translate3d(0, 16svh, 0); } }
+
+    .hero-main { position: relative; align-self: center; display: flex; flex-direction: column; align-items: center; width: 100%; }
+    .hero-main::before { content: ""; position: absolute; inset: 16% -8% -6%; z-index: -1; background: radial-gradient(closest-side, #2412098c 0, #24120973 58%, #24120900 100%); pointer-events: none; }
+    .logo-motion { --logo: min(100%, 640px, 78svh); width: var(--logo); margin: 0 0 -20px; }
+    .logo { width: 100%; filter: drop-shadow(0 16px 28px #00000099); }
+    .description { position: relative; font: 700 clamp(24px, 2.4vw, 34px)/1.14 var(--sans); letter-spacing: -.028em; text-wrap: balance; text-shadow: 0 1px 24px #0006; }
+    .edition { position: relative; margin-top: 12px; color: var(--ink); font: 400 16px/1.5 var(--sans); text-shadow: 0 1px 12px #00000099; }
+    .actions { margin-top: 28px; max-width: 100%; }
+    .hero-caption { position: absolute; right: var(--gutter); bottom: 12px; color: var(--soft); font: 400 13px/1.4 var(--sans); }
+    .split { position: relative; display: inline-flex; max-width: 100%; border-radius: 10px; box-shadow: 0 16px 36px -14px #000e; }
+    #download { min-width: 0; border-radius: 10px 0 0 10px; box-shadow: inset 0 1px #ffffff2e; }
+    #channel-toggle { flex: none; width: 56px; padding: 0; border-left: 1px solid #0000004d; border-radius: 0 10px 10px 0; box-shadow: inset 0 1px #ffffff2e; }
+    #channel-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s cubic-bezier(.16, 1, .3, 1); }
     #channel-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
-    .channel-menu { position: absolute; top: calc(100% + 16px); right: 0; z-index: 2; width: 300px; max-width: calc(100vw - 48px); margin: 0; padding: 6px; border: 2px solid var(--panel-border); background: var(--surface); box-shadow: 0 16px 40px #0008; text-align: left; }
+    #download:active, #channel-toggle:active { box-shadow: inset 0 1px #0000004d; }
+    .channel-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: 320px; max-width: calc(100vw - 2 * var(--gutter)); padding: 6px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raise); box-shadow: 0 20px 48px -12px #000d; text-align: left; }
     .channel-menu[hidden] { display: none; }
-    button.channel-option { display: block; width: 100%; min-height: 0; padding: 10px 12px 10px 34px; border: 0; background: transparent; box-shadow: none; text-shadow: none; font: 600 .9375rem/1.4 system-ui, sans-serif; text-align: left; }
-    button.channel-option:hover, button.channel-option:focus-visible { background: var(--raised); filter: none; }
-    button.channel-option:active { transform: none; box-shadow: none; }
-    button.channel-option:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
-    button.channel-option::before { content: ''; position: absolute; left: 12px; top: 15px; width: 10px; height: 10px; border: 2px solid var(--muted); }
-    button.channel-option[aria-checked="true"]::before { background: var(--cinnabar-red); border-color: #fff; }
-    .channel-option .hint { display: block; color: var(--muted); font-weight: 400; font-size: .8125rem; }
-    dialog { width: min(560px, calc(100% - 32px)); padding: 28px; border: 2px solid var(--panel-border); background: var(--surface); color: #fff; box-shadow: 0 16px 80px #0008; }
-    dialog::backdrop { background: #0009; backdrop-filter: blur(3px); }
-    dialog h2 { margin: 0 40px 16px 0; font: 700 1.25rem/1.4 ui-monospace, monospace; }
-    dialog p { color: var(--sage); line-height: 1.6; }
-    dialog .close { position: absolute; right: 12px; top: 12px; min-height: 36px; width: 36px; padding: 0; background: transparent; border: 0; box-shadow: none; font-size: 1.5rem; }
-    .command-row { display: flex; gap: 10px; align-items: center; }
-    #install-command { width: 100%; min-width: 0; background: var(--input-ground); border: 1px solid var(--panel-border); padding: 14px; color: #fff; font: .875rem/1.5 ui-monospace, monospace; }
-    #copy-command { min-height: 48px; padding: 10px 14px; font-size: .875rem; }
-    .download-option { display: block; padding: 14px 18px; margin-top: 10px; color: #fff; border: 1px solid var(--panel-border); background: var(--raised); text-decoration: none; font: 600 1rem/1.5 system-ui, sans-serif; }
-    .download-option:hover { background: #3a4739; }
-    .download-option:focus-visible, #install-command:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
-    .disclaimer { width: 100%; margin: 28px 0 0; padding: 16px; border: 1px solid var(--notice-border); background: var(--notice-ground); color: var(--warning); text-align: left; font: 400 .75rem/1.7 system-ui, sans-serif; }
-    .first-open { margin: 20px 0 0; font-size: .875rem; }
-    .first-open code { display: block; margin-top: 8px; padding: 10px; background: var(--input-ground); overflow-wrap: anywhere; font: .8125rem/1.6 ui-monospace, monospace; }
-    #copy-status { margin-bottom: 0; font-size: .875rem; }
-    button:focus-visible { outline: 2px solid #f8c1af; outline-offset: 4px; }
-    ::selection { background: #a82c22; color: #fff; }
-    .hero { width: 100%; display: flex; flex-direction: column; align-items: center; padding: 36px 0 32px; }
-    @media (max-width: 700px) {
-      body { padding: 0 20px 32px; }
-      .hero { padding: 28px 0; }
-      .logo-motion { margin-bottom: 12px; }
-      .description { font-size: 1.125rem; }
-      .actions { width: 100%; margin-top: 24px; }
-      .split { width: 100%; }
-      #download { flex: 1; }
-      .online-count { font-size: .75rem; }
+    .channel-option { position: relative; display: block; width: 100%; min-height: 56px; padding: 10px 12px 10px 44px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: 500 16px/1.35 var(--sans); text-align: left; transition: background-color .12s ease-out; }
+    .channel-option:hover, .channel-option:focus-visible { background: var(--raise-2); }
+    .channel-option:active { background: var(--line); }
+    .channel-option:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .channel-option::before { content: ""; position: absolute; left: 14px; top: 14px; width: 18px; height: 18px; border: 1.5px solid var(--quiet); border-radius: 50%; }
+    .channel-option[aria-checked="true"]::before { border-color: var(--red-line); box-shadow: inset 0 0 0 4px var(--raise), inset 0 0 0 9px var(--red-line); }
+    .channel-option .hint { display: block; margin-top: 2px; color: var(--quiet); font-weight: 400; font-size: 14px; }
+
+    .download-count { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin-top: 8px; color: var(--ink); font: 400 15px/1.4 var(--sans); text-shadow: 0 1px 12px #000000aa; }
+    .download-count:empty { visibility: hidden; }
+    .download-count svg { width: 14px; height: 14px; fill: currentColor; opacity: .8; }
+    .download-count a { display: inline-flex; align-items: center; gap: .3em; min-height: 44px; text-decoration: underline; text-decoration-color: #ffffff59; text-decoration-thickness: 1px; transition: text-decoration-color .15s ease-out; }
+    .download-count a:hover { text-decoration-color: currentColor; }
+    .download-count strong { font-weight: 700; }
+
+    .disclaimer { display: grid; width: min(100%, 880px); grid-template-columns: 20px minmax(0, 1fr); gap: 14px; padding: 16px 20px; border: 1px solid #ffffff24; border-radius: 12px; background: #1d1b1af0; box-shadow: 0 16px 36px -18px #000c; color: var(--ink); font: 400 15px/1.55 var(--sans); text-align: left; text-wrap: pretty; }
+    .disclaimer::before { content: ""; width: 20px; height: 20px; margin-top: 2px; background: var(--red-text); mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.5 19 18H1zM9 7.5v5.5h2V7.5zM9 14.5v2h2v-2z' fill-rule='evenodd'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+    /* Live figures. */
+    .player-history { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 32px; align-items: end; padding-top: 96px; }
+    .chart-header { display: contents; }
+    .chart-header h2 { grid-column: 1; font: 700 clamp(26px, 2.2vw, 32px)/1.1 var(--sans); letter-spacing: -.035em; }
+    .chart-ranges { grid-column: 2; grid-row: 1; display: flex; gap: 2px; padding: 4px; border-radius: 10px; background: var(--raise); }
+    .chart-ranges button { min-width: 56px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--soft); font: 500 15px/1 var(--sans); transition: background-color .12s ease-out, color .12s ease-out, transform .1s ease-out; }
+    .chart-ranges button:hover { color: var(--ink); background: var(--raise-2); }
+    .chart-ranges button:active { transform: translateY(1px); }
+    .chart-ranges button[aria-pressed="true"] { background: var(--line-strong); color: var(--ink); }
+    .chart-ranges button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+    .online-count { grid-column: 1; min-height: 1.3em; margin-top: 24px; color: var(--ink); font: 500 clamp(19px, 1.6vw, 22px)/1.3 var(--sans); letter-spacing: -.015em; text-wrap: balance; }
+    .online-count::before { content: ""; display: inline-block; width: .42em; height: .42em; margin-right: .5em; border-radius: 2px; background: var(--ink); vertical-align: .1em; }
+    .online-count:empty, .unique-count:empty { visibility: hidden; }
+    .unique-count { grid-column: 1; min-height: 1.5em; margin-top: 4px; color: var(--soft); font: 400 17px/1.5 var(--sans); }
+    .chart-summary { grid-column: 2; grid-row: 3; min-height: 1.5em; color: var(--soft); font: 400 17px/1.5 var(--sans); text-align: right; white-space: nowrap; }
+    .chart-body { grid-column: 1 / -1; position: relative; display: grid; align-items: center; min-height: 380px; margin-top: 40px; }
+    #history-plot { display: block; width: 100%; height: 380px; overflow: visible; touch-action: pan-y; border-radius: 4px; }
+    #history-plot[hidden] { display: none; }
+    #history-plot:focus-visible { outline: 2px solid var(--focus); outline-offset: 8px; }
+    #history-plot text { fill: var(--quiet); font: 400 12px var(--mono); font-variant-numeric: tabular-nums; }
+    .chart-grid { stroke: var(--line); stroke-width: 1; shape-rendering: crispEdges; }
+    #history-plot .chart-grid:first-child { stroke: var(--line-strong); }
+    .chart-line { fill: none; stroke: var(--red-line); stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
+    .chart-point { fill: var(--ink); stroke: var(--red-line); stroke-width: 2; }
+    .chart-cursor { stroke: var(--soft); stroke-width: 1; shape-rendering: crispEdges; }
+    .chart-body:has(#history-plot[hidden]) { min-height: 260px; border-block: 1px solid var(--line); }
+    #history-message { color: var(--soft); text-align: center; font: 400 16px/1.6 var(--sans); }
+    .chart-detail { grid-column: 1 / -1; min-height: 1.6em; margin-top: 16px; color: var(--quiet); font: 400 13px/1.6 var(--sans); font-variant-numeric: tabular-nums; }
+
+    /* Gallery: images bleed off either edge and hang from different columns. */
+    .gallery { --bleed: max(var(--gutter), calc((100vw - var(--page)) / 2)); display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 72px 24px; padding-top: 96px; }
+    .gallery figure { min-width: 0; }
+    .gallery img { width: 100%; background: var(--raise); }
+    .gallery figcaption { margin-top: 12px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
+    .shot-pvp { grid-column: 1 / span 7; margin-left: calc(-1 * var(--bleed)); }
+    .shot-pvp img { border-radius: 0 12px 12px 0; }
+    .shot-pvp figcaption { padding-left: var(--bleed); }
+    .shot-forest { grid-column: 8 / -1; align-self: end; }
+    .shot-forest img, .shot-cave img { border-radius: 12px; }
+    .shot-cave { grid-column: 4 / span 6; }
+    .shot-cave img { filter: brightness(1.3); }
+
+    /* Close. */
+    /* Close: the moon stands clear above the logo, so the content starts below it. */
+    .closing { position: relative; isolation: isolate; display: flex; flex-direction: column; align-items: center; margin-top: 96px; padding: 280px var(--gutter) 32px; overflow: clip; text-align: center; }
+    .closing-media { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: 50% 50%; }
+    .closing::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to bottom, var(--ground) 0, #14131200 16%), radial-gradient(70% 46% at 50% 68%, #141312b3 0, #14131200 100%), linear-gradient(to top, var(--ground) 0, #14131200 18%); }
+    .closing-caption { margin-top: 32px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
+    .closing-logo { width: min(100%, 380px); margin-bottom: -4px; filter: drop-shadow(0 12px 22px #00000099); }
+    .closing-line { font: 700 clamp(26px, 2.6vw, 36px)/1.12 var(--sans); letter-spacing: -.032em; text-wrap: balance; }
+    .closing-platforms { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 32px; max-width: 760px; }
+    .closing-platforms a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid #ffffff33; border-radius: 8px; background: #1413128c; color: var(--ink); font: 500 15px/1.2 var(--sans); text-decoration: none; transition: background-color .15s ease-out, border-color .15s ease-out, transform .1s ease-out; }
+    .closing-platforms a:hover { background: var(--raise-2); border-color: var(--line-strong); }
+    .closing-platforms a:active { transform: translateY(1px); }
+    .closing-mod { display: inline-flex; align-items: center; min-height: 44px; margin-top: 12px; padding: 0 16px; color: var(--ink); font: 500 16px/1.2 var(--sans); text-decoration: underline; text-underline-offset: 4px; }
+
+    .page-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; padding-block: 24px 40px; color: var(--quiet); font: 400 14px/1.5 var(--sans); }
+    .foot-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font: 700 16px/1 var(--sans); letter-spacing: -.015em; }
+    .page-foot nav { display: flex; flex-wrap: wrap; }
+    .page-foot nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--soft); text-decoration: none; transition: background-color .15s ease-out, color .15s ease-out; }
+    .page-foot nav a:hover { background: var(--raise); color: var(--ink); }
+
+    /* Install dialogs. */
+    dialog { width: min(560px, calc(100% - 32px)); padding: 32px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--raise); color: var(--ink); box-shadow: 0 32px 80px -24px #000; }
+    dialog::backdrop { background: #0b0a09c7; }
+    @media (prefers-reduced-motion: no-preference) {
+      dialog[open] { animation: dialog-in .22s cubic-bezier(.16, 1, .3, 1); }
+      @keyframes dialog-in { from { opacity: 0; transform: translateY(8px); } }
+    }
+    dialog h2 { margin: 0 48px 12px 0; font: 700 26px/1.2 var(--sans); letter-spacing: -.02em; }
+    dialog p { color: var(--soft); font-size: 16px; line-height: 1.6; }
+    dialog .close { position: absolute; right: 12px; top: 12px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--soft); transition: background-color .12s ease-out, color .12s ease-out; }
+    dialog .close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+    dialog .close:hover { background: var(--raise-2); color: var(--ink); }
+    dialog .close:active { background: var(--line); }
+    dialog .close:focus-visible, #copy-command:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .command-row { display: flex; gap: 8px; align-items: stretch; margin-top: 20px; }
+    #install-command { flex: 1; display: block; width: 100%; min-width: 0; min-height: 48px; padding: 12px 14px; field-sizing: content; resize: none; overflow-wrap: anywhere; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--ground); color: var(--ink); font: 400 14px/1.5 var(--mono); }
+    #install-command:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    #install-command::selection { background: var(--cinnabar-red); }
+    #copy-command { flex: none; min-width: 80px; min-height: 48px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--ink); color: var(--ground); font: 700 15px/1 var(--sans); transition: background-color .12s ease-out, transform .1s ease-out; }
+    #copy-command:hover { background: #fff; }
+    #copy-command:active { background: var(--soft); transform: translateY(1px); }
+    #copy-status { min-height: 1.6em; margin: 12px 0 0; font-size: 14px; }
+    #copy-status:empty { min-height: 0; margin: 0; }
+    .download-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px; margin-top: 8px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--ink); font: 500 16px/1.3 var(--sans); text-decoration: none; transition: background-color .12s ease-out, border-color .12s ease-out, transform .1s ease-out; }
+    .download-option::after { content: ""; flex: none; width: 16px; height: 16px; background: var(--quiet); mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z'/%3E%3C/svg%3E") center / contain no-repeat; transition: background-color .12s ease-out; }
+    .download-option:hover { background: var(--raise-2); border-color: var(--quiet); }
+    .download-option:hover::after { background: var(--ink); }
+    .download-option:active { transform: translateY(1px); }
+    #macos-install > p:first-child, #desktop-install > p:first-child { margin-bottom: 16px; }
+    .first-open { margin: 24px 0 0; font-size: 15px; }
+    .first-open code { display: block; margin-top: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); color: var(--ink); overflow-wrap: anywhere; font: 400 13.5px/1.6 var(--mono); }
+
+    @media (max-width: 900px) {
+      .hero-media { --w: max(1100px, 186svh); --sun-x: calc(var(--w) * .2417); --sun-y: calc(var(--w) * .1797); }
+      .hero-media img { left: calc(var(--w) * -.3); top: 0; }
+      .player-history { grid-template-columns: minmax(0, 1fr); padding-top: 64px; }
+      .chart-ranges { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 24px; }
+      .chart-summary { grid-column: 1; grid-row: auto; margin-top: 4px; text-align: left; white-space: normal; }
+      .chart-body { min-height: 260px; margin-top: 24px; }
+      #history-plot { height: 260px; }
+      .gallery { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 56px 16px; padding-top: 80px; }
+      .shot-pvp { grid-column: 1 / -1; margin-right: calc(-1 * var(--bleed)); }
+      .shot-pvp img { border-radius: 0; }
+      .shot-forest, .shot-cave { grid-column: 1 / -1; }
+      .closing { margin-top: 80px; padding-block: 220px 32px; }
+      .page-foot { flex-direction: column; align-items: flex-start; }
+      .page-foot nav { margin-left: -12px; }
     }
     @media (max-width: 480px) {
-      #channel-toggle { padding: 16px 12px; }
+      .hero { gap: 20px; padding-inline: 16px; padding-bottom: 24px; }
+      .hero-caption { position: static; grid-row: 3; margin-top: -8px; }
+      .hero-main::before { inset: 4% -16px -14%; background: radial-gradient(72% 50% at 50% 50%, #241209d0 0, #241209c8 70%, #24120900 100%); }
+      .logo-motion { margin-bottom: -16px; }
+      .edition { margin-top: 8px; font-size: 16px; }
+      .actions { width: 100%; margin-top: 24px; }
+      .split { display: flex; width: 100%; }
+      .split .cta { font-size: 17px; }
+      #download { flex: 1; padding-inline: 16px; }
       .channel-menu { left: 0; right: auto; width: 100%; max-width: none; }
+      .disclaimer { padding: 14px 16px; gap: 12px; font-size: 14px; }
+      dialog { padding: 24px 20px; }
+      .command-row { flex-direction: column; }
+      #install-command { flex: none; }
     }
   </style>
 </head>
-<body>
+<body class="site">
   @@SITE_HEADER@@
   <main>
     <div class="hero">
-      <div class="logo-motion"><img class="logo" src="/title.png" alt="Cinnabar" width="1022" height="282"></div>
-      <p class="description">A familiar world. A new client.</p>
-      <p class="edition">Minecraft Bedrock client</p>
-      <div class="actions">
-        <div class="split" id="download-split">
-          <button type="button" id="download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg><span id="download-label">Download for your device</span></button>
-          <button type="button" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu" aria-label="Choose download channel"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7h12l-6 7z"/></svg></button>
-          <div class="channel-menu" id="channel-menu" role="menu" aria-label="Download channel" hidden>
-            <button type="button" class="channel-option" id="channel-beta" role="menuitemradio" aria-checked="true" data-channel="beta">Beta<span class="hint">Recommended</span></button>
-            <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>
+      <div class="hero-media"><img src="/assets/gameplay/sunset.webp" alt="In game at sunset: a crowned, winged player stands on a grassy hilltop beneath a huge overhanging tree, looking out over a misty valley." width="1920" height="1156" fetchpriority="high"></div>
+      <div class="hero-main">
+        <h1 class="logo-motion"><img class="logo" src="/title.png" alt="Cinnabar" width="2000" height="667"></h1>
+        <p class="description">A familiar world. A new client.</p>
+        <p class="edition">Minecraft Bedrock client</p>
+        <div class="actions">
+          <div class="split" id="download-split">
+            <button type="button" class="cta" id="download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg><span id="download-label">Download for your device</span></button>
+            <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu" aria-label="Choose download channel"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5"/></svg></button>
+            <div class="channel-menu" id="channel-menu" role="menu" aria-label="Download channel" hidden>
+              <button type="button" class="channel-option" id="channel-beta" role="menuitemradio" aria-checked="true" data-channel="beta">Beta<span class="hint">Recommended</span></button>
+              <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>
+            </div>
           </div>
         </div>
+        <p class="download-count" id="download-count" role="status" aria-atomic="true"></p>
       </div>
-      <p class="download-count" id="download-count" role="status" aria-atomic="true"></p>
+      <p class="hero-caption">Sunset with a shader pack</p>
       <p class="disclaimer" role="note">Cinnabar is a non-vanilla client and still in development. Its movement and combat may not yet match the official client exactly, so server anticheats may flag you and some servers may ban you. Play on servers at your own risk.</p>
     </div>
-    <section class="player-history" aria-labelledby="history-title">
+
+    <section class="player-history wrap" aria-labelledby="history-title">
       <div class="chart-header">
         <h2 id="history-title">Players online</h2>
         <div class="chart-ranges" role="group" aria-label="Player history range">
@@ -144,13 +242,49 @@
       <p class="chart-detail" id="history-detail" aria-live="polite"></p>
       <noscript><p>Enable JavaScript to view player history.</p></noscript>
     </section>
+
+    <section class="gallery wrap" aria-labelledby="gallery-title">
+      <h2 class="visually-hidden" id="gallery-title">Gallery</h2>
+      <figure class="shot-pvp">
+        <img src="/assets/gameplay/pvp.webp" alt="A first-person fight in a stone arena at dusk: a diamond sword in hand, an opponent in diamond armor ahead, and an iron statue on a dark platform in the distance." width="1920" height="994" loading="lazy">
+        <figcaption>PvP</figcaption>
+      </figure>
+      <figure class="shot-forest">
+        <img src="/assets/gameplay/forest.webp" alt="A cobblestone path through a dark forest of giant mushrooms under a streaked evening sky." width="1025" height="720" loading="lazy">
+        <figcaption>In game</figcaption>
+      </figure>
+      <figure class="shot-cave">
+        <img src="/assets/gameplay/cave.webp" alt="Blue shafts of light falling through the opening of a dark cave, with ore glinting in the rock below." width="1920" height="1159" loading="lazy">
+        <figcaption>Light shafts in a cave with a shader pack</figcaption>
+      </figure>
+    </section>
+
+    <section class="closing" aria-labelledby="closing-title">
+      <img class="closing-media" src="/assets/gameplay/river.webp" alt="A moonlit river between pale sand banks under a starry sky, with a rock spire dark against the moon." width="2358" height="1414" loading="lazy">
+      <img class="closing-logo" src="/title.png" alt="Cinnabar" width="2000" height="667" loading="lazy">
+      <p class="closing-line" id="closing-title">A familiar world. A new client.</p>
+      <nav class="closing-platforms" aria-label="All platforms">
+        <a data-release-asset="windows/x86_64">Windows setup</a>
+        <a data-release-asset="linux/x86_64">Linux AppImage</a>
+        <a data-release-asset="macos/arm64">macOS — Apple silicon</a>
+        <a data-release-asset="macos/x86_64">macOS — Intel</a>
+        <a data-release-asset="android/arm64">Android — ARM64 APK</a>
+      </nav>
+      <a class="closing-mod" href="/mod/">Official Mod</a>
+      <p class="closing-caption">Moonlit river with a shader pack</p>
+    </section>
   </main>
+  <footer class="page-foot wrap">
+    <span class="foot-brand"><img src="@@FAVICON@@" alt="" width="24" height="24">Cinnabar</span>
+    <nav aria-label="Footer"><a href="/mod/">Official Mod</a><a href="/docs/modding/">Docs</a><a href="https://discord.gg/MeEz7BEHcM">Discord</a></nav>
+    <p>Not affiliated with Mojang or Microsoft.</p>
+  </footer>
   <dialog id="install-dialog" aria-labelledby="install-title">
-    <button type="button" class="close" id="close-dialog" aria-label="Close">×</button>
+    <button type="button" class="close" id="close-dialog" aria-label="Close"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
     <h2 id="install-title">Install Cinnabar</h2>
     <div id="linux-install" hidden>
       <p>Paste this command into your terminal. It installs Cinnabar for your user and adds it to your app menu.</p>
-      <div class="command-row"><input id="install-command" aria-label="Linux install command" readonly><button type="button" id="copy-command">Copy</button></div>
+      <div class="command-row"><textarea id="install-command" aria-label="Linux install command" rows="3" spellcheck="false" readonly></textarea><button type="button" id="copy-command">Copy</button></div>
       <p id="copy-status" role="status"></p>
     </div>
     <div id="macos-install" hidden>

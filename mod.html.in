@@ -3,117 +3,116 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141312">
   <meta name="description" content="Cinnabar Mod is the official HUD and module pack for Cinnabar: 39 modules, a drag-and-drop HUD editor, profiles and waypoints.">
   <title>Cinnabar Mod</title>
   <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
+  <link rel="preload" href="/assets/fonts/schibsted-grotesk-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <style>
     @@SITE_HEADER_STYLES@@
-    :root { --cinnabar-red: @@RED@@; --ink: #edf2eb; --soft: #c4cdc1; --quiet: #acb7a9; --rule: #394337; --slab: #1c231d; --slab-edge: #505b4c; font-family: system-ui, sans-serif; color-scheme: dark; }
+    :root { --cinnabar-red: @@RED@@; --solid-at: 320px; color-scheme: dark; }
     * { box-sizing: border-box; }
-    html { scroll-padding-top: 24px; }
-    body { margin: 0; min-height: 100vh; min-height: 100svh; padding: 0 40px 40px; background: #141815; color: #fff; isolation: isolate; }
-    body::before { content: ''; position: fixed; inset: 0; z-index: -2; background: url('/texture.svg') repeat; background-size: 256px 256px; opacity: .45; }
-    body::after { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse at 50% 30%, transparent 0%, #11151266 55%, #0b100de6 100%), radial-gradient(ellipse at 50% 34%, color-mix(in srgb, var(--cinnabar-red) 5%, transparent), transparent 55%); }
-    ::selection { background: #a82c22; color: #fff; }
+    html { background: var(--ground); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    body { margin: 0; overflow-x: clip; background: var(--ground); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+    p, h1, h2, h3, figure { margin: 0; }
     a { color: inherit; text-underline-offset: 4px; }
-    a:focus-visible { outline: 2px solid #f8c1af; outline-offset: 4px; }
-    main { width: min(100%, 1100px); margin: auto; }
+    a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+    img { display: block; max-width: 100%; height: auto; }
+    .wrap { width: min(100% - 2 * var(--gutter), var(--page)); margin-inline: auto; }
 
-    .hero { display: flex; flex-direction: column; align-items: center; padding: 56px 0 48px; text-align: center; }
-    h1 { margin: 0; font: 800 clamp(2.5rem, 6vw, 4rem)/1.05 system-ui, sans-serif; letter-spacing: -.035em; }
-    h1 span { color: var(--cinnabar-red); }
-    .description { max-width: 34ch; margin: 18px 0 8px; color: var(--ink); font: 400 1.25rem/1.6 system-ui, sans-serif; text-wrap: balance; }
-    .edition { margin: 0; color: var(--quiet); text-wrap: balance; font: 400 .875rem/1.6 system-ui, sans-serif; }
-    .download { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 14px; max-width: 100%; min-height: 62px; margin-top: 32px; padding: 17px 28px; border: 2px solid #180d0b; background: var(--cinnabar-red); color: #fff; box-shadow: inset 0 3px #ffffff35, inset 3px 0 #ffffff16, inset -3px 0 #0002, inset 0 -4px #0004, 0 5px 0 #451510, 0 7px 0 #0d100d, 0 14px 25px #0004; text-decoration: none; text-shadow: 0 2px #0006; font: 700 1rem/1.5 ui-monospace, monospace; }
-    .download svg { width: 20px; height: 20px; flex: 0 0 20px; fill: currentColor; }
-    .download:hover { filter: brightness(1.12); }
-    .download:active { transform: translateY(4px); box-shadow: inset 0 3px #ffffff35, inset 0 -3px #0004, 0 1px 0 #451510, 0 3px 0 #0d100d; }
-    .download-note { margin: 22px 0 0; color: var(--quiet); font: 400 .8125rem/1.6 system-ui, sans-serif; }
-    .download-note a:hover { color: #fff; }
+    .hero { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px 48px; align-items: center; padding-top: calc(var(--site-header-height) + 32px); }
+    h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; font: 700 clamp(40px, 4vw, 56px)/1 var(--sans); letter-spacing: -.035em; }
+    h1 img { width: min(100%, 400px); filter: drop-shadow(0 10px 18px #0009); }
+    .hero-side { display: flex; flex-direction: column; align-items: flex-start; }
+    .description { font: 500 clamp(19px, 1.5vw, 21px)/1.32 var(--sans); letter-spacing: -.015em; text-wrap: pretty; }
+    .edition { margin-top: 12px; color: var(--soft); font: 400 16px/1.5 var(--sans); }
+    .download { margin-top: 20px; }
+    .download-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .4em; min-height: 44px; margin-top: 8px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
+    .download-note a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: #ffffff59; text-decoration-thickness: 1px; transition: text-decoration-color .15s ease-out; }
+    .download-note a:hover { text-decoration-color: currentColor; }
+    code { font: 400 .92em/1.5 var(--mono); }
 
-    .shot { display: block; padding: 6px; border: 2px solid var(--slab-edge); background: var(--slab); box-shadow: 0 24px 60px #0009, 0 4px 0 #0d100d; }
-    .shot img { display: block; width: 100%; height: auto; }
-    .showcase figcaption, .pair figcaption { margin-top: 14px; color: var(--quiet); font: 400 .8125rem/1.6 system-ui, sans-serif; }
-    .showcase { margin: 0; }
-    .showcase figcaption { text-align: center; }
-    .download-note code { color: var(--soft); font: .75rem/1.6 ui-monospace, monospace; }
+    /* The menu capture stays within its source's 1920px and never fills a large display. */
+    .showcase { width: min(100% - 2 * var(--gutter), 1120px); margin: 40px auto 0; }
+    .showcase img { width: 100%; }
+    .showcase figcaption { margin-top: 12px; color: var(--soft); font: 400 15px/1.5 var(--sans); text-align: center; }
+    .shot { display: block; overflow: clip; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); cursor: zoom-in; transition: border-color .2s ease-out, transform .2s cubic-bezier(.16, 1, .3, 1), box-shadow .2s ease-out; }
+    .shot:hover { border-color: var(--line-strong); box-shadow: 0 24px 48px -28px #000; transform: translateY(-2px); }
+    .shot:active { transform: translateY(0); box-shadow: none; }
+    .shot:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 12px; }
+    .pair figcaption { margin-top: 12px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
 
     section { padding-top: 88px; }
-    h2 { margin: 0; color: #fff; font: 700 clamp(1.625rem, 3vw, 2.125rem)/1.2 system-ui, sans-serif; letter-spacing: -.02em; text-wrap: balance; }
-    .lead { max-width: 60ch; margin: 14px 0 0; color: var(--soft); font: 400 1.0625rem/1.7 system-ui, sans-serif; text-wrap: pretty; }
+    h2 { font: 700 clamp(26px, 2.5vw, 34px)/1.12 var(--sans); letter-spacing: -.032em; text-wrap: balance; }
+    .lead { color: var(--soft); font: 400 clamp(16px, 1.2vw, 17px)/1.55 var(--sans); text-wrap: pretty; }
+    .lead a { color: var(--ink); text-decoration-color: #ffffff59; text-decoration-thickness: 1px; transition: text-decoration-color .15s ease-out; }
+    .lead a:hover { text-decoration-color: currentColor; }
 
-    .catalog-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; padding-bottom: 28px; border-bottom: 1px solid var(--rule); }
-    .catalog-head .lead { max-width: 46ch; }
-    .catalog { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin: 32px 0 0; }
-    .catalog h3 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 16px; color: #fff; font: 600 1rem/1.5 system-ui, sans-serif; }
-    .catalog h3 data { color: var(--quiet); font: 500 .75rem/1.5 ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-    .catalog h3::before { content: ''; flex: 0 0 auto; width: 8px; height: 8px; background: var(--swatch); align-self: center; }
-    .catalog ul { margin: 0; padding: 0; list-style: none; color: var(--soft); font: 400 .9375rem/1.5 system-ui, sans-serif; }
-    .catalog li { padding: 7px 0; border-top: 1px solid #2a3329; }
-    .catalog .hud ul { columns: 2; column-gap: 32px; }
-    .catalog .hud li { break-inside: avoid; }
-    .hud { --swatch: var(--cinnabar-red); }
-    .visual { --swatch: #e0b25a; }
-    .mechanic { --swatch: #95c783; }
+    .catalog-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px 48px; align-items: end; }
+    .catalog { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px 32px; margin-top: 40px; }
+    .catalog h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line-strong); font: 700 18px/1.2 var(--sans); letter-spacing: -.015em; }
+    .catalog h3 data { color: var(--quiet); font: 400 14px/1 var(--mono); font-variant-numeric: tabular-nums; }
+    .catalog ul { margin: 0; padding: 0; list-style: none; color: var(--soft); font: 400 15px/1.4 var(--sans); }
+    .catalog li { padding: 8px 0; border-bottom: 1px solid var(--line); break-inside: avoid; }
+    .hud { grid-column: span 2; }
+    .hud ul { columns: 2; column-gap: 32px; }
 
-    .layout-head { max-width: 62ch; }
-    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 36px; }
-    .pair figure { margin: 0; }
-    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; margin: 40px 0 0; padding: 0; list-style: none; }
-    .facts li { padding: 18px 0 0; border-top: 1px solid var(--rule); color: var(--soft); font: 400 .9375rem/1.65 system-ui, sans-serif; }
-    .facts strong { display: block; margin-bottom: 2px; color: #fff; font-weight: 600; }
+    .layout-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px 48px; align-items: end; }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 40px; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 32px; margin: 40px 0 0; padding: 0; list-style: none; }
+    .facts li { padding-top: 16px; border-top: 1px solid var(--line-strong); color: var(--soft); font: 400 15px/1.55 var(--sans); }
+    .facts strong { display: block; margin-bottom: 4px; color: var(--ink); font: 700 17px/1.3 var(--sans); letter-spacing: -.012em; }
     .keys { white-space: nowrap; }
-    kbd { display: inline-block; padding: 0 7px; border: 1px solid var(--slab-edge); border-bottom-width: 3px; background: #262f26; color: #fff; font: 600 .8125rem/1.6 ui-monospace, monospace; white-space: nowrap; }
+    kbd { display: inline-block; padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--raise-2); box-shadow: inset 0 -1px #0006; color: var(--ink); font: 500 .84em/1.6 var(--mono); white-space: nowrap; }
 
-    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 36px 0 0; padding: 0; list-style: none; counter-reset: step; }
-    .steps li { counter-increment: step; padding: 24px; border: 2px solid var(--slab-edge); background: #1c231dd9; }
-    .steps li::before { content: counter(step); display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 20px; border: 2px solid #180d0b; background: var(--cinnabar-red); box-shadow: inset 0 3px #ffffff35, inset 0 -4px #0004; text-shadow: 0 2px #0006; font: 700 1rem/1 ui-monospace, monospace; }
-    .steps h3 { margin: 0 0 8px; color: #fff; font: 600 1.0625rem/1.4 system-ui, sans-serif; }
-    .steps p { margin: 0; color: var(--soft); font: 400 .9375rem/1.65 system-ui, sans-serif; }
-    .steps strong { color: #fff; font-weight: 600; }
-    .help { margin: 24px 0 0; color: var(--quiet); font: 400 .875rem/1.7 system-ui, sans-serif; }
-    .help a { color: var(--ink); }
-    .help a:hover { color: #fff; }
+    .install h2 { margin-bottom: 16px; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 40px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); list-style: none; counter-reset: step; }
+    .steps li { counter-increment: step; padding: 24px; }
+    .steps li + li { border-left: 1px solid var(--line); }
+    .steps li::before { content: counter(step); display: block; margin-bottom: 12px; color: var(--quiet); font: 700 26px/1 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .steps h3 { margin-bottom: 6px; font: 700 18px/1.25 var(--sans); letter-spacing: -.015em; }
+    .steps p { color: var(--soft); font: 400 15px/1.55 var(--sans); text-wrap: pretty; }
+    .steps strong { color: var(--ink); font-weight: 500; }
+    .help { margin-top: 24px; color: var(--soft); font: 400 16px/1.6 var(--sans); }
+    .help a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: #ffffff59; text-decoration-thickness: 1px; transition: text-decoration-color .15s ease-out; }
+    .help a:hover { text-decoration-color: currentColor; }
 
-    footer { width: min(100%, 1100px); margin: 88px auto 0; padding-top: 24px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 24px; color: var(--quiet); font: 400 .75rem/1.7 system-ui, sans-serif; }
-    footer p { margin: 0; }
+    footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 32px; align-items: end; margin-top: 96px; padding-block: 32px 40px; border-top: 1px solid var(--line); color: var(--quiet); font: 400 14px/1.5 var(--sans); }
+    .foot-logo { grid-column: 1 / -1; width: min(100%, 200px); margin: -8px 0 0 -12px; }
 
     @media (max-width: 900px) {
-      .catalog { grid-template-columns: 1fr 1fr; gap: 40px 32px; }
-      .catalog .hud { grid-column: 1 / -1; }
-      .pair { grid-template-columns: 1fr; gap: 32px; }
-      .facts { grid-template-columns: 1fr; gap: 18px; }
-      .steps { grid-template-columns: 1fr; }
-      .steps li { display: grid; grid-template-columns: 40px 1fr; column-gap: 18px; padding: 20px; }
-      .steps li::before { grid-row: span 2; margin: 0; }
-    }
-    @media (max-width: 700px) {
-      body { padding: 0 20px 32px; }
-      .hero { padding: 36px 0 36px; }
-      .description { font-size: 1.125rem; }
-      .download { width: 100%; }
-      .shot { padding: 4px; }
-      section { padding-top: 64px; }
-      footer { margin-top: 64px; }
+      .hero, .catalog-head, .layout-head { grid-template-columns: minmax(0, 1fr); }
+      .hero { padding-top: calc(var(--site-header-height) + 40px); }
+      section { padding-top: 80px; }
+      .catalog { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 40px; }
+      .hud { grid-column: 1 / -1; }
+      .pair { grid-template-columns: minmax(0, 1fr); gap: 32px; margin-top: 40px; }
+      .facts { grid-template-columns: minmax(0, 1fr); margin-top: 40px; }
+      .steps { grid-template-columns: minmax(0, 1fr); margin-top: 40px; }
+      .steps li { display: grid; grid-template-columns: 40px minmax(0, 1fr); padding: 20px; }
+      .steps li + li { border-left: 0; border-top: 1px solid var(--line); }
+      .steps li::before { grid-row: span 2; margin: 0; font-size: 24px; }
+      footer { grid-template-columns: minmax(0, 1fr); margin-top: 80px; }
     }
     @media (max-width: 480px) {
-      .download { padding: 16px 14px; gap: 10px; font-size: .875rem; }
-      .catalog { grid-template-columns: 1fr; }
-      .catalog ul, .catalog .hud ul { columns: 2; column-gap: 20px; }
-      .catalog li { font-size: .875rem; }
-      .catalog-head { padding-bottom: 20px; }
+      .download { width: 100%; padding-inline: 16px; font-size: 17px; }
+      .catalog { grid-template-columns: minmax(0, 1fr); }
+      .hud ul { column-gap: 16px; }
+      .visual ul, .mechanic ul { columns: 2; column-gap: 16px; }
     }
   </style>
 </head>
-<body>
+<body class="site">
   @@SITE_HEADER@@
   <main>
-    <div class="hero">
-      <h1>Cinnabar <span>Mod</span></h1>
-      <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
-      <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
-      <a class="download" href="@@API_ORIGIN@@/v1/mod/download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Mod</a>
-      <p class="download-note">Downloads <code>CinnabarClient.wasm</code> · <a href="#install">How to install</a></p>
+    <div class="hero wrap">
+      <h1><img src="/title.png" alt="Cinnabar" width="2000" height="667"> <span>Mod</span></h1>
+      <div class="hero-side">
+        <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
+        <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
+        <a class="download" href="@@API_ORIGIN@@/v1/mod/download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Mod</a>
+        <p class="download-note">Downloads <code>CinnabarClient.wasm</code> · <a href="#install">How to install</a></p>
+      </div>
     </div>
 
     <figure class="showcase">
@@ -121,7 +120,7 @@
       <figcaption>The Mods menu. Search, filter, toggle and bind every module from one grid.</figcaption>
     </figure>
 
-    <section class="modules" aria-labelledby="modules-title">
+    <section class="modules wrap" aria-labelledby="modules-title">
       <div class="catalog-head">
         <h2 id="modules-title">39 modules, ready to switch on</h2>
         <p class="lead">PvP essentials and everyday info. Every module has its own settings and an optional shortcut.</p>
@@ -133,7 +132,7 @@
       </div>
     </section>
 
-    <section class="layout" aria-labelledby="layout-title">
+    <section class="layout wrap" aria-labelledby="layout-title">
       <div class="layout-head">
         <h2 id="layout-title">Tune it, then put it where you want it</h2>
         <p class="lead">Open any module for its settings and a live sample: color, background, opacity, scale and more. Press <kbd>Right Shift</kbd> in game to open HUD Layout, then drag and resize widgets on a snapping grid.</p>
@@ -155,7 +154,7 @@
       </ul>
     </section>
 
-    <section class="install" id="install" aria-labelledby="install-title">
+    <section class="install wrap" id="install" aria-labelledby="install-title">
       <h2 id="install-title">Install in three steps</h2>
       <p class="lead">You need an up-to-date copy of <a href="/">Cinnabar</a> first.</p>
       <ol class="steps">
@@ -166,6 +165,6 @@
       <p class="help">Stuck? <a href="https://discord.gg/MeEz7BEHcM">Ask in Discord</a>.</p>
     </section>
   </main>
-  <footer><p>Cinnabar Mod · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
+  <footer class="wrap"><img class="foot-logo" src="/title.png" alt="" width="2000" height="667" loading="lazy"><p>Cinnabar Mod · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
 </body>
 </html>

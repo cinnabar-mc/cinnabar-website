@@ -1,5 +1,5 @@
 <header class="site-header">
-    <a class="brand-home" href="/" aria-label="Cinnabar home"><img src="@@FAVICON@@" alt="" width="24" height="24"><span>Cinnabar</span></a>
+    <a class="brand-home" href="/" aria-label="Cinnabar home"><img src="@@FAVICON@@" alt="" width="28" height="28"><span>Cinnabar</span></a>
     <nav class="socials" aria-label="Main navigation">
       <a class="marketplace-link" href="/mods/"@@MARKETPLACE_CURRENT@@>Marketplace</a>
       <a class="official-mod" href="/mod/"@@MOD_CURRENT@@>Official Mod</a>
