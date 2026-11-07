@@ -339,8 +339,8 @@
         button('Clear filters', () => { query = ''; selectedCategory = 'all'; limited = false; search.value = ''; render(); }, 'btn quiet', 'catalog:recovery')));
     }
     const content = h('div', { class: 'catalog-results' }, h('div', { class: 'search-tools' }, h('label', { class: 'search-wrap' }, icon('search'), search), sort),
-      h('div', { class: 'catalog-count' }, libraryOnly ? h('h2', {}, 'Your library') : null, count), grid);
-    if (libraryOnly) content.insertBefore(h('p', { class: 'small muted' }, 'Removing a library selection stops queued delivery. Manage installed mods in Cinnabar.'), grid);
+      h('div', { class: 'catalog-count' }, libraryOnly ? h('h2', {}, 'Your library') : null, count),
+      libraryOnly ? h('p', { class: 'small muted' }, 'Removing a library selection stops queued delivery. Manage installed mods in Cinnabar.') : null, grid);
     mount(token, h('section', { class: 'catalog-layout' }, rail, content)); results();
     if (libraryOnly && !session.account) announce('Choose an account to keep a library. Browsing is public.');
   }

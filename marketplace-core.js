@@ -270,11 +270,13 @@
         const nameEnd = nameStart + length;
         if (nameEnd > end) throw new Error("Truncated section name.");
         const name = decoder.decode(bytes.subarray(nameStart, nameEnd));
-        const recognized = ["component-name", "description", "version", "authors", "licenses", "cinnabar:grants"].includes(name);
-        if (recognized && seen.has(name)) throw new Error("Duplicate metadata section: " + name);
-        if (recognized) seen.add(name);
+        const text = ["description", "version", "authors", "licenses"].includes(name);
+        if (text || name === "component-name" || name === "cinnabar:grants") {
+          if (seen.has(name)) throw new Error("Duplicate metadata section: " + name);
+          seen.add(name);
+        }
         const data = bytes.subarray(nameEnd, end);
-        if (["description", "version", "authors", "licenses"].includes(name)) {
+        if (text) {
           if (data.length > 65536) throw new Error("Metadata section is too large.");
           found[name] = decoder.decode(data);
         }
