@@ -5,10 +5,14 @@
   const config = (window.CINNABAR_DOWNLOADS || {}).marketplace || {};
   const app = document.getElementById('app');
   const feedback = document.getElementById('feedback');
-  const backend = config.backend === 'mock' ? window.CinnabarMarketMock.createMockApi(safeStorage())
-    : config.backend === 'http' && config.api_url ? window.CinnabarMarketHttp.createHttpApi(config.api_url.replace(/\/$/, ''), window.fetch.bind(window), window.location)
+  const storage = safeStorage();
+  const backend = config.backend === 'mock' ? window.CinnabarMarketMock.createMockApi(storage)
+    : config.backend === 'http' && config.api_url ? window.CinnabarMarketHttp.createHttpApi(config.api_url, window.fetch.bind(window), window.location)
       : { backend: 'unavailable', request: async () => ({ status: 503, body: { error: 'Marketplace configuration could not load. Reload this page to retry.' } }),
         signIn: () => announce('Marketplace configuration could not load. Reload this page before signing in.', true) };
+  // A configuration failure is neither the preview nor the live backend.
+  const previewMode = backend.backend === 'mock';
+  const liveMode = backend.backend === 'http';
   let session = { account: null, library: [] };
   let removingLibrary = false;
   let generation = 0;
@@ -30,14 +34,12 @@
   let writes = 0;
   const reviewNotes = new Map();
   const steps = ['project', 'media', 'release', 'checks'];
-  const categories = ['Interface', 'Visuals', 'Camera', 'Utilities', 'Gameplay', 'Network'];
   const paths = {
     hud: '<rect x="4" y="5" width="24" height="22"/><path d="M4 12h24M10 12v15m5-10h8m-8 5h5"/>',
     sun: '<path d="M3 23h26M8 23a8 8 0 0 1 16 0M16 3v5M4 10l4 4m20-4-4 4M2 18h5m18 0h5M11 28h10"/>',
     zoom: '<path d="M10 4H4v6m18-6h6v6M4 22v6h6m18-6v6h-6"/><circle cx="15" cy="15" r="6"/><path d="m19 19 5 5"/>',
     grid: '<rect x="4" y="4" width="24" height="24"/><path d="M12 4v24m8-24v24M4 12h24M4 20h24"/>',
     shield: '<path d="m16 3 10 4v8c0 7-10 13-10 13S6 22 6 15V7zM11 15l4 4 7-8"/>',
-    arrow: '<path d="M5 16h22m-8-8 8 8-8 8"/>',
     search: '<circle cx="14" cy="14" r="8"/><path d="m20 20 8 8"/>',
     upload: '<path d="M16 23V4m-7 7 7-7 7 7M5 23v6h22v-6"/>',
   };
@@ -67,14 +69,14 @@
   function icon(name) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 32 32'); svg.setAttribute('class', 'icon'); svg.setAttribute('aria-hidden', 'true');
-    svg.innerHTML = paths[name] || paths.hud;
+    svg.innerHTML = paths[name];
     return svg;
   }
 
   /** Pick an icon from actual listing categories rather than invent an uploaded image. */
   function modIcon(mod) {
     const category = C.category(mod);
-    return h('div', { class: 'mod-icon ' + (category === 'Visuals' ? 'warm' : category === 'Camera' ? 'blue' : '') },
+    return h('div', { class: category === 'Visuals' ? 'mod-icon warm' : 'mod-icon' },
       icon(category === 'Visuals' ? 'sun' : category === 'Camera' ? 'zoom' : category === 'Utilities' ? 'grid' : 'hud'));
   }
 
@@ -115,14 +117,19 @@
       h('p', {}, message || 'Please retry.'), button('Try again', render, 'btn primary', 'retry'));
   }
 
+  /** Cancel file and image work and forget the in-memory draft. */
+  function discardDraft() {
+    validationController?.abort(); validationPending = false; mediaPending = false;
+    fileToken++; draft = null; draftOwner = null;
+  }
+
   /** Reflect server identity; preview account choices never appear in HTTP mode. */
   async function loadSession(expectedGeneration) {
     const response = await call('GET', '/me');
     if (expectedGeneration !== undefined && expectedGeneration !== generation) return { status: 0, stale: true, body: {} };
     if (response.status !== 200) return response;
     if (session.account?.xuid !== response.body.account?.xuid) {
-      validationController?.abort(); validationPending = false; mediaPending = false;
-      fileToken++; draft = null; draftOwner = null; reviewNotes.clear();
+      discardDraft(); reviewNotes.clear();
       submitting = false; uploadGeneration++;
     }
     session = response.body;
@@ -136,9 +143,9 @@
     const box = document.getElementById('account');
     const account = session.account;
     box.replaceChildren(account ? h('div', { class: 'row' }, h('span', { class: 'who small' }, account.gamertag,
-      h('small', {}, backend.backend === 'mock' ? 'Preview account · ' + account.role : account.role)),
-    button(backend.backend === 'mock' ? 'Switch account' : 'Sign out', backend.backend === 'mock' ? signIn : signOut, 'btn quiet', 'account'))
-      : button(backend.backend === 'mock' ? 'Preview account' : 'Sign in', signIn, 'btn quiet', 'account'));
+      h('small', {}, previewMode ? 'Preview account · ' + account.role : account.role)),
+    button(previewMode ? 'Switch account' : 'Sign out', previewMode ? signIn : signOut, 'btn quiet', 'account'))
+      : button(previewMode ? 'Preview account' : 'Sign in', signIn, 'btn quiet', 'account'));
     const links = [['catalogue', '#/', 'Explore'], ['library', '#/library', 'My library (' + session.library.length + ')']];
     if (account) links.push(['mine', '#/mine', 'Your projects']);
     if (M.atLeast(account, 'moderator')) links.push(['staff', '#/staff/queue', 'Review']);
@@ -159,8 +166,7 @@
       button(h('span', {}, persona.gamertag, h('small', {}, persona.blurb)), async () => {
         const signed = await call('POST', '/auth/preview', { xuid: persona.xuid });
         if (signed.status !== 200) { announce(signed.body.error, true); return; }
-        validationController?.abort(); validationPending = false; mediaPending = false;
-        fileToken++; draft = null; draftOwner = null; step = 'project';
+        discardDraft(); step = 'project';
         dialog.close(); await loadSession(); await render();
         announce('Using the ' + persona.gamertag + ' preview account.');
       }, 'btn quiet')));
@@ -172,9 +178,7 @@
     generation++; window.clearTimeout(refreshTimer);
     const result = await call('POST', '/auth/signout');
     if (result.status !== 200) { await render(); return announce(result.body.error, true); }
-    validationController?.abort(); validationPending = false; mediaPending = false;
-    fileToken++; draft = null; draftOwner = null;
-    reviewNotes.clear();
+    discardDraft(); reviewNotes.clear();
     await loadSession(); location.hash = '#/'; await render(); announce('Signed out.');
   }
 
@@ -190,8 +194,8 @@
 
   /** Render server-backed scan evidence as inert text, including explicit pending/error states. */
   function scanEvidence(version) {
-    if (!version.scan) return h('div', { class: 'notice' }, h('b', {}, backend.backend === 'mock' ? 'Server scan evidence is not connected.' : 'Scan evidence is unavailable.'),
-      h('p', {}, backend.backend === 'mock' ? 'Preview decisions simulate review. They do not certify code safety.' : 'Refresh to retrieve the release status. Missing evidence cannot authorize approval.'));
+    if (!version.scan) return h('div', { class: 'notice' }, h('b', {}, previewMode ? 'Server scan evidence is not connected.' : 'Scan evidence is unavailable.'),
+      h('p', {}, previewMode ? 'Preview decisions simulate review. They do not certify code safety.' : 'Refresh to retrieve the release status. Missing evidence cannot authorize approval.'));
     const scan = version.scan;
     const report = scan.report;
     const verdict = report?.ai?.verdict;
@@ -240,8 +244,13 @@
     if (result.status !== 200) return announce(result.body.error, true);
     await loadSession(); chrome(M.parseRoute(location.hash));
     control.textContent = 'In your library';
-    announce(backend.backend === 'mock' ? mod.name + ' added to your preview library. Nothing is installed.'
+    announce(previewMode ? mod.name + ' added to your preview library. Nothing is installed.'
       : mod.name + (result.body.game_online ? ' queued for your game.' : ' queued until your game connects.') + ' Review permissions in Cinnabar before enabling it.');
+  }
+
+  /** Enable or disable every library removal control on the page. */
+  function setRemovalDisabled(disabled) {
+    app.querySelectorAll('[data-focus-key^="remove:"]').forEach(control => { control.disabled = disabled; });
   }
 
   /** Remove the displayed send request without letting stale actions replace a later route or identity. */
@@ -249,7 +258,7 @@
     if (removingLibrary || control.disabled || !session.account) return;
     removingLibrary = true;
     control.textContent = 'Removing…';
-    app.querySelectorAll('[data-focus-key^="remove:"]').forEach(button => { button.disabled = true; });
+    setRemovalDisabled(true);
     const owner = session.account.xuid;
     const token = generation;
     try {
@@ -264,12 +273,12 @@
         ? 'Removed from your library. Refresh the page to load your current library.' : refreshed.body.error, true);
       await render();
       if (owner !== session.account?.xuid || generation !== token + 1) return;
-      announce(result.status === 409 ? result.body.error : backend.backend === 'mock'
+      announce(result.status === 409 ? result.body.error : previewMode
         ? 'Removed from your preview library.' : 'Removed from your library. Manage installed mods in Cinnabar.', result.status === 409);
     } finally {
       removingLibrary = false;
       control.textContent = 'Remove from library';
-      app.querySelectorAll('[data-focus-key^="remove:"]').forEach(button => { button.disabled = false; });
+      setRemovalDisabled(false);
     }
   }
 
@@ -294,11 +303,8 @@
     const sort = h('select', { 'aria-label': 'Sort mods', onchange: event => { order = event.target.value; results(); } },
       h('option', { value: 'recommended' }, 'Recommended'), h('option', { value: 'name' }, 'Name: A–Z'));
     sort.value = order;
-    const categoryButtons = [];
-    ['all', ...categories].forEach(category => {
-      const control = button(category === 'all' ? 'All mods' : category, () => { selectedCategory = category; results(); }, '', 'category:' + category);
-      categoryButtons.push([category, control]);
-    });
+    const categoryButtons = ['all', ...C.CATEGORIES].map(category =>
+      [category, button(category === 'all' ? 'All mods' : category, () => { selectedCategory = category; results(); }, '', 'category:' + category)]);
     rail.append(h('div', { class: 'filter-section' }, h('p', { class: 'filter-title' }, 'Categories'),
       h('div', { class: 'filters' }, categoryButtons.map(([, control]) => control))),
     h('div', { class: 'filter-section' },
@@ -306,7 +312,7 @@
 
     /** Update just the results, keeping search, filter focus and selection intact. */
     function results() {
-      let visible = M.filterMods(mods, query, '').filter(mod => (!libraryOnly || saved.has(mod.slug)) &&
+      let visible = M.filterMods(mods, query).filter(mod => (!libraryOnly || saved.has(mod.slug)) &&
         (selectedCategory === 'all' || C.category(mod) === selectedCategory) &&
         (!limited || !mod.capabilities.some(name => M.capability(name)?.sensitive)));
       if (order === 'name') visible = visible.slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -363,7 +369,6 @@
         h('p', { class: 'small muted' }, 'You choose what to allow in Cinnabar.'), permissions(mod, mod.grants)),
       M.atLeast(session.account, 'moderator') && mod.version_id ? h('a', { class: 'btn quiet', href: '#/staff/queue/' + mod.version_id }, 'Review this release') : null,
       button('Report a concern', () => reportForm(mod, content), 'btn quiet report-link', 'project:report'));
-    const buttons = [];
     /** Keep the selected information tab local so it does not discard catalogue state. */
     function select(tab) {
       buttons.forEach(([name, control]) => control.classList.toggle('active', name === tab));
@@ -383,9 +388,9 @@
         if (source) content.append(h('a', { class: 'btn quiet gap', href: source, rel: 'noopener noreferrer' }, 'View source'));
       }
     }
-    for (const [name, label] of [['description', 'Overview'], ['versions', 'Versions'], ['permissions', 'Permissions']]) {
-      const control = button(label, () => select(name), '', 'detail:' + name); tabs.append(control); buttons.push([name, control]);
-    }
+    const buttons = [['description', 'Overview'], ['versions', 'Versions'], ['permissions', 'Permissions']]
+      .map(([name, label]) => [name, button(label, () => select(name), '', 'detail:' + name)]);
+    tabs.append(...buttons.map(([, control]) => control));
     select('description');
     mount(token, h('section', {}, h('a', { class: 'back', href: '#/' }, 'Back to mods'),
       h('div', { class: 'project-heading' }, modIcon(mod), h('div', {}, h('h1', {}, mod.name), h('p', {}, mod.summary),
@@ -397,7 +402,7 @@
   /** Report a selected release with a labelled inline form and server error recovery. */
   function reportForm(mod, content) {
     if (!session.account) return signIn();
-    const reason = h('select', { id: 'report-reason' }, ['broken', 'advantage', 'malicious', 'stolen', 'other'].map(value => h('option', { value }, value)));
+    const reason = h('select', { id: 'report-reason' }, M.REPORT_REASONS.map(value => h('option', { value }, value)));
     const details = h('textarea', { id: 'report-details', minlength: 10, maxlength: 1000, required: true });
     const error = h('p', { class: 'error', role: 'alert' });
     content.replaceChildren(h('h2', {}, 'Report ' + mod.name), h('form', { class: 'gap', onsubmit: async event => {
@@ -410,13 +415,15 @@
     reason.focus();
   }
 
+  const draftKey = owner => 'cinnabar.marketplace.draft.' + owner;
+
   /** Restore only draft fields for this account; artifact bytes are never stored in browser storage. */
   function loadDraft() {
     const owner = session.account.xuid;
     if (draft && owner === draftOwner) return;
     draftOwner = owner;
     let saved;
-    try { saved = JSON.parse(safeStorage().getItem('cinnabar.marketplace.draft.' + owner)); } catch (_) { saved = null; }
+    try { saved = JSON.parse(storage.getItem(draftKey(owner))); } catch (_) { saved = null; }
     const initial = { name: '', slug: '', summary: '', description: '', category: 'Interface', license: '', version: '', source: '', notes: '', gallery: [] };
     draft = Object.assign(initial, saved && typeof saved === 'object' ? Object.fromEntries(Object.keys(initial).map(key => [key, saved[key] ?? initial[key]])) : {});
     draft.gallery = Array.isArray(draft.gallery) ? draft.gallery.filter(item => item && C.imageUrl(item.url)).slice(0, 12) : [];
@@ -426,7 +433,7 @@
   /** Save this account's editable draft; quota failure leaves the current form intact. */
   function saveDraft() {
     const data = { ...draft }; delete data.file; delete data.parsed; delete data.check;
-    try { safeStorage().setItem('cinnabar.marketplace.draft.' + draftOwner, JSON.stringify(data)); announce('Draft saved in this browser. Reselect the release file after reloading.'); }
+    try { storage.setItem(draftKey(draftOwner), JSON.stringify(data)); announce('Draft saved in this browser. Reselect the release file after reloading.'); }
     catch (_) { announce('Browser storage is unavailable or full. Your current draft remains open; enable storage or remove images before retrying.', true); }
   }
 
@@ -473,10 +480,12 @@
     }
   }
 
+  const fieldLimits = { description: 40000, notes: 4000, license: 128, summary: 140, name: 64 };
+
   /** Build the creator's four-step editor, keeping every local field across step changes. */
   async function editor(token) {
     if (!session.account) return mount(token, h('section', { class: 'empty' }, h('h2', {}, 'Give your mod a home.'),
-      h('p', {}, 'Sign in to prepare a project and submit a release.'), button(backend.backend === 'mock' ? 'Choose a preview account' : 'Sign in with Microsoft', signIn, 'btn primary', 'editor:signin')));
+      h('p', {}, 'Sign in to prepare a project and submit a release.'), button(previewMode ? 'Choose a preview account' : 'Sign in with Microsoft', signIn, 'btn primary', 'editor:signin')));
     if (submitting) return mount(token, h('section', { class: 'empty', role: 'status' }, h('h2', {}, 'Uploading your release…'), h('p', {}, 'Keep this tab open. Your draft will stay available if the upload fails.')));
     loadDraft();
     const form = h('form', { class: 'editor', novalidate: true });
@@ -492,7 +501,7 @@
     /** Bind a labelled input to the draft without replacing focused controls. */
     function field(key, label, type = 'text', hint = '') {
       const input = h(type === 'textarea' ? 'textarea' : 'input', { id: 'draft-' + key, name: key, type: type === 'textarea' ? null : type,
-        value: draft[key], maxlength: key === 'description' ? 40000 : key === 'notes' ? 4000 : key === 'license' ? 128 : key === 'summary' ? 140 : key === 'name' ? 64 : 2000,
+        value: draft[key], maxlength: fieldLimits[key] || 2000,
         oninput: event => { draft[key] = event.target.value; if (key === 'name') previewName.textContent = draft.name; if (key === 'summary') previewSummary.textContent = draft.summary; } });
       return h('label', { class: 'field', for: 'draft-' + key }, label, input, hint ? h('span', { class: 'hint' }, hint) : null);
     }
@@ -501,7 +510,7 @@
         field('summary', 'Summary', 'text', 'One clear sentence shown in search results.'), field('description', 'Description', 'textarea', 'Markdown headings, lists, bold text, code and HTTPS links are supported. HTML stays plain text.'),
         button('Preview description', () => descriptionPreview.replaceChildren(C.markdown(document, draft.description)), 'btn quiet', 'draft:preview'));
       const descriptionPreview = h('div'); panel.append(descriptionPreview);
-      const select = h('select', { id: 'draft-category', onchange: event => { draft.category = event.target.value; } }, categories.map(name => h('option', { value: name }, name)));
+      const select = h('select', { id: 'draft-category', onchange: event => { draft.category = event.target.value; } }, C.CATEGORIES.map(name => h('option', { value: name }, name)));
       select.value = draft.category;
       panel.append(h('div', { class: 'two gap' }, h('label', { class: 'field', for: 'draft-category' }, 'Category', select), field('license', 'License', 'text', 'For example MIT or All rights reserved.')),
         field('source', 'Source repository', 'url', 'A GitHub repository is required for gameplay and packet permissions.'));
@@ -515,7 +524,7 @@
           mediaPending = true;
           input.disabled = true;
           try {
-            const max = backend.backend === 'http' ? 4 : 12;
+            const max = liveMode ? 4 : 12;
             if (current.gallery.length + files.length > max) throw new Error('A release can have at most ' + max + ' images.');
             const images = [];
             for (const file of files) images.push(await readImage(file));
@@ -527,7 +536,7 @@
         } });
       panel.append(h('div', { class: 'upload-zone' }, icon('upload'), h('b', {}, mediaPending ? 'Preparing images…' : 'Choose project images'),
         h('span', { class: 'small muted' }, 'PNG, JPEG or WebP · up to 8 MiB and 24 megapixels each'), input),
-        h('p', { class: 'hint' }, backend.backend === 'http' ? 'Up to four prepared images are uploaded as files. Captions and alt text are saved with this release.' : 'Up to twelve images in the local preview.'));
+        h('p', { class: 'hint' }, liveMode ? 'Up to four prepared images are uploaded as files. Captions and alt text are saved with this release.' : 'Up to twelve images in the local preview.'));
       const media = h('div', { class: 'media-strip' }, draft.gallery.map((image, index) => {
         const caption = h('input', { value: image.caption, maxlength: 140, 'aria-label': 'Caption for image ' + (index + 1), oninput: event => { image.caption = event.target.value; } });
         const alt = h('input', { value: image.alt, maxlength: 300, 'aria-label': 'Alt text for image ' + (index + 1), oninput: event => { image.alt = event.target.value; } });
@@ -546,15 +555,16 @@
       const checked = Boolean(draft.file && draft.parsed && draft.check);
       panel.append(h('h2', {}, 'Ready when the checks are.'), h('p', { class: 'small muted' }, 'Established creators can publish automatically only when the service confirms eligibility and completes the required checks.'),
         h('div', { class: 'scan-status' }, h('div', {}, h('span', {}, 'Browser component syntax'), h('span', { class: checked ? 'good' : 'warning' }, checked ? 'Passed' : validationPending ? 'Checking…' : 'Choose a release file')),
-          h('div', {}, h('span', {}, 'Server validation & AI triage'), h('span', { class: 'muted' }, backend.backend === 'http' ? 'Queued after upload' : 'Not connected')),
-          h('div', {}, h('span', {}, 'Automatic publication'), h('span', { class: 'muted' }, backend.backend === 'http' ? 'Evaluated after server checks' : 'Unavailable')),
-          h('div', {}, h('span', {}, 'Publication route'), h('span', {}, backend.backend === 'http' ? 'Checks → publication or review' : 'Submit for review'))),
-        h('div', { class: 'notice gap' }, backend.backend === 'mock' ? 'Preview submissions stay in this browser. Staff decisions simulate publication; they do not distribute code.' : 'The service must independently validate and review the artifact. A browser check cannot authorize publication.'),
+          h('div', {}, h('span', {}, 'Server validation & AI triage'), h('span', { class: 'muted' }, liveMode ? 'Queued after upload' : 'Not connected')),
+          h('div', {}, h('span', {}, 'Automatic publication'), h('span', { class: 'muted' }, liveMode ? 'Evaluated after server checks' : 'Unavailable')),
+          h('div', {}, h('span', {}, 'Publication route'), h('span', {}, liveMode ? 'Checks → publication or review' : 'Submit for review'))),
+        h('div', { class: 'notice gap' }, previewMode ? 'Preview submissions stay in this browser. Staff decisions simulate publication; they do not distribute code.' : 'The service must independently validate and review the artifact. A browser check cannot authorize publication.'),
         h('label', { class: 'row gap small' }, h('input', { type: 'checkbox', id: 'distribution-rights' }), 'I have permission to distribute this code and these images.'));
     }
+    const submitLabel = liveMode ? 'Upload release' : 'Submit for review';
     form.append(panel, h('div', { class: 'editor-actions' }, button('Save draft', saveDraft, 'btn quiet', 'draft:save'),
       h('button', { type: 'submit', class: 'btn primary', 'data-focus-key': 'draft:continue', disabled: validationPending || mediaPending || submitting },
-        submitting ? 'Uploading…' : step === 'checks' ? (backend.backend === 'http' ? 'Upload release' : 'Submit for review') : ['Continue to images', 'Continue to release', 'Review checks'][steps.indexOf(step)])));
+        submitting ? 'Uploading…' : step === 'checks' ? submitLabel : ['Continue to images', 'Continue to release', 'Review checks'][steps.indexOf(step)])));
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (validationPending || mediaPending || submitting) return announce('Wait for the current upload or file check to finish.', true);
@@ -575,20 +585,19 @@
       let result;
       try {
         result = backend.submit ? await backend.submit(fields, draft.file, draft.gallery) : await call('POST', '/submissions', {
-          ...fields, category: draft.category, license: draft.license, notes: draft.notes, gallery: draft.gallery,
-          grants: draft.parsed.grants || {}, sha256: draft.parsed.sha256, bytes: draft.file.size,
+          ...fields, gallery: draft.gallery, grants: draft.parsed.grants || {}, sha256: draft.parsed.sha256, bytes: draft.file.size,
         });
       } catch (_) { result = { status: 0, body: { error: 'Upload failed. Your draft is still here; retry when connected.' } }; }
       if (upload !== uploadGeneration || owner !== draftOwner) return;
       submitting = false;
       controls.forEach(([control, disabled]) => { control.disabled = disabled; });
-      submit.disabled = false; submit.textContent = backend.backend === 'http' ? 'Upload release' : 'Submit for review';
+      submit.disabled = false; submit.textContent = submitLabel;
       if (result.status !== 200) {
         if (M.parseRoute(location.hash).view === 'submit') await render();
         return announce(result.body.error, true);
       }
-      announce(backend.backend === 'mock' ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded. Follow its checks and publication status in Your projects.');
-      safeStorage().removeItem('cinnabar.marketplace.draft.' + owner);
+      announce(previewMode ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded. Follow its checks and publication status in Your projects.');
+      storage.removeItem(draftKey(owner));
       draft = null; step = 'project'; location.hash = '#/mine';
     });
     mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Give your mod a home.'), h('p', { class: 'muted' }, 'Publishing as ' + session.account.gamertag))),
@@ -608,8 +617,11 @@
           h('dl', { class: 'facts' }, h('dt', {}, 'SHA-256'), h('dd', {}, selected.sha256))))) : null;
     mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('h1', {}, 'Your projects'), h('a', { href: '#/submit', class: 'btn primary' }, 'Prepare a release')),
       refreshControls(), result.body.length ? h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Project', 'Version', 'Progress', 'Staff note'].map(label => h('th', {}, label)))),
-        h('tbody', {}, result.body.map(version => h('tr', {}, h('td', {}, h('a', { href: '#/mine/' + version.id }, version.name)), h('td', {}, version.version),
-          h('td', { class: C.releaseState(version).tone }, C.releaseState(version).label), h('td', {}, version.note || '—')))))) : h('p', { class: 'empty' }, 'No submitted releases yet. Your draft is available in Publish a mod.'), detail));
+        h('tbody', {}, result.body.map(version => {
+          const state = C.releaseState(version);
+          return h('tr', {}, h('td', {}, h('a', { href: '#/mine/' + version.id }, version.name)), h('td', {}, version.version),
+            h('td', { class: state.tone }, state.label), h('td', {}, version.note || '—'));
+        })))) : h('p', { class: 'empty' }, 'No submitted releases yet. Your draft is available in Publish a mod.'), detail));
   }
 
   /** Require staff identity and preserve each failed workspace request as an error state. */
@@ -655,7 +667,7 @@
       approve.ok = false;
       approve.reason = 'This API does not provide the previous command values. Upgrade the API before approving command-bearing updates.';
     }
-    if (approve.ok && backend.backend === 'http') Object.assign(approve, C.scanApproval(version));
+    if (approve.ok && liveMode) Object.assign(approve, C.scanApproval(version));
     const allowed = M.can(session.account, 'review', { version });
     const decisionStatus = h('p', { class: 'error', role: 'alert' });
     /** Commit a review decision only to the selected version, retaining a failed note. */
@@ -681,7 +693,7 @@
     }
     updateApprove();
     const trust = h('div');
-    if (backend.backend === 'http') {
+    if (liveMode) {
       trust.append(h('p', { class: 'small gap' }, version.trust?.trusted
         ? 'Established creator for this project until ' + new Date(version.trust.expires_at).toLocaleDateString() + '.' : 'Automatic publication has not been established for this project.'));
       if (M.atLeast(session.account, 'admin') && version.creator !== session.account.xuid) {
@@ -696,9 +708,10 @@
           }, 'btn quiet', 'review:trust'), h('p', { class: 'hint' }, 'Requires a recent sign-in and a human-approved release. Trust is scoped to this creator and project.'));
       }
     }
+    const state = C.releaseState(version);
     const review = h('div', {}, h('div', { class: 'review-top' }, h('div', {}, h('h2', {}, version.name + ' ' + version.version),
       h('p', { class: 'small muted' }, 'by ' + version.creator_name + (version.previous ? ' · Compare with ' + version.previous.version : ' · First release'))),
-      h('span', { class: 'tag ' + C.releaseState(version).tone }, C.releaseState(version).label)),
+      h('span', { class: 'tag ' + state.tone }, state.label)),
     h('div', { class: 'review-columns' }, h('div', {},
       scanEvidence(version), h('h3', { class: 'gap' }, 'Submitted description'), C.markdown(document, version.description), galleryView(version),
       h('h3', { class: 'gap' }, 'Requested permissions'), permissions(version, version.grants),
@@ -714,7 +727,7 @@
     h('aside', { class: 'verdict' }, h('h3', {}, 'Decision'), h('p', { class: 'small muted gap' }, approve.ok ? 'Compare the file, permissions and description before approving. Explain any AI flags in your note.' : approve.reason),
       backend.fileUrl && backend.fileUrl(version.id) ? h('a', { class: 'btn quiet gap', href: backend.fileUrl(version.id), rel: 'noopener noreferrer', target: '_blank' }, 'Download component') : null,
       h('label', { class: 'field gap', for: 'review-note' }, 'Note to creator', notes), decisions, decisionStatus,
-      backend.backend === 'http' && version.status === 'submitted' ? button('Request a rescan', async () => {
+      liveMode && version.status === 'submitted' ? button('Request a rescan', async () => {
         const response = await call('POST', '/staff/versions/' + encodeURIComponent(version.id) + '/rescan');
         if (response.status !== 200) { decisionStatus.textContent = response.body.error; return; }
         await render(); announce('New scan queued. Earlier scan claims and approvals were invalidated.');
@@ -723,7 +736,7 @@
       h('p', { class: 'small muted gap' }, 'No self-review. Every decision is tied to this version.'))));
     body.append(h('div', { class: 'review-layout' }, h('aside', { class: 'queue' }, queue.map(entry => h('a', {
       href: '#/staff/queue/' + entry.id, class: entry.id === id ? 'active' : '', 'data-focus-key': 'queue:' + entry.id,
-    }, h('strong', {}, entry.name + ' ' + entry.version), h('span', { class: 'tag' }, M.RUNGS[entry.reach]?.label || 'Unknown'),
+    }, h('strong', {}, entry.name + ' ' + entry.version), h('span', { class: 'tag' }, M.RUNGS[entry.reach] || 'Unknown'),
     h('p', { class: 'small muted' }, entry.creator_name), h('p', { class: 'small' }, C.releaseState(entry).label)))), review));
   }
 
@@ -773,7 +786,7 @@
 
   /** Keep refresh outcomes local to status workspaces without announcing background successes repeatedly. */
   function refreshControls() {
-    return backend.backend === 'http' ? h('div', { class: 'refresh-controls' },
+    return liveMode ? h('div', { class: 'refresh-controls' },
       h('p', { class: 'small muted refresh-note', role: 'status' }, 'Status refreshes every 10 seconds while this page is visible.'),
       button('Refresh status', refreshCurrent, 'btn quiet', 'status:refresh')) : null;
   }
@@ -781,7 +794,7 @@
   /** Only creator and review status workspaces poll; hidden pages and navigation cancel their timers. */
   function scheduleRefresh(token, route) {
     window.clearTimeout(refreshTimer);
-    if (token !== generation || backend.backend !== 'http' || !session.account || document.hidden
+    if (token !== generation || !liveMode || !session.account || document.hidden
       || !(route.view === 'mine' || (route.view === 'staff' && route.tab === 'queue'))) return;
     refreshTimer = window.setTimeout(refreshCurrent, 10000);
   }
@@ -829,9 +842,9 @@
     if (!document.hidden) scheduleRefresh(generation, M.parseRoute(location.hash));
   });
   window.addEventListener('pagehide', () => window.clearTimeout(refreshTimer));
-  document.getElementById('preview-note').hidden = backend.backend !== 'mock';
+  document.getElementById('preview-note').hidden = !previewMode;
   document.getElementById('reset-preview').addEventListener('click', async () => {
-    backend.reset(); validationController?.abort(); validationPending = false; mediaPending = false; fileToken++; draft = null; draftOwner = null; await loadSession(); await render(); announce('Sample data restored.');
+    backend.reset(); discardDraft(); await loadSession(); await render(); announce('Sample data restored.');
   });
   const signInError = new URLSearchParams(location.search).get('signin_error');
   if (signInError) {

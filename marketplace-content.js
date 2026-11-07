@@ -53,10 +53,12 @@
     return fragment;
   }
 
+  const CATEGORIES = ['Interface', 'Visuals', 'Camera', 'Utilities', 'Gameplay', 'Network'];
+
   /** Derive category from the imported client capability vocabulary when the API omits it. */
   function category(mod) {
     const caps = mod.capabilities || [];
-    if (['Interface', 'Visuals', 'Camera', 'Utilities', 'Gameplay', 'Network'].includes(mod.category)) return mod.category;
+    if (CATEGORIES.includes(mod.category)) return mod.category;
     if (caps.some(name => ['packets', 'packet_delay', 'wasi'].includes(name))) return 'Network';
     if (caps.includes('camera')) return 'Camera';
     if (caps.some(name => ['movement', 'commands', 'interaction', 'item_use', 'inventory'].includes(name))) return 'Gameplay';
@@ -94,7 +96,7 @@
     return { ok: true };
   }
 
-  const api = { externalUrl, imageUrl, markdown, category, releaseState, scanApproval };
+  const api = { CATEGORIES, externalUrl, imageUrl, markdown, category, releaseState, scanApproval };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CinnabarContent = api;
 })(typeof window !== 'undefined' ? window : globalThis);

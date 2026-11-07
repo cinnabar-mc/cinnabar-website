@@ -1,14 +1,9 @@
 (function () {
   "use strict";
 
-  /** Reach levels, ordered from least to most of the player's game a mod can touch. */
-  const RUNGS = [
-    { id: "looks", label: "Looks", summary: "Changes how your game looks" },
-    { id: "reads", label: "Reads", summary: "Reads your game and world state" },
-    { id: "watches", label: "Watches", summary: "Sees other players and hidden things" },
-    { id: "acts", label: "Acts", summary: "Acts for you: input, aim, commands" },
-    { id: "network", label: "Network", summary: "Sees or changes network traffic" },
-  ];
+  /** Reach labels, ordered from least to most of the player's game a mod can touch. */
+  const RUNGS = ["Looks", "Reads", "Watches", "Acts", "Network"];
+  const REPORT_REASONS = ["broken", "advantage", "malicious", "stolen", "other"];
 
   // Presentation groups only. Labels, types and sensitivity come from the pinned client.
   const groups = [
@@ -116,7 +111,7 @@
         const hasAdmin = ctx.version.approvals.some(function (a) { return a.admin; });
         const last = ctx.version.approvals.length + 1 >= rule.count;
         if (rule.admin && last && !hasAdmin && !atLeast(actor, "admin")) {
-          return deny(RUNGS[ctx.version.reach].label + " mods need an admin's approval.");
+          return deny(RUNGS[ctx.version.reach] + " mods need an admin's approval.");
         }
         return { ok: true };
       }
@@ -124,7 +119,6 @@
       case "resolve-report":
         return atLeast(actor, "moderator") ? { ok: true } : deny("Only staff can do this.");
       case "pull":
-      case "suspend":
         return atLeast(actor, "admin") ? { ok: true } : deny("Only admins can do this.");
       case "set-role": {
         const target = ctx.target;
@@ -160,11 +154,8 @@
         next.status = "approved";
         next.decided_at = at;
       }
-    } else if (decision === "reject") {
-      next.status = "rejected";
-      next.decided_at = at;
-    } else if (decision === "changes") {
-      next.status = "changes";
+    } else if (decision === "reject" || decision === "changes") {
+      next.status = decision === "reject" ? "rejected" : "changes";
       next.decided_at = at;
     } else {
       throw new Error("Unknown decision.");
@@ -197,24 +188,21 @@
 
   /** Reads the marketplace route from a location hash such as `#/mod/zoom` or `#/staff/queue`. */
   function parseRoute(hash) {
-    const parts = String(hash || "").replace(/^#\/?/, "").split("/").filter(Boolean).map(function (part) { try { return decodeURIComponent(part); } catch (_) { return ""; } });
-    const views = ["mod", "submit", "mine", "staff", "library"];
-    if (!parts.length || !views.includes(parts[0])) return { view: "catalogue" };
-    if (parts[0] === "mod") return parts[1] ? { view: "mod", slug: parts[1] } : { view: "catalogue" };
-    if (parts[0] === "staff") {
-      const tabs = ["queue", "reports", "people", "audit"];
-      const tab = tabs.includes(parts[1]) ? parts[1] : "queue";
-      return { view: "staff", tab: tab, id: tab === "queue" ? parts[2] : undefined };
+    const [view, first, second] = String(hash || "").replace(/^#\/?/, "").split("/").filter(Boolean).map(function (part) { try { return decodeURIComponent(part); } catch (_) { return ""; } });
+    if (view === "mod" && first) return { view: view, slug: first };
+    if (view === "staff") {
+      const tab = ["queue", "reports", "people", "audit"].includes(first) ? first : "queue";
+      return { view: view, tab: tab, id: tab === "queue" ? second : undefined };
     }
-    if (parts[0] === "mine") return { view: "mine", id: parts[1] };
-    return { view: parts[0] };
+    if (view === "mine") return { view: view, id: first };
+    if (view === "submit" || view === "library") return { view: view };
+    return { view: "catalogue" };
   }
 
-  /** Filters listings by text and rung, keeping the API's order within each rung. */
-  function filterMods(mods, query, rung) {
+  /** Filters listings by search text, keeping the API's order. */
+  function filterMods(mods, query) {
     const terms = String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
     return mods.filter(function (mod) {
-      if (rung != null && rung !== "" && mod.reach !== Number(rung)) return false;
       const haystack = [mod.name, mod.summary, mod.creator_name].concat(mod.capabilities).join(" ").toLowerCase();
       return terms.every(function (term) { return haystack.includes(term); });
     });
@@ -320,7 +308,7 @@
   }
 
   const api = {
-    RUNGS: RUNGS, CAPABILITIES: CAPABILITIES, capability: function (name) { return BY_NAME.get(name); },
+    RUNGS: RUNGS, REPORT_REASONS: REPORT_REASONS, CAPABILITIES: CAPABILITIES, capability: function (name) { return BY_NAME.get(name); },
     requestedCapabilities: requestedCapabilities, reachOf: reachOf, grantDiff: grantDiff,
     approvalRule: approvalRule, can: can, decide: decide, validateListing: validateListing,
     parseRoute: parseRoute, filterMods: filterMods, readComponent: readComponent, atLeast: atLeast,

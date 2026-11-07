@@ -25,14 +25,14 @@
       { xuid: "2535400000000106", gamertag: "GhastlyGus", role: "player" },
       { xuid: "2535400000000107", gamertag: "TideTurner", role: "player" },
     ]).forEach(function (a) { accounts[a.xuid] = { xuid: a.xuid, gamertag: a.gamertag, role: a.role, suspended: false }; });
-    const by = function (tag) { return PERSONAS.concat(Object.values(accounts)).find(function (a) { return a.gamertag === tag; }).xuid; };
+    const by = function (tag) { return Object.values(accounts).find(function (a) { return a.gamertag === tag; }).xuid; };
     const listings = {};
     const versions = [];
     let n = 0;
     /** Adds a listing with its versions; each version is `[version, grants, status, age, approvers]`. */
     function mod(slug, name, creator, summary, description, source, rows) {
       listings[slug] = { slug: slug, name: name, creator: by(creator), summary: summary, description: description,
-        source: source, hidden: false, created_at: now - rows[0][3] - DAY };
+        source: source, hidden: false };
       rows.forEach(function (row) {
         const at = now - row[3];
         n += 1;
@@ -96,7 +96,7 @@
       { at: now - 5 * HOUR + HOUR, actor: by("PixelWarden"), action: "approved (1 of 2)", target: "party-sync 0.4.0", note: "" },
     ].sort(function (a, b) { return b.at - a.at; });
     return { accounts: accounts, listings: listings, versions: versions, reports: reports, audit: audit,
-      library: {}, session: null, game_online: {}, counter: n };
+      library: {}, session: null, counter: n };
   }
 
   /** A stable, obviously synthetic hex digest for sample files. */
@@ -144,8 +144,7 @@
         source: published.source, creator: listing.creator, creator_name: name(listing.creator),
         version: live.version, version_id: live.id, reach: live.reach,
         capabilities: core.requestedCapabilities(live.grants), sha256: live.sha256, bytes: live.bytes,
-        updated_at: live.decided_at, reviewed_by: live.approvals.map(function (a) { return name(a.xuid); }).join(", "),
-        update_pending: state.versions.some(function (v) { return v.slug === listing.slug && v.status === "submitted"; }) };
+        updated_at: live.decided_at, reviewed_by: live.approvals.map(function (a) { return name(a.xuid); }).join(", ") };
     }
 
     /** Adds display fields a staff or creator view needs to a version. */
@@ -155,10 +154,9 @@
         .sort(function (a, b) { return b.submitted_at - a.submitted_at; })[0];
       const submitted = v.listing || listing;
       return Object.assign({}, v, { name: submitted.name, creator_name: name(v.creator), source: submitted.source,
-        summary: submitted.summary, capabilities: core.requestedCapabilities(v.grants), rule: core.approvalRule(v.reach),
+        summary: submitted.summary, capabilities: core.requestedCapabilities(v.grants),
         approvals: v.approvals.map(function (a) { return Object.assign({ gamertag: name(a.xuid) }, a); }),
-        previous: previous ? { version: previous.version, grants: previous.grants, diff: core.grantDiff(previous.grants, v.grants) } : null,
-        hidden: listing.hidden });
+        previous: previous ? { version: previous.version, grants: previous.grants, diff: core.grantDiff(previous.grants, v.grants) } : null });
     }
 
     const staffOnly = function () { return core.atLeast(me(), "moderator") ? null : fail(me() ? 403 : 401, "Staff only."); };
@@ -166,8 +164,7 @@
     const routes = [
       ["GET", /^\/me$/, function () {
         const account = me();
-        return ok({ account: account, game_online: Boolean(account && state.game_online[account.xuid] !== false),
-          library: account ? state.library[account.xuid] || [] : [] });
+        return ok({ account: account, library: account ? state.library[account.xuid] || [] : [] });
       }],
       ["GET", /^\/auth\/personas$/, function () { return ok(PERSONAS); }],
       ["POST", /^\/auth\/preview$/, function (body) {
@@ -203,7 +200,7 @@
         (state.library_clock ||= {})[state.session] = sentAt;
         const library = state.library[state.session] = (state.library[state.session] || []).filter(function (e) { return e.slug !== slug; });
         library.push({ slug: slug, version: view.version, sha256: view.sha256, sent_at: new Date(sentAt).toISOString() });
-        return ok({ queued: true, game_online: state.game_online[state.session] !== false });
+        return ok({ queued: true, game_online: true });
       }],
       ["POST", /^\/mods\/([a-z0-9-]+)\/remove$/, function (body, slug) {
         if (!me()) return fail(401, "Sign in first.");
@@ -219,7 +216,7 @@
         if (!check.ok) return fail(401, check.reason);
         const view = state.listings[slug] && publicListing(state.listings[slug]);
         if (!view) return fail(404, "No public mod with that name.");
-        if (!["broken", "advantage", "malicious", "stolen", "other"].includes(body.reason)) return fail(400, "Choose a reason.");
+        if (!core.REPORT_REASONS.includes(body.reason)) return fail(400, "Choose a reason.");
         const details = String(body.details || "").trim();
         if (details.length < 10) return fail(400, "Describe what happened in a sentence or two.");
         state.reports.unshift({ id: "r" + (state.reports.length + 1), slug: slug, version: view.version, reporter: state.session,
@@ -344,9 +341,8 @@
       backend: "mock",
       /** Answers one request as the API would, persisting any change. */
       request: function (method, path, body) {
-        const url = path.split("?")[0];
         for (const route of routes) {
-          const match = route[0] === method && route[1].exec(url);
+          const match = route[0] === method && route[1].exec(path);
           if (match) {
             const result = route[2].apply(null, [body || {}].concat(match.slice(1)));
             save();
@@ -357,7 +353,6 @@
       },
       /** Restores the sample data. */
       reset: function () { state = seed(now()); save(); },
-      personas: PERSONAS,
     };
   }
 
