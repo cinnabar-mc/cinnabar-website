@@ -353,7 +353,7 @@
     const mod = response.body;
     const content = h('div');
     const tabs = h('nav', { class: 'tabs', 'aria-label': 'Project information' });
-    const add = button('Add to Cinnabar', () => addToLibrary(mod, add), 'btn primary full', 'project:add');
+    const add = button('Add to Cinnabar', () => addToLibrary(mod, add), 'cta full', 'project:add');
     const sidebar = h('aside', { class: 'stack project-sidebar' },
       h('section', { class: 'sidebox' }, add,
         h('p', { class: 'small muted install-caption' }, 'Enable it in Settings → Mods.'),
@@ -637,7 +637,8 @@
 
   /** Build review evidence and role-checked actions for the selected exact release. */
   async function reviewQueue(body, queue, selected, token) {
-    body.append(refreshControls());
+    const refresh = refreshControls();
+    if (refresh) body.append(refresh);
     if (!queue.length && !selected) { body.append(h('p', { class: 'empty' }, 'No versions are waiting for review.')); return; }
     const id = selected || queue[0].id;
     const result = await call('GET', '/staff/versions/' + encodeURIComponent(id));

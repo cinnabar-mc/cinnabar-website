@@ -131,7 +131,7 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(config["nightly_install_command"], config["install_command"] + " -s -- --channel nightly")
         self.assertEqual({path.name for path in self.output.iterdir()}, {
             "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod", "assets",
-            "mods", "marketplace", "site.css", "marketplace.css", "marketplace-capabilities.js",
+            "mods", "marketplace", "marketplace.css", "marketplace-capabilities.js",
             "marketplace-core.js", "marketplace-mock.js", "marketplace-http.js", "marketplace-content.js",
             "marketplace-validation.js", "marketplace.js", "validator",
         })
@@ -211,6 +211,7 @@ class RenderTests(unittest.TestCase):
         rule = "@media (prefers-reduced-motion: reduce)"
         self.assertIn(rule, (self.output / "index.html").read_text())
         self.assertIn(rule, (self.output / "mod/index.html").read_text())
+        self.assertIn(rule, (self.output / "mods/index.html").read_text())
         themes = list((self.output / "docs/modding").rglob("*.css"))
         self.assertTrue(any(rule in theme.read_text() for theme in themes))
 

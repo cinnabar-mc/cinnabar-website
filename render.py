@@ -143,8 +143,7 @@ def build(repository, output, marketplace_backend="http"):
         destination.write_text(page, encoding="utf-8")
     for capture in MOD_CAPTURES:
         shutil.copyfile(HERE / "assets" / "mod" / capture, output / "mod" / capture)
-    for stylesheet in ("site.css", "marketplace.css"):
-        (output / stylesheet).write_text((HERE / stylesheet).read_text(encoding="utf-8").replace("@@RED@@", red), encoding="utf-8")
+    (output / "marketplace.css").write_text((HERE / "marketplace.css").read_text(encoding="utf-8").replace("@@RED@@", red), encoding="utf-8")
     serialized = json.dumps(capabilities, ensure_ascii=True)
     (output / "marketplace-capabilities.js").write_text(
         '(function(data){if(typeof module!=="undefined"&&module.exports)module.exports=data;'

@@ -273,6 +273,12 @@ test('an older HTTP API cannot approve command updates from a name-only diff', a
   assert.equal(p.document.querySelector('#preview-note').hidden, true);
 });
 
+test('preview review queue has no live refresh status and no stray placeholder text', async () => {
+  const p = await page('#/staff/queue'); await p.signIn('OreKeeper');
+  assert.equal(p.document.querySelector('.refresh-controls'), null);
+  assert.doesNotMatch(p.text(), /null/);
+});
+
 test('resolved reports do not expose a pull action without an editable reason', async () => {
   const p = await page('#/staff/reports'); await p.signIn('RedstoneRook');
   const pulls = [...p.document.querySelectorAll('#app button')].filter(control => control.textContent === 'Pull release');

@@ -6,7 +6,8 @@
   <meta name="description" content="Explore free Cinnabar community mods and inspect their requested permissions.">
   <title>Marketplace · Cinnabar</title>
   <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
-  <link rel="stylesheet" href="/site.css">
+  <meta name="theme-color" content="#141312">
+  <link rel="preload" href="/assets/fonts/schibsted-grotesk-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/marketplace.css">
   <style>@@SITE_HEADER_STYLES@@</style>
 </head>
