@@ -10,9 +10,9 @@ No SPA fallback or dynamic Worker is required.
 
 - Live sign-in uses a Cinnabar account through Google. The provider is named on the
   sign-in control; additional providers can be added alongside it later. Signed-in
-  controls show the display name, quieter email, staff role when applicable, Sign
+  controls show the username, quieter email, staff role when applicable, Sign
   out and Link Xbox / Xbox linked. The explicit mock build keeps its persona
-  chooser, including an unlinked GoogleBuilder account and a labelled simulated
+  chooser, including an unlinked New player account and a labelled simulated
   in-game linking action.
 - Xbox is a separate delivery identity. An unlinked account can browse, publish
   and keep a library and local drafts. Add to Cinnabar opens the linking panel
@@ -83,10 +83,15 @@ including the current hash route. The API returns to that URL and may add
 codes (including `__proto__`) use inert generic error text.
 
 `GET /v1/me` returns `{account, library, csrf, game_online}`. `account` is null or
-`{id, display_name, email, role, suspended, xbox}`, where `xbox` is null or
+`{id, username, email, role, suspended, xbox}`, where `xbox` is null or
 `{xuid, gamertag}`. Draft keys, ownership checks, review-note keys, approval
 identities and stale-response guards use the Cinnabar `id`, never the Xbox XUID.
-Staff records and approvals show `display_name`; role changes send `display_name`.
+A null username opens a dismissible chooser once per browser session. Usernames are
+public, permanent, and required before publishing or reviewing.
+`POST /v1/me/username` sends `{username}` with credentials and CSRF and returns
+the full `/v1/me` envelope. Use 3–16 ASCII letters, digits or underscores;
+the API checks reserved names and availability.
+Staff records and approvals show `username`; role changes send `username`.
 
 `POST /v1/me/xbox/link-code` uses credentials and CSRF and returns
 `{code, expires_in}` (seconds). `POST /v1/me/xbox/unlink` uses the same protections

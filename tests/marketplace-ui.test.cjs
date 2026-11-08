@@ -18,6 +18,8 @@ async function page(hash = '#/', stored, http, options = {}) {
   const { window, document } = parseHTML(fs.readFileSync(path.join(root, 'dist/mods/index.html'), 'utf8'));
   const memory = stored || new Map();
   const storage = { getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: key => memory.delete(key) };
+  const sessionMemory = options.sessionMemory || new Map();
+  const sessionStorage = { getItem: key => sessionMemory.get(key) ?? null, setItem: (key, value) => sessionMemory.set(key, value) };
   const location = { hash, search: options.search || '', pathname: '/mods/' };
   location.href = 'https://site.test/mods/' + location.search + hash;
   // LinkeDOM deliberately omits navigation, layout and focus; model only those browser primitives.
@@ -36,7 +38,7 @@ async function page(hash = '#/', stored, http, options = {}) {
   const copied = [];
   const win = { CinnabarMarket: M, CinnabarContent: C, CinnabarMarketMock: Mock,
     CinnabarMarketHttp: { createHttpApi: () => http },
-    CINNABAR_DOWNLOADS: { marketplace: { backend: http ? 'http' : 'mock', api_url: 'https://api.invalid/v1' } }, localStorage: storage,
+    CINNABAR_DOWNLOADS: { marketplace: { backend: http ? 'http' : 'mock', api_url: 'https://api.invalid/v1' } }, localStorage: storage, sessionStorage,
     CinnabarValidation: { validate: async () => ({ imports: [], exports: [] }) },
     addEventListener: (name, fn) => { listeners[name] = fn; }, scrollTo() {}, fetch() {}, location,
     navigator: { clipboard: { writeText: async code => { copied.push(code); } } },
@@ -60,7 +62,7 @@ async function page(hash = '#/', stored, http, options = {}) {
     for (const [id, timer] of queued) { if (timers.delete(id)) await timer.fn(); }
     await settle();
   }
-  return { window, document, memory, win, route, click, input, signIn, tick, timers, copied, text: () => document.getElementById('app').textContent };
+  return { window, document, memory, sessionMemory, win, route, click, input, signIn, tick, timers, copied, text: () => document.getElementById('app').textContent };
 }
 
 test('search retains input focus, category state survives a detail round trip, and gallery absence is explicit', async () => {
@@ -106,7 +108,7 @@ test('library selections are isolated by identity and removal keeps a usable foc
 /** A live library fixture with observable mutations and controllable delayed responses. */
 function libraryApi() {
   const selection = { slug: 'saved-mod', version: '1.0.0', sha256: 'a'.repeat(64), sent_at: '2026-01-01T00:00:00.000Z' };
-  const api = { backend: 'http', calls: [], account: { id: 'player', display_name: 'Player', email: 'player@example.test', xbox: { xuid: 'xbox-player', gamertag: 'Player' }, role: 'player' },
+  const api = { backend: 'http', calls: [], account: { id: 'player', username: 'Player', email: 'player@example.test', xbox: { xuid: 'xbox-player', gamertag: 'Player' }, role: 'player' },
     library: [selection], mods: [], remove: async () => { api.library = []; return { status: 200, body: { removed: true } }; },
     request: async (method, path, body) => {
       api.calls.push(structuredClone({ method, path, body }));
@@ -168,9 +170,9 @@ test('pending removal rejects duplicate clicks and cannot replace a later route 
   await p.click(control); await p.click(control);
   assert.equal(control.disabled, true);
   assert.equal(api.calls.filter(call => call.method === 'POST').length, 1);
-  api.account = { id: 'other', display_name: 'Other player', email: 'other@example.test', xbox: null, role: 'player' }; api.library = [];
+  api.account = { id: 'other', username: 'Other_player', email: 'other@example.test', xbox: null, role: 'player' }; api.library = [];
   await p.route('#/library');
-  assert.match(p.document.getElementById('account').textContent, /Other player/);
+  assert.match(p.document.getElementById('account').textContent, /Other_player/);
   await p.route('#/');
   finish({ status: 200, body: { removed: true } }); await settle();
   assert.equal(p.win.location.hash, '#/');
@@ -308,7 +310,7 @@ function liveRelease(state = 'queued') {
 /** HTTP-shaped fixture keeps session, reads and mutation responses observable. */
 function liveApi(version, role = 'moderator') {
   const calls = [];
-  const api = { backend: 'http', calls, account: { id: role === 'player' ? 'creator' : 'staff', display_name: 'Signed in', email: 'signedin@example.test', xbox: null, role },
+  const api = { backend: 'http', calls, account: { id: role === 'player' ? 'creator' : 'staff', username: 'Signed in', email: 'signedin@example.test', xbox: null, role },
     fileUrl: id => 'https://api.invalid/v1/staff/versions/' + id + '/file',
     request: async (method, path, body) => {
       calls.push({ method, path, body });
@@ -403,7 +405,7 @@ test('failed real uploads retain local images and description and forward the co
 /** A live account fixture with separate website identity and optional Xbox delivery identity. */
 function accountApi(linked = false) {
   const api = libraryApi();
-  api.account = { id: 'google-account-1', display_name: 'Google Player', email: 'player@example.test', role: 'admin', suspended: false,
+  api.account = { id: 'google-account-1', username: 'ChosenPlayer', email: 'player@example.test', role: 'admin', suspended: false,
     xbox: linked ? { xuid: 'xbox-1', gamertag: 'Game Player' } : null };
   api.library = [];
   const mod = { ...liveRelease('complete'), status: 'approved', summary: 'A real API response fixture.', history: [] };
@@ -433,11 +435,11 @@ function visibility(p, hidden) {
   p.document.dispatchEvent(new p.window.Event('visibilitychange'));
 }
 
-test('live Google account chrome renders display name, quiet email, staff role and separate Xbox status', async () => {
+test('live Google account chrome renders username, quiet email, staff role and separate Xbox status', async () => {
   const api = accountApi();
   const p = await page('#/', undefined, api);
   const account = p.document.getElementById('account');
-  assert.match(account.textContent, /Google Player/);
+  assert.match(account.textContent, /ChosenPlayer/);
   assert.equal(account.querySelector('.account-email').textContent, 'player@example.test');
   assert.match(account.textContent, /admin/);
   assert.match(account.textContent, /Link Xbox/);
@@ -541,7 +543,7 @@ test('dismissed and hidden in-flight link polls cannot replace a newer session',
     const pending = p.tick(3000); await settle();
     if (dismiss === 'close') await p.click(p.document.getElementById('xbox-close'));
     else { visibility(p, true); if (dismiss === 'hide-resume') visibility(p, false); }
-    finish({ status: 200, body: { account: { ...api.account, display_name: 'Stale account', xbox: { xuid: 'x', gamertag: 'Stale link' } }, library: [] } });
+    finish({ status: 200, body: { account: { ...api.account, username: 'Stale account', xbox: { xuid: 'x', gamertag: 'Stale link' } }, library: [] } });
     await pending;
     assert.doesNotMatch(p.document.getElementById('account').textContent, /Stale/);
     assert.doesNotMatch(xboxText(p), /Could not refresh/);
@@ -563,7 +565,7 @@ test('unlink requires a separate confirmation and preserves the library and acco
   await p.click(p.document.querySelector('[data-focus-key="xbox:confirm"]'));
   assert.equal(api.calls.filter(call => call.path === '/me/xbox/unlink').length, 1);
   assert.match(xboxText(p), /Get link code/);
-  assert.match(p.document.getElementById('account').textContent, /Google Player/);
+  assert.match(p.document.getElementById('account').textContent, /ChosenPlayer/);
   assert.match(p.document.getElementById('navigation').textContent, /My library \(1\)/);
 });
 
@@ -602,7 +604,7 @@ test('mock preview retains personas and demonstrates code linking and unlinking 
   const p = await page();
   assert.equal(p.document.querySelectorAll('.mod-card').length, 8);
   assert.equal(p.document.querySelector('#preview-note').hidden, false);
-  await p.signIn('GoogleBuilder');
+  await p.signIn('New player');
   assert.match(p.document.getElementById('account').textContent, /googlebuilder@example.test/);
   await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
   await p.click(p.document.querySelector('[data-focus-key="xbox:code"]'));
@@ -612,16 +614,170 @@ test('mock preview retains personas and demonstrates code linking and unlinking 
   assert.ok(p.document.querySelector('[data-focus-key="xbox:unlink"]'));
 });
 
-test('staff people and role writes use Cinnabar display names instead of Xbox gamertags', async () => {
+test('staff people and role writes use Cinnabar usernames instead of Xbox gamertags', async () => {
   const api = accountApi(); const original = api.request;
   api.request = async (method, path, body) => path === '/staff/people'
-    ? { status: 200, body: [{ id: 'staff-1', display_name: 'Staff Person', role: 'admin' }] } : original(method, path, body);
+    ? { status: 200, body: [{ id: 'staff-1', username: 'Staff_Person', role: 'admin' }] } : original(method, path, body);
   const p = await page('#/staff/people', undefined, api);
-  assert.match(p.text(), /Staff Person/);
-  assert.match(p.text(), /Display name/);
-  await p.input('#staff-name', 'New Moderator');
+  assert.match(p.text(), /Staff_Person/);
+  assert.match(p.text(), /Username/);
+  await p.input('#staff-name', 'New_Moderator');
   await p.input('#staff-reason', 'Helps with reports.');
   p.document.querySelector('form').dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true })); await settle();
   assert.deepEqual(structuredClone(api.calls.find(call => call.path === '/staff/people/role').body),
-    { display_name: 'New Moderator', role: 'player', reason: 'Helps with reports.' });
+    { username: 'New_Moderator', role: 'player', reason: 'Helps with reports.' });
+});
+
+/** Submit the username form through its real controller handler. */
+async function submitUsername(p, value) {
+  await p.input('#username-input', value);
+  p.document.getElementById('username-form').dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true }));
+  await settle();
+}
+
+test('account chrome uses usernames and never renders a legacy Google display name', async () => {
+  const api = accountApi();
+  api.account.display_name = 'Private Google Name';
+  const p = await page('#/submit', undefined, api);
+  assert.match(p.document.getElementById('account').textContent, /ChosenPlayer/);
+  assert.match(p.text(), /Publishing as ChosenPlayer/);
+  assert.doesNotMatch(p.document.body.textContent, /Private Google Name/);
+  assert.ok(!p.document.getElementById('username-dialog').open);
+});
+
+test('a null username prompts once after sign-in and across reloads, and chrome reopens it with focus', async () => {
+  const p = await page();
+  assert.ok(!p.document.getElementById('username-dialog').open);
+  await p.signIn('New player');
+  assert.equal(p.document.getElementById('username-dialog').open, true);
+  assert.equal(p.document.activeElement.id, 'username-input');
+  assert.match(p.document.getElementById('account').textContent, /Choose a username/);
+  assert.match(p.document.getElementById('username-note').textContent, /public.*can’t be changed later/);
+  await p.click(p.document.getElementById('username-close'));
+  assert.equal(p.document.getElementById('username-dialog').open, false);
+  assert.equal(p.document.activeElement.isConnected, true);
+  await p.route('#/library'); await p.route('#/');
+  assert.equal(p.document.getElementById('username-dialog').open, false);
+  const reloaded = await page('#/submit', p.memory, undefined, { sessionMemory: p.sessionMemory });
+  assert.ok(!reloaded.document.getElementById('username-dialog').open);
+  await reloaded.click(reloaded.document.querySelector('[data-focus-key="account:username"]'));
+  assert.equal(reloaded.document.getElementById('username-dialog').open, true);
+  reloaded.document.getElementById('username-dialog').dispatchEvent(new reloaded.window.Event('cancel', { cancelable: true }));
+  assert.equal(reloaded.document.getElementById('username-dialog').open, false);
+  assert.equal(reloaded.document.activeElement.getAttribute('data-focus-key'), 'account:username');
+});
+
+test('username validation blocks invalid lengths and characters before posting', async () => {
+  const api = accountApi(); api.account.username = null;
+  const p = await page('#/', undefined, api);
+  for (const [value, message] of [['', /3–16/], ['ab', /3–16/], ['a'.repeat(17), /3–16/], ['has space', /only letters/], ['hÿphen', /only letters/], ['bad-name', /only letters/]]) {
+    await submitUsername(p, value);
+    assert.match(p.document.getElementById('username-status').textContent, message);
+    assert.equal(p.document.getElementById('username-input').getAttribute('aria-invalid'), 'true');
+    assert.equal(p.document.activeElement.id, 'username-input');
+  }
+  assert.equal(api.calls.filter(call => call.path === '/me/username').length, 0);
+});
+
+test('username server errors are announced inline and leave the form retryable', async () => {
+  for (const [status, error] of [[400, 'That username is reserved.'], [409, 'That username is taken.'], [429, 'Too many attempts. Try again shortly.'], [401, 'Sign in again.'], [403, 'Refresh and try again.']]) {
+    const api = accountApi(); api.account.username = null;
+    const original = api.request;
+    api.request = (method, path, body) => path === '/me/username' ? { status, body: { error } } : original(method, path, body);
+    const p = await page('#/', undefined, api);
+    await submitUsername(p, 'Valid_Name');
+    assert.equal(p.document.getElementById('username-status').textContent, error);
+    assert.equal(p.document.getElementById('username-status').getAttribute('role'), 'alert');
+    assert.equal(p.document.getElementById('username-dialog').open, true);
+    assert.equal(p.document.getElementById('username-confirm').disabled, false);
+    assert.equal(p.document.getElementById('username-input').value, 'Valid_Name');
+  }
+});
+
+test('username success applies the returned session and updates chrome without a legacy name', async () => {
+  const p = await page(); await p.signIn('New player');
+  await submitUsername(p, 'My_Username42');
+  assert.equal(p.document.getElementById('username-dialog').open, false);
+  assert.match(p.document.getElementById('account').textContent, /My_Username42/);
+  assert.equal(p.document.querySelector('[data-focus-key="account:username"]'), null);
+  assert.match(p.document.getElementById('feedback').textContent, /Username saved/);
+  assert.equal(p.document.activeElement.isConnected, true);
+  await p.route('#/submit');
+  assert.match(p.text(), /Publishing as My_Username42/);
+  assert.ok(p.document.getElementById('draft-name'));
+});
+
+test('publishing requires a username before creating a project', async () => {
+  const p = await page(); await p.signIn('New player');
+  await p.click(p.document.getElementById('username-close'));
+  await p.route('#/submit');
+  assert.match(p.text(), /Choose a username to publish/);
+  assert.equal(p.document.querySelector('#draft-name'), null);
+  assert.equal(p.document.getElementById('username-dialog').open, true);
+  await submitUsername(p, 'New_Creator');
+  assert.ok(p.document.querySelector('#draft-name'));
+});
+
+test('review decisions open the chooser before posting and retain the note for retry', async () => {
+  const memory = new Map();
+  const store = { getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) };
+  const api = Mock.createMockApi(store); await api.request('GET', '/me');
+  const state = JSON.parse(memory.get(Mock.STORAGE_KEY));
+  const id = '2535400000000301'; state.accounts[id].username = null; state.session = id;
+  memory.set(Mock.STORAGE_KEY, JSON.stringify(state));
+  const p = await page('#/staff/queue', memory);
+  await p.click(p.document.getElementById('username-close'));
+  await p.input('#review-note', 'Please explain the permissions.');
+  await p.click(p.document.querySelector('[data-focus-key="decision:changes"]'));
+  assert.equal(p.document.getElementById('username-dialog').open, true);
+  assert.equal(JSON.parse(memory.get(Mock.STORAGE_KEY)).audit.length, state.audit.length);
+  await submitUsername(p, 'Review_Lead');
+  assert.equal(p.document.getElementById('review-note').value, 'Please explain the permissions.');
+  await p.click(p.document.querySelector('[data-focus-key="decision:changes"]'));
+  assert.match(p.document.getElementById('feedback').textContent, /Review decision recorded/);
+});
+
+test('a pending username write cannot restore an account after sign-out', async () => {
+  const api = accountApi(); api.account.username = null; let finish;
+  const original = api.request;
+  api.request = (method, path, body) => path === '/me/username' ? new Promise(resolve => { finish = resolve; }) : original(method, path, body);
+  const p = await page('#/', undefined, api);
+  await submitUsername(p, 'Original_Name');
+  const pending = api.me().body; pending.account.username = 'Original_Name';
+  await p.click(p.document.querySelector('[data-focus-key="account"]'));
+  finish({ status: 200, body: pending }); await settle();
+  assert.match(p.document.getElementById('account').textContent, /Sign in with Google/);
+  assert.doesNotMatch(p.document.getElementById('account').textContent, /Original_Name/);
+});
+
+test('successful username writes update the same account after dismissal or reopening and reject duplicate submits', async () => {
+  for (const reopen of [false, true]) {
+    const api = accountApi(); api.account.username = null; let finish; let posts = 0;
+    const original = api.request;
+    api.request = (method, path, body) => path === '/me/username' ? (++posts, new Promise(resolve => { finish = resolve; })) : original(method, path, body);
+    const p = await page('#/', undefined, api);
+    await submitUsername(p, 'Original_Name'); await submitUsername(p, 'Original_Name');
+    assert.equal(posts, 1);
+    await p.click(p.document.getElementById('username-close'));
+    if (reopen) await p.click(p.document.querySelector('[data-focus-key="account:username"]'));
+    api.account.username = 'Original_Name';
+    finish(api.me()); await settle();
+    assert.equal(p.document.getElementById('username-dialog').open, false);
+    assert.match(p.document.getElementById('account').textContent, /Original_Name/);
+    assert.equal(p.document.querySelector('[data-focus-key="account:username"]'), null);
+  }
+});
+
+test('old username errors do not populate a reopened chooser', async () => {
+  const api = accountApi(); api.account.username = null; let finish;
+  const original = api.request;
+  api.request = (method, path, body) => path === '/me/username' ? new Promise(resolve => { finish = resolve; }) : original(method, path, body);
+  const p = await page('#/', undefined, api);
+  await submitUsername(p, 'Original_Name');
+  await p.click(p.document.getElementById('username-close'));
+  await p.click(p.document.querySelector('[data-focus-key="account:username"]'));
+  finish({ status: 409, body: { error: 'Old taken error.' } }); await settle();
+  assert.equal(p.document.getElementById('username-dialog').open, true);
+  assert.equal(p.document.getElementById('username-status').textContent, '');
+  assert.equal(p.document.getElementById('username-confirm').disabled, false);
 });

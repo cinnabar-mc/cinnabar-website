@@ -267,6 +267,7 @@ dialog[open] { animation: rise .22s cubic-bezier(.16, 1, .3, 1); }
 dialog::backdrop { background: #0b0a09c7; }
 dialog h2 { font: 700 26px/1.2 var(--sans); letter-spacing: -.02em; }
 dialog p { margin-top: 16px; color: var(--soft); }
+dialog p.error { color: var(--red-text); }
 .xbox-code-row, .xbox-actions { flex-wrap: wrap; }
 .xbox-code { font: 500 clamp(24px, 6vw, 36px)/1.4 var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; user-select: all; }
 #xbox-countdown { font-variant-numeric: tabular-nums; color: var(--quiet); }

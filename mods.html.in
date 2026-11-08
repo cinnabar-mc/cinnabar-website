@@ -31,6 +31,18 @@
     <p class="muted">Sample accounts demonstrate player, creator and staff workflows. Real Google sign-in is provided by the API in live mode.</p>
     <div id="signin-body" class="personas"></div>
   </dialog>
+  <dialog id="username-dialog" aria-labelledby="username-title" aria-describedby="username-note">
+    <div class="row between"><h2 id="username-title">Choose your username</h2><button type="button" id="username-close" class="quiet" aria-label="Close username chooser">Close</button></div>
+    <p id="username-note">Your username is public and can’t be changed later.</p>
+    <form id="username-form" class="gap" novalidate>
+      <label class="field" for="username-input">Username
+        <input id="username-input" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_]{3,16}" aria-describedby="username-hint username-status">
+      </label>
+      <small id="username-hint" class="muted">3–16 letters, digits or underscores.</small>
+      <p id="username-status" class="small error" role="alert" aria-live="polite" aria-atomic="true"></p>
+      <div class="row gap"><button type="submit" id="username-confirm" class="btn primary">Confirm username</button></div>
+    </form>
+  </dialog>
   <dialog id="xbox-dialog" aria-labelledby="xbox-title">
     <div class="row between"><h2 id="xbox-title">Link Xbox</h2><button type="button" id="xbox-close" class="quiet" aria-label="Close Xbox linking">Close</button></div>
     <div id="xbox-body"></div>
