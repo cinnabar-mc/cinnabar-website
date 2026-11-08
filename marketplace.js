@@ -14,6 +14,7 @@
   const previewMode = backend.backend === 'mock';
   const liveMode = backend.backend === 'http';
   let session = { account: null, library: [] };
+  let sessionEpoch = 0;
   let removingLibrary = false;
   let generation = 0;
   let query = '';
@@ -32,6 +33,14 @@
   let refreshTimer = null;
   let refreshing = false;
   let writes = 0;
+  const usernameDialog = document.getElementById('username-dialog');
+  const usernameInput = document.getElementById('username-input');
+  const usernameStatus = document.getElementById('username-status');
+  const usernameConfirm = document.getElementById('username-confirm');
+  const usernamePrompted = new Set();
+  let usernameReturnFocus = null;
+  let usernameEpoch = 0;
+  let usernameBusy = false;
   const xboxDialog = document.getElementById('xbox-dialog');
   let xboxPollTimer = null;
   let xboxClockTimer = null;
@@ -143,12 +152,88 @@
     if (!current() || (expectedGeneration !== undefined && expectedGeneration !== generation)) return { status: 0, stale: true, body: {} };
     if (response.status !== 200) return response;
     if (session.account?.id !== response.body.account?.id) {
-      closeXbox(); discardDraft(); reviewNotes.clear();
+      sessionEpoch++;
+      closeUsername(); closeXbox(); discardDraft(); reviewNotes.clear();
       submitting = false; uploadGeneration++;
     }
     session = response.body;
     session.library = Array.isArray(session.library) ? session.library : [];
+    if (session.account?.username) closeUsername();
     return response;
+  }
+
+  /** Remember automatic prompts for this account for the lifetime of this browser session. */
+  function promptUsername() {
+    const id = session.account?.id;
+    if (!id || session.account.username || usernamePrompted.has(id)) return;
+    try { if (window.sessionStorage.getItem('cinnabar.username.prompted.' + id)) return; } catch (_) { /* memory fallback */ }
+    openUsername();
+  }
+
+  /** Open the public-name chooser without losing the current route or draft. */
+  function openUsername() {
+    if (!session.account) return signIn();
+    if (session.account.username || usernameDialog.open) return;
+    closeXbox();
+    usernamePrompted.add(session.account.id);
+    try { window.sessionStorage.setItem('cinnabar.username.prompted.' + session.account.id, '1'); } catch (_) { /* memory fallback */ }
+    usernameReturnFocus = document.activeElement;
+    usernameInput.value = ''; usernameInput.disabled = false;
+    usernameInput.removeAttribute('aria-invalid'); usernameStatus.textContent = '';
+    usernameBusy = false; usernameConfirm.disabled = false; usernameConfirm.textContent = 'Confirm username';
+    usernameDialog.showModal(); usernameInput.focus();
+  }
+
+  /** Dismiss the chooser, invalidate pending work and return focus to a connected control. */
+  function closeUsername() {
+    if (!usernameDialog.open) return;
+    const previous = usernameReturnFocus;
+    usernameDialog.close(); usernameEpoch++; usernameBusy = false; usernameReturnFocus = null;
+    const key = previous?.getAttribute('data-focus-key');
+    const target = previous?.isConnected && previous !== document.body ? previous : [...document.querySelectorAll('[data-focus-key]')]
+      .find(control => key && control.getAttribute('data-focus-key') === key);
+    (target || document.getElementById('account').querySelector('button'))?.focus();
+  }
+
+  /** Only a chosen username may accompany a publishing or review action. */
+  function requireUsername() {
+    if (session.account?.username) return true;
+    openUsername(); return false;
+  }
+
+  /** Validate locally, then let the API decide availability and reserved names. */
+  async function saveUsername(event) {
+    event.preventDefault();
+    if (usernameBusy || !usernameDialog.open || !session.account) return;
+    const username = usernameInput.value;
+    const error = username.length < 3 || username.length > 16 ? 'Use 3–16 characters.'
+      : /[^A-Za-z0-9_]/.test(username) ? 'Use only letters, digits or underscores.' : '';
+    usernameStatus.textContent = error;
+    usernameInput.setAttribute('aria-invalid', error ? 'true' : 'false');
+    if (error) { usernameInput.focus(); return; }
+    const owner = session.account.id;
+    const epoch = usernameEpoch;
+    const identity = sessionEpoch;
+    usernameBusy = true; usernameInput.disabled = true; usernameConfirm.disabled = true;
+    usernameConfirm.textContent = 'Saving…';
+    const response = await call('POST', '/me/username', { username });
+    if (identity !== sessionEpoch || owner !== session.account?.id) return;
+    if (response.status === 200) {
+      session = response.body;
+      session.library = Array.isArray(session.library) ? session.library : [];
+      await render();
+      if (identity === sessionEpoch && owner === session.account?.id) { closeUsername(); announce('Username saved.'); }
+      return;
+    }
+    if (!usernameDialog.open || epoch !== usernameEpoch) return;
+    usernameBusy = false; usernameInput.disabled = false; usernameConfirm.disabled = false;
+    usernameConfirm.textContent = 'Confirm username';
+    const fallback = { 400: 'That username is invalid or reserved. Choose another.',
+      409: 'That username is taken or already set. Choose another or refresh.',
+      429: 'Too many attempts. Try again shortly.', 401: 'Sign in again to choose a username.',
+      403: 'Refresh the page and try again.' };
+    usernameStatus.textContent = response.body?.error || fallback[response.status] || 'Could not save your username. Try again.';
+    usernameInput.setAttribute('aria-invalid', 'true'); usernameInput.focus();
   }
 
   /** Keep the shared site header and marketplace account/navigation consistent. */
@@ -157,7 +242,7 @@
     const box = document.getElementById('account');
     const account = session.account;
     box.replaceChildren(account ? h('div', { class: 'account-details' },
-      h('span', { class: 'who small' }, account.display_name,
+      h('span', { class: 'who small' }, account.username || button('Choose a username', openUsername, 'btn quiet', 'account:username'),
         h('small', { class: 'account-email' }, account.email),
         previewMode || M.atLeast(account, 'moderator') ? h('small', {}, previewMode ? 'Preview account · ' + account.role : account.role) : null),
       h('div', { class: 'account-actions' },
@@ -181,19 +266,19 @@
     if (response.status !== 200) { announce(response.body.error, true); return; }
     const dialog = document.getElementById('signin-dialog');
     document.getElementById('signin-body').replaceChildren(...response.body.map(persona =>
-      button(h('span', {}, persona.display_name, h('small', {}, persona.blurb)), async () => {
+      button(h('span', {}, persona.username || 'New player', h('small', {}, persona.blurb)), async () => {
         const signed = await call('POST', '/auth/preview', { id: persona.id });
         if (signed.status !== 200) { announce(signed.body.error, true); return; }
         discardDraft(); step = 'project';
         dialog.close(); await loadSession(); await render();
-        announce('Using the ' + persona.display_name + ' preview account.');
+        announce('Using the ' + (persona.username || 'new player') + ' preview account.');
       }, 'btn quiet')));
     dialog.showModal();
   }
 
   /** End the session and discard in-memory artifacts on account changes. */
   async function signOut() {
-    generation++; closeXbox(); window.clearTimeout(refreshTimer);
+    generation++; sessionEpoch++; closeUsername(); closeXbox(); window.clearTimeout(refreshTimer);
     const result = await call('POST', '/auth/signout');
     if (result.status !== 200 && result.status !== 204) { await render(); return announce(result.body.error, true); }
     discardDraft(); reviewNotes.clear();
@@ -683,6 +768,11 @@
   async function editor(token) {
     if (!session.account) return mount(token, h('section', { class: 'empty' }, h('h2', {}, 'Give your mod a home.'),
       h('p', {}, 'Sign in to prepare a project and submit a release.'), button(previewMode ? 'Choose a preview account' : 'Sign in with Google', signIn, 'btn primary', 'editor:signin')));
+    if (!session.account.username) {
+      mount(token, h('section', { class: 'empty' }, h('h2', {}, 'Choose a username to publish.'),
+        h('p', {}, 'Your username appears on your projects.'), button('Choose a username', openUsername, 'btn primary', 'editor:username')));
+      return;
+    }
     if (submitting) return mount(token, h('section', { class: 'empty', role: 'status' }, h('h2', {}, 'Uploading your release…'), h('p', {}, 'Keep this tab open. Your draft will stay available if the upload fails.')));
     loadDraft();
     const form = h('form', { class: 'editor', novalidate: true });
@@ -691,7 +781,7 @@
     const previewSummary = h('p', {}, draft.summary || 'Your summary appears here.');
     const preview = h('aside', { class: 'editor-aside' }, h('p', { class: 'small muted', style: 'margin-bottom:12px' }, 'Listing preview'),
       h('div', { class: 'preview-card' }, modIcon({ capabilities: [], category: draft.category }), previewName,
-        h('span', { class: 'small muted' }, session.account.display_name), previewSummary, h('span', { class: 'tag' }, 'Free')),
+        h('span', { class: 'small muted' }, session.account.username), previewSummary, h('span', { class: 'tag' }, 'Free')),
       h('p', { class: 'rule small muted' }, 'Drafts are private to this account in this browser. Nothing is published until the service approves a release.'));
     const stepButtons = steps.map((name, index) => h('li', {}, button(h('span', { class: 'row' }, h('span', { class: 'num' }, index + 1),
       ['Project', 'Images', 'Release', 'Checks & publish'][index]), () => { step = name; render(); }, step === name ? 'active' : '', 'step:' + name)));
@@ -764,6 +854,7 @@
         submitting ? 'Uploading…' : step === 'checks' ? submitLabel : ['Continue to images', 'Continue to release', 'Review checks'][steps.indexOf(step)])));
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      if (!requireUsername()) return;
       if (validationPending || mediaPending || submitting) return announce('Wait for the current upload or file check to finish.', true);
       if (step !== 'checks') { step = steps[steps.indexOf(step) + 1]; render(); return; }
       if (!draft.file || !draft.parsed || !draft.check) { step = 'release'; await render(); return announce('Choose a valid component file first.', true); }
@@ -797,7 +888,7 @@
       storage.removeItem(draftKey(owner));
       draft = null; step = 'project'; location.hash = '#/mine';
     });
-    mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Give your mod a home.'), h('p', { class: 'muted' }, 'Publishing as ' + session.account.display_name))),
+    mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Give your mod a home.'), h('p', { class: 'muted' }, 'Publishing as ' + session.account.username))),
       h('div', { class: 'editor-layout' }, h('aside', {}, h('ol', { class: 'steps' }, stepButtons)), form, preview)));
   }
 
@@ -869,6 +960,7 @@
     const decisionStatus = h('p', { class: 'error', role: 'alert' });
     /** Commit a review decision only to the selected version, retaining a failed note. */
     async function decide(decision, control) {
+      if (!requireUsername()) return;
       control.disabled = true;
       const response = await call('POST', '/staff/versions/' + encodeURIComponent(version.id) + '/decision', { decision, note: notes.value });
       control.disabled = false;
@@ -919,7 +1011,7 @@
           : h('p', { class: 'warning small gap' }, 'This API response does not include command-value changes. Compare the exact grant lists before approving.'),
         diff.expanded ? h('p', { class: 'warning small gap' }, 'This release expands authority and cannot publish automatically.') : null) : null,
       h('dl', { class: 'facts' }, h('dt', {}, 'Artifact SHA-256'), h('dd', {}, version.sha256),
-        h('dt', {}, 'Approvals'), h('dd', {}, version.approvals.map(person => person.display_name || person.id).join(', ') || 'None'),
+        h('dt', {}, 'Approvals'), h('dd', {}, version.approvals.map(person => person.username || 'Cinnabar player').join(', ') || 'None'),
         h('dt', {}, 'Source'), h('dd', {}, C.externalUrl(version.source) ? h('a', { href: C.externalUrl(version.source), rel: 'noopener noreferrer' }, version.source) : 'Not linked'))),
     h('aside', { class: 'verdict' }, h('h3', {}, 'Decision'), h('p', { class: 'small muted gap' }, approve.ok ? 'Compare the file, permissions and description before approving. Explain any AI flags in your note.' : approve.reason),
       backend.fileUrl && backend.fileUrl(version.id) ? h('a', { class: 'btn quiet gap', href: backend.fileUrl(version.id), rel: 'noopener noreferrer', target: '_blank' }, 'Download component') : null,
@@ -964,12 +1056,12 @@
     const role = h('select', { id: 'staff-role' }, ['player', 'moderator', 'admin'].map(value => h('option', { value }, value)));
     const reason = h('textarea', { id: 'staff-reason', required: true, maxlength: 2000 });
     const error = h('p', { class: 'error', role: 'alert' });
-    body.append(h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, 'Display name'), h('th', {}, 'Role'))),
-      h('tbody', {}, people.map(person => h('tr', {}, h('td', {}, person.display_name), h('td', {}, person.role)))))),
+    body.append(h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, 'Username'), h('th', {}, 'Role'))),
+      h('tbody', {}, people.map(person => h('tr', {}, h('td', {}, person.username || 'Cinnabar player'), h('td', {}, person.role)))))),
     M.atLeast(session.account, 'admin') ? h('form', { class: 'sidebox gap', onsubmit: async event => {
-      event.preventDefault(); const result = await call('POST', '/staff/people/role', { display_name: name.value, role: role.value, reason: reason.value });
+      event.preventDefault(); const result = await call('POST', '/staff/people/role', { username: name.value, role: role.value, reason: reason.value });
       if (result.status !== 200) { error.textContent = result.body.error; return; } await loadSession(); render(); announce('Staff assignment updated.');
-    } }, h('h2', {}, 'Change a staff assignment'), h('label', { class: 'field gap', for: 'staff-name' }, 'Display name', name),
+    } }, h('h2', {}, 'Change a staff assignment'), h('label', { class: 'field gap', for: 'staff-name' }, 'Username', name),
     h('label', { class: 'field', for: 'staff-role' }, 'Role', role), h('label', { class: 'field', for: 'staff-reason' }, 'Reason', reason), error,
     h('button', { type: 'submit', class: 'btn primary' }, 'Save assignment')) : null);
   }
@@ -1029,14 +1121,23 @@
       else if (route.view === 'mine') await mine(token, route);
       else await staff(token, route);
     } catch (_) { mount(token, failure('The response could not be displayed. Please retry.')); }
+    if (token === generation) promptUsername();
     scheduleRefresh(token, route);
   }
 
   document.querySelector('[data-close]').addEventListener('click', () => document.getElementById('signin-dialog').close());
   document.getElementById('xbox-close').addEventListener('click', closeXbox);
+  document.getElementById('username-close').addEventListener('click', closeUsername);
+  document.getElementById('username-form').addEventListener('submit', saveUsername);
+  usernameInput.addEventListener('input', () => { usernameStatus.textContent = ''; usernameInput.removeAttribute('aria-invalid'); });
+  usernameDialog.addEventListener('cancel', event => { event.preventDefault(); closeUsername(); });
+  usernameDialog.addEventListener('close', () => { if (!usernameDialog.open) { usernameEpoch++; usernameBusy = false; } });
   xboxDialog.addEventListener('close', stopXbox);
   xboxDialog.addEventListener('cancel', event => { event.preventDefault(); closeXbox(); });
-  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', () => {
+    render(); window.scrollTo(0, 0);
+    if (M.parseRoute(location.hash).view === 'submit' && session.account) requireUsername();
+  });
   document.addEventListener('visibilitychange', () => {
     window.clearTimeout(refreshTimer);
     window.clearTimeout(xboxPollTimer); window.clearTimeout(xboxClockTimer);
@@ -1046,7 +1147,7 @@
       updateXboxClock(); scheduleXboxPoll();
     }
   });
-  window.addEventListener('pagehide', () => { window.clearTimeout(refreshTimer); closeXbox(); });
+  window.addEventListener('pagehide', () => { window.clearTimeout(refreshTimer); closeUsername(); closeXbox(); });
   document.getElementById('preview-note').hidden = !previewMode;
   document.getElementById('reset-preview').addEventListener('click', async () => {
     backend.reset(); discardDraft(); await loadSession(); await render(); announce('Sample data restored.');

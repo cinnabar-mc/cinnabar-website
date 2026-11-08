@@ -2,7 +2,7 @@
   "use strict";
 
   const core = typeof module !== "undefined" ? require("./marketplace-core.js") : window.CinnabarMarket;
-  const STORAGE_KEY = "cinnabar.marketplace.preview.v3";
+  const STORAGE_KEY = "cinnabar.marketplace.preview.v4";
   const HOUR = 3600000;
   const DAY = 24 * HOUR;
 
@@ -15,7 +15,7 @@
     { id: "2535400000000401", gamertag: "OreKeeper", role: "owner", blurb: "Owner" },
     { id: "google-only", gamertag: "GoogleBuilder", role: "player", blurb: "Google account · Xbox not linked" },
   ].map(function (a) {
-    return { ...a, display_name: a.gamertag, email: a.gamertag.toLowerCase() + '@example.test' };
+    return { ...a, username: a.id === 'google-only' ? null : a.gamertag, email: a.gamertag.toLowerCase() + '@example.test' };
   });
 
   /** Builds the sample marketplace relative to `now`, so ages read naturally on any day. */
@@ -27,7 +27,7 @@
       { id: "2535400000000105", gamertag: "QuartzQueue", role: "player" },
       { id: "2535400000000106", gamertag: "GhastlyGus", role: "player" },
       { id: "2535400000000107", gamertag: "TideTurner", role: "player" },
-    ]).forEach(function (a) { accounts[a.id] = { id: a.id, display_name: a.gamertag, gamertag: a.gamertag,
+    ]).forEach(function (a) { accounts[a.id] = { id: a.id, username: a.id === 'google-only' ? null : a.gamertag, gamertag: a.gamertag,
       email: a.gamertag.toLowerCase() + '@example.test', role: a.role, suspended: false,
       xbox: a.id === 'google-only' ? null : { xuid: 'xbox-' + a.id, gamertag: a.gamertag } }; });
     const by = function (tag) { return Object.values(accounts).find(function (a) { return a.gamertag === tag; }).id; };
@@ -128,7 +128,12 @@
     const ok = function (body) { return { status: 200, body: body }; };
     const fail = function (status, error) { return { status: status, body: { error: error } }; };
     const me = function () { return state.session ? state.accounts[state.session] : null; };
-    const name = function (id) { return (state.accounts[id] || { gamertag: "Unknown" }).gamertag; };
+    const name = function (id) { return state.accounts[id]?.username || 'Cinnabar player'; };
+    /** Return the same account envelope from GET /me and successful username writes. */
+    const sessionBody = function () {
+      const account = me();
+      return { account, library: account ? state.library[account.id] || [] : [], csrf: 'preview-csrf', game_online: Boolean(account?.xbox) };
+    };
     const log = function (action, target, note) {
       state.audit.unshift({ at: now(), actor: state.session, action: action, target: target, note: note || "" });
     };
@@ -160,7 +165,7 @@
       const submitted = v.listing || listing;
       return Object.assign({}, v, { name: submitted.name, creator_name: name(v.creator), source: submitted.source,
         summary: submitted.summary, capabilities: core.requestedCapabilities(v.grants),
-        approvals: v.approvals.map(function (a) { return Object.assign({ display_name: name(a.id) }, a); }),
+        approvals: v.approvals.map(function (a) { return Object.assign({ username: name(a.id) }, a); }),
         previous: previous ? { version: previous.version, grants: previous.grants, diff: core.grantDiff(previous.grants, v.grants) } : null });
     }
 
@@ -168,8 +173,28 @@
 
     const routes = [
       ["GET", /^\/me$/, function () {
-        const account = me();
-        return ok({ account: account, library: account ? state.library[account.id] || [] : [], csrf: 'preview-csrf', game_online: Boolean(account?.xbox) });
+        return ok(sessionBody());
+      }],
+      ["POST", /^\/me\/username$/, function (body) {
+        if (!me()) return fail(401, 'Sign in first.');
+        if (me().suspended) return fail(403, 'This account is suspended.');
+        if (me().username) return fail(409, 'Your username is already set.');
+        const attempts = (state.username_attempts ||= {});
+        attempts[state.session] = (attempts[state.session] || []).filter(at => at > now() - 600000);
+        if (attempts[state.session].length >= 5) return fail(429, 'Too many username attempts. Try again in ten minutes.');
+        attempts[state.session].push(now());
+        if (typeof body.username !== 'string' || body.username.length < 3 || body.username.length > 16 || /[^A-Za-z0-9_]/.test(body.username)) {
+          return fail(400, 'Use 3–16 letters, digits or underscores.');
+        }
+        const lower = body.username.toLowerCase();
+        if (['cinnabar', 'admin', 'administrator', 'moderator', 'mod', 'staff', 'official', 'support', 'system', 'root', 'owner', 'null', 'undefined'].includes(lower)) {
+          return fail(400, 'That username is reserved. Choose another.');
+        }
+        if (Object.values(state.accounts).some(account => account.username?.toLowerCase() === lower)) {
+          return fail(409, 'That username is taken. Choose another.');
+        }
+        me().username = body.username;
+        return ok(sessionBody());
       }],
       ["GET", /^\/auth\/personas$/, function () { return ok(PERSONAS); }],
       ["POST", /^\/auth\/preview$/, function (body) {
@@ -191,7 +216,7 @@
       }],
       ["POST", /^\/auth\/preview\/xbox-link$/, function () {
         if (!me() || state.link_code?.account !== state.session || state.link_code.expires_at <= now()) return fail(400, "Get a current preview link code first.");
-        me().xbox = { xuid: 'xbox-' + me().id, gamertag: me().display_name };
+        me().xbox = { xuid: 'xbox-' + me().id, gamertag: me().gamertag };
         state.link_code = null;
         return ok({});
       }],
@@ -253,6 +278,7 @@
       ["POST", /^\/submissions$/, function (body) {
         const check = core.can(me(), "submit");
         if (!check.ok) return fail(401, check.reason);
+        if (!me().username) return fail(409, 'Choose a username before publishing.');
         let reach;
         try { reach = core.reachOf(body.grants); } catch (e) { return fail(400, e.message); }
         const errors = core.validateListing(Object.assign({}, body, { reach: reach }));
@@ -292,6 +318,7 @@
       ["POST", /^\/staff\/versions\/(v\d+)\/decision$/, function (body, id) {
         const denied = staffOnly();
         if (denied) return denied;
+        if (!me().username) return fail(409, 'Choose a username before reviewing.');
         const index = state.versions.findIndex(function (item) { return item.id === id; });
         if (index < 0) return fail(404, "No such version.");
         let next;
@@ -344,8 +371,8 @@
           .sort(function (a, b) { return core.atLeast(b, a.role) - core.atLeast(a, b.role) || a.gamertag.localeCompare(b.gamertag); }));
       }],
       ["POST", /^\/staff\/people\/role$/, function (body) {
-        const target = Object.values(state.accounts).find(function (a) { return a.gamertag.toLowerCase() === String(body.display_name || body.gamertag || "").trim().toLowerCase(); });
-        if (!target) return fail(404, "No Cinnabar account with that display name has signed in yet.");
+        const target = Object.values(state.accounts).find(function (a) { return a.username && a.username.toLowerCase() === String(body.username || '').trim().toLowerCase(); });
+        if (!target) return fail(404, "No Cinnabar account with that username has signed in yet.");
         const check = core.can(me(), "set-role", { target: target, role: body.role });
         if (!check.ok) return fail(403, check.reason);
         if (!String(body.reason || "").trim()) return fail(400, "Note why, for the audit log.");

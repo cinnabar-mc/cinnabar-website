@@ -4,12 +4,12 @@ const test = require('node:test');
 const M = require('../marketplace-core.js');
 const { createMockApi, PERSONAS } = require('../marketplace-mock.js');
 
-const player = { id: '1', display_name: 'Player', role: 'player' };
-const creator = { id: '2', display_name: 'Creator', role: 'player' };
-const mod1 = { id: '3', display_name: 'ModOne', role: 'moderator' };
-const mod2 = { id: '4', display_name: 'ModTwo', role: 'moderator' };
-const admin = { id: '5', display_name: 'Admin', role: 'admin' };
-const owner = { id: '6', display_name: 'Owner', role: 'owner' };
+const player = { id: '1', username: 'Player', role: 'player' };
+const creator = { id: '2', username: 'Creator', role: 'player' };
+const mod1 = { id: '3', username: 'ModOne', role: 'moderator' };
+const mod2 = { id: '4', username: 'ModTwo', role: 'moderator' };
+const admin = { id: '5', username: 'Admin', role: 'admin' };
+const owner = { id: '6', username: 'Owner', role: 'owner' };
 
 test('current clock and sound permissions retain their observation and presentation review groups', () => {
   assert.equal(M.reachOf({ clock: true }), 1);
@@ -226,10 +226,10 @@ test('pulling a version removes it from the catalogue and the audit log records 
 
 test('role changes follow the account and need a reason', async () => {
   const client = await api('RedstoneRook');
-  assert.equal((await client.request('POST', '/staff/people/role', { display_name: 'MossyCobble', role: 'admin', reason: 'x' })).status, 403);
-  assert.equal((await client.request('POST', '/staff/people/role', { display_name: 'MossyCobble', role: 'moderator', reason: '' })).status, 400);
-  assert.equal((await client.request('POST', '/staff/people/role', { display_name: 'nobody', role: 'moderator', reason: 'x' })).status, 404);
-  const promoted = await client.request('POST', '/staff/people/role', { display_name: 'mossycobble', role: 'moderator', reason: 'Helps in Discord' });
+  assert.equal((await client.request('POST', '/staff/people/role', { username: 'MossyCobble', role: 'admin', reason: 'x' })).status, 403);
+  assert.equal((await client.request('POST', '/staff/people/role', { username: 'MossyCobble', role: 'moderator', reason: '' })).status, 400);
+  assert.equal((await client.request('POST', '/staff/people/role', { username: 'nobody', role: 'moderator', reason: 'x' })).status, 404);
+  const promoted = await client.request('POST', '/staff/people/role', { username: 'mossycobble', role: 'moderator', reason: 'Helps in Discord' });
   assert.equal(promoted.body.role, 'moderator');
   await client.as('MossyCobble');
   assert.equal((await client.request('GET', '/staff/queue')).status, 200);
@@ -253,7 +253,7 @@ test('reports need a signed-in player, a reason and details', async () => {
 test('the live client sends the session cookie, repeats the CSRF token and uploads components as forms', async () => {
   const { createHttpApi } = require('../marketplace-http.js');
   const calls = [];
-  const replies = [{ account: { id: 'google-steve', display_name: 'Steve', email: 'steve@example.test', role: 'player', suspended: false, xbox: null }, library: [], csrf: 'token-1', game_online: false }, { id: '12', status: 'submitted' }];
+  const replies = [{ account: { id: 'google-steve', username: 'Steve', email: 'steve@example.test', role: 'player', suspended: false, xbox: null }, library: [], csrf: 'token-1', game_online: false }, { id: '12', status: 'submitted' }];
   const location = { href: 'https://site.test/mods/#/submit', assign: url => calls.push({ assigned: url }) };
   const client = createHttpApi('https://api.test/v1', async (url, init) => {
     calls.push({ url, init });
@@ -355,4 +355,85 @@ test('Xbox link-code and unlink use credentials and CSRF and accept an empty 204
   await client.request('POST', '/auth/signout');
   await client.request('POST', '/me/xbox/link-code');
   assert.equal(calls.at(-1).init.headers['X-Cinnabar-CSRF'], '');
+});
+
+test('mock usernames validate format, reserved and taken names case-insensitively, and can only be set once', async () => {
+  const client = await api();
+  assert.equal((await client.request('POST', '/me/username', { username: 'New_Player' })).status, 401);
+  await client.as('GoogleBuilder');
+  assert.equal((await client.request('GET', '/me')).body.account.username, null);
+  for (const username of [null, 123, '', 'ab', 'a'.repeat(17), 'has space', 'bad-name', 'éclair', 'valid\n']) {
+    const fresh = await api('GoogleBuilder');
+    assert.equal((await fresh.request('POST', '/me/username', { username })).status, 400, String(username));
+  }
+  for (const username of ['ADMIN', 'Cinnabar', 'Support', 'MOD', 'Owner']) {
+    const fresh = await api('GoogleBuilder');
+    const result = await fresh.request('POST', '/me/username', { username });
+    assert.equal(result.status, 400); assert.match(result.body.error, /reserved/);
+  }
+  assert.equal((await client.request('POST', '/me/username', { username: 'mOsSyCoBbLe' })).status, 409);
+  assert.equal((await client.request('POST', '/submissions', {})).status, 409);
+  const response = await client.request('POST', '/me/username', { username: 'New_Player42' });
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, (await client.request('GET', '/me')).body);
+  assert.equal(response.body.account.username, 'New_Player42');
+  assert.equal(response.body.account.xbox, null);
+  assert.equal(Object.hasOwn(response.body.account, 'display_name'), false);
+  assert.equal((await client.request('POST', '/me/username', { username: 'Different' })).status, 409);
+  assert.equal((await client.request('GET', '/me')).body.account.username, 'New_Player42');
+});
+
+test('HTTP username writes use credentials and CSRF and accept a full session with its updated token', async () => {
+  const calls = [];
+  const { createHttpApi } = require('../marketplace-http.js');
+  const envelope = { account: { id: 'player', username: 'New_Player' }, library: [], csrf: 'new-token', game_online: false };
+  const client = createHttpApi('https://api.test/v1', async (url, init) => {
+    calls.push({ url, init });
+    return { status: 200, json: async () => url.endsWith('/username') ? envelope : { ...envelope, csrf: 'original-token' } };
+  }, {});
+  await client.request('GET', '/me');
+  assert.deepEqual((await client.request('POST', '/me/username', { username: 'New_Player' })).body, envelope);
+  assert.equal(calls[1].url, 'https://api.test/v1/me/username');
+  assert.equal(calls[1].init.credentials, 'include');
+  assert.equal(calls[1].init.headers['X-Cinnabar-CSRF'], 'original-token');
+  assert.deepEqual(JSON.parse(calls[1].init.body), { username: 'New_Player' });
+  await client.request('POST', '/me/xbox/link-code');
+  assert.equal(calls[2].init.headers['X-Cinnabar-CSRF'], 'new-token');
+});
+
+test('mock public creator and reviewer names use usernames and neutral fallbacks without Xbox names', async () => {
+  const memory = new Map();
+  const store = { getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value) };
+  const initial = createMockApi(store); await initial.request('GET', '/me');
+  const state = JSON.parse(memory.get(require('../marketplace-mock.js').STORAGE_KEY));
+  state.accounts['2535400000000102'].username = 'Chosen_Creator';
+  state.accounts['2535400000000201'].username = null;
+  memory.set(require('../marketplace-mock.js').STORAGE_KEY, JSON.stringify(state));
+  const client = createMockApi(store);
+  const listing = (await client.request('GET', '/mods/time-changer')).body;
+  assert.equal(listing.creator_name, 'Chosen_Creator');
+  assert.equal(listing.reviewed_by, 'Cinnabar player');
+  assert.deepEqual(listing.history[0].reviewers, ['Cinnabar player']);
+  await client.request('POST', '/auth/preview', { id: '2535400000000201' });
+  assert.equal((await client.request('POST', '/staff/versions/v1/decision', { decision: 'approve' })).status, 409);
+});
+
+test('mock username rate limits include failed attempts and expire after ten minutes', async () => {
+  const memory = new Map(); let clock = Date.UTC(2026, 10, 8);
+  const client = createMockApi({ getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) }, () => clock);
+  await client.request('POST', '/auth/preview', { id: 'google-only' });
+  for (let attempt = 0; attempt < 5; attempt++) {
+    assert.equal((await client.request('POST', '/me/username', { username: 'MossyCobble' })).status, 409);
+  }
+  assert.equal((await client.request('POST', '/me/username', { username: 'Valid_Player' })).status, 429);
+  clock += 600000;
+  assert.equal((await client.request('POST', '/me/username', { username: 'Valid_Player' })).status, 200);
+  assert.equal((await client.request('POST', '/me/username', { username: 'Other_Player' })).status, 409);
+});
+
+test('mock usernames accept the three and sixteen character boundaries', async () => {
+  for (const username of ['api', 'A1_'.repeat(5) + 'x']) {
+    const client = await api('GoogleBuilder');
+    assert.equal((await client.request('POST', '/me/username', { username })).status, 200);
+  }
 });

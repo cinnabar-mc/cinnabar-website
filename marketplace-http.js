@@ -35,10 +35,11 @@
           signal: AbortSignal.timeout(form ? 120000 : 10000),
         });
         const data = response.status === 204 ? null : await response.json().catch(function () { return { error: "The marketplace didn't answer properly." }; });
-        if (path === "/me" && response.status === 200 && identity === identityGeneration) csrf = data && typeof data.csrf === "string" ? data.csrf : '';
+        const sessionResponse = path === '/me' || path === '/me/username';
+        if (sessionResponse && response.status === 200 && identity === identityGeneration) csrf = data && typeof data.csrf === "string" ? data.csrf : '';
         if (path === '/auth/signout' && (response.status === 200 || response.status === 204)) csrf = '';
         const privateView = path === '/me/mods' || path.startsWith('/staff/') || path === '/submissions';
-        const bodyData = response.status === 200 && path !== '/me'
+        const bodyData = response.status === 200 && !sessionResponse
           ? (Array.isArray(data) ? data.map(item => release(item, privateView)) : release(data, privateView)) : data;
         return { status: response.status, body: bodyData };
       },
