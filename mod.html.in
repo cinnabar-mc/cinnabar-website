@@ -26,7 +26,7 @@
     .hero-side { display: flex; flex-direction: column; align-items: flex-start; }
     .description { font: 500 clamp(19px, 1.5vw, 21px)/1.32 var(--sans); letter-spacing: -.015em; text-wrap: pretty; }
     .edition { margin-top: 12px; color: var(--soft); font: 400 16px/1.5 var(--sans); }
-    .download { margin-top: 20px; }
+    .split { margin-top: 20px; }
     .download-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .4em; min-height: 44px; margin-top: 8px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
     .download-note a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: #ffffff59; text-decoration-thickness: 1px; transition: text-decoration-color .15s ease-out; }
     .download-note a:hover { text-decoration-color: currentColor; }
@@ -95,7 +95,8 @@
       footer { grid-template-columns: minmax(0, 1fr); margin-top: 80px; }
     }
     @media (max-width: 480px) {
-      .download { width: 100%; padding-inline: 16px; font-size: 17px; }
+      .split { width: 100%; }
+      .download { flex: 1; padding-inline: 16px; font-size: 17px; }
       .catalog { grid-template-columns: minmax(0, 1fr); }
       .hud ul { column-gap: 16px; }
       .visual ul, .mechanic ul { columns: 2; column-gap: 16px; }
@@ -110,7 +111,14 @@
       <div class="hero-side">
         <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
         <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
-        <a class="download" href="@@API_ORIGIN@@/v1/mod/download"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Mod</a>
+        <div class="split" id="download-split">
+          <a class="download" id="download" data-mod-download="@@API_ORIGIN@@/v1/mod/download" href="@@API_ORIGIN@@/v1/mod/download?channel=beta"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Mod</a>
+          <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu" aria-label="Choose download channel"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5"/></svg></button>
+          <div class="channel-menu" id="channel-menu" role="menu" aria-label="Download channel" hidden>
+            <button type="button" class="channel-option" id="channel-beta" role="menuitemradio" aria-checked="true" data-channel="beta">Beta<span class="hint">Recommended</span></button>
+            <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>
+          </div>
+        </div>
         <p class="download-note">Downloads <code>CinnabarClient.wasm</code> · <a href="#install">How to install</a></p>
       </div>
     </div>
@@ -166,5 +174,6 @@
     </section>
   </main>
   <footer class="wrap"><img class="foot-logo" src="/title.png" alt="" width="2000" height="667" loading="lazy"><p>Cinnabar Mod · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
+  <script src="/app.js" defer></script>
 </body>
 </html>

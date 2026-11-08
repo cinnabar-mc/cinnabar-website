@@ -44,21 +44,6 @@
     .edition { position: relative; margin-top: 12px; color: var(--ink); font: 400 16px/1.5 var(--sans); text-shadow: 0 1px 12px #00000099; }
     .actions { margin-top: 28px; max-width: 100%; }
     .hero-caption { position: absolute; right: var(--gutter); bottom: 12px; color: var(--soft); font: 400 13px/1.4 var(--sans); }
-    .split { position: relative; display: inline-flex; max-width: 100%; border-radius: 10px; box-shadow: 0 16px 36px -14px #000e; }
-    #download { min-width: 0; border-radius: 10px 0 0 10px; box-shadow: inset 0 1px #ffffff2e; }
-    #channel-toggle { flex: none; width: 56px; padding: 0; border-left: 1px solid #0000004d; border-radius: 0 10px 10px 0; box-shadow: inset 0 1px #ffffff2e; }
-    #channel-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s cubic-bezier(.16, 1, .3, 1); }
-    #channel-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
-    #download:active, #channel-toggle:active { box-shadow: inset 0 1px #0000004d; }
-    .channel-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: 320px; max-width: calc(100vw - 2 * var(--gutter)); padding: 6px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raise); box-shadow: 0 20px 48px -12px #000d; text-align: left; }
-    .channel-menu[hidden] { display: none; }
-    .channel-option { position: relative; display: block; width: 100%; min-height: 56px; padding: 10px 12px 10px 44px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: 500 16px/1.35 var(--sans); text-align: left; transition: background-color .12s ease-out; }
-    .channel-option:hover, .channel-option:focus-visible { background: var(--raise-2); }
-    .channel-option:active { background: var(--line); }
-    .channel-option:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-    .channel-option::before { content: ""; position: absolute; left: 14px; top: 14px; width: 18px; height: 18px; border: 1.5px solid var(--quiet); border-radius: 50%; }
-    .channel-option[aria-checked="true"]::before { border-color: var(--red-line); box-shadow: inset 0 0 0 4px var(--raise), inset 0 0 0 9px var(--red-line); }
-    .channel-option .hint { display: block; margin-top: 2px; color: var(--quiet); font-weight: 400; font-size: 14px; }
 
     .download-count { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin-top: 8px; color: var(--ink); font: 400 15px/1.4 var(--sans); text-shadow: 0 1px 12px #000000aa; }
     .download-count:empty { visibility: hidden; }

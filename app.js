@@ -8,104 +8,125 @@ function detectPlatform(userAgent, platform, touchPoints) {
   return 'unsupported';
 }
 
-const config = window.CINNABAR_DOWNLOADS;
-const assets = {...config.assets, ...config.manual_assets};
-const platform = detectPlatform(navigator.userAgent, navigator.userAgentData?.platform || navigator.platform, navigator.maxTouchPoints);
-const labels = {windows: 'Windows', macos: 'macOS', linux: 'Linux', android: 'Android'};
-const button = document.getElementById('download');
-const dialog = document.getElementById('install-dialog');
-document.getElementById('download-label').textContent = labels[platform] ? `Download for ${labels[platform]}` : 'Downloads';
-const split = document.getElementById('download-split');
-const toggle = document.getElementById('channel-toggle');
-const menu = document.getElementById('channel-menu');
-const options = [document.getElementById('channel-beta'), document.getElementById('channel-nightly')];
-let channel = 'beta';
-const base = () => channel === 'nightly' ? config.nightly_base : config.download_base;
-const installCommand = () => channel === 'nightly' ? config.nightly_install_command : config.install_command;
+const downloadButton = document.getElementById('download');
+if (downloadButton.dataset?.modDownload) {
+  setupDownloadChannel(channel => {
+    downloadButton.href = `${downloadButton.dataset.modDownload}?channel=${channel}`;
+  }, () => window.location.assign(downloadButton.href));
+} else {
+  setupClientDownload(downloadButton);
+}
 
-function applyChannel() {
-  document.getElementById('install-command').value = installCommand();
-  document.querySelectorAll('[data-release-asset]').forEach(link => {
-    const [os, arch] = link.dataset.releaseAsset.split('/');
-    link.href = base() + assets[os][arch];
-  });
+// Share channel selection, checked state and keyboard navigation across download pages.
+function setupDownloadChannel(applyChannel, startDownload) {
+  const split = document.getElementById('download-split');
+  const toggle = document.getElementById('channel-toggle');
+  const menu = document.getElementById('channel-menu');
+  const options = [document.getElementById('channel-beta'), document.getElementById('channel-nightly')];
+  let channel = 'beta';
+  applyChannel(channel);
   options.forEach(option => option.setAttribute('aria-checked', String(option.dataset.channel === channel)));
-}
-applyChannel();
 
-function setMenu(open, focusIndex) {
-  menu.hidden = !open;
-  toggle.setAttribute('aria-expanded', String(open));
-  if (open) options[focusIndex ?? options.findIndex(option => option.dataset.channel === channel)].focus();
-}
-toggle.addEventListener('click', () => setMenu(menu.hidden));
-toggle.addEventListener('keydown', event => {
-  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-  event.preventDefault();
-  setMenu(true, event.key === 'ArrowUp' ? options.length - 1 : 0);
-});
-menu.addEventListener('keydown', event => {
-  const index = options.indexOf(event.target);
-  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+  function setMenu(open, focusIndex) {
+    menu.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open) options[focusIndex ?? options.findIndex(option => option.dataset.channel === channel)].focus();
+  }
+  toggle.addEventListener('click', () => setMenu(menu.hidden));
+  toggle.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
     event.preventDefault();
-    options[(index + (event.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length].focus();
-  } else if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    choose(event.target);
-  } else if (event.key === 'Escape') {
-    event.preventDefault();
+    setMenu(true, event.key === 'ArrowUp' ? options.length - 1 : 0);
+  });
+  menu.addEventListener('keydown', event => {
+    const index = options.indexOf(event.target);
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      options[(index + (event.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length].focus();
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      choose(event.target);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setMenu(false);
+      toggle.focus();
+    }
+  });
+  options.forEach(option => option.addEventListener('click', () => choose(option)));
+  document.addEventListener('click', event => {
+    if (!menu.hidden && !split.contains(event.target)) setMenu(false);
+  });
+
+  function choose(option) {
+    channel = option.dataset.channel;
+    applyChannel(channel);
+    options.forEach(item => item.setAttribute('aria-checked', String(item.dataset.channel === channel)));
     setMenu(false);
-    toggle.focus();
+    startDownload();
   }
-});
-options.forEach(option => option.addEventListener('click', () => choose(option)));
-document.addEventListener('click', event => {
-  if (!menu.hidden && !split.contains(event.target)) setMenu(false);
-});
-
-function choose(option) {
-  channel = option.dataset.channel;
-  applyChannel();
-  setMenu(false);
-  startDownload();
 }
 
-button.addEventListener('click', startDownload);
+// Keep platform detection and installer dialogs specific to the client download.
+function setupClientDownload(button) {
+  const config = window.CINNABAR_DOWNLOADS;
+  const assets = {...config.assets, ...config.manual_assets};
+  const platform = detectPlatform(navigator.userAgent, navigator.userAgentData?.platform || navigator.platform, navigator.maxTouchPoints);
+  const labels = {windows: 'Windows', macos: 'macOS', linux: 'Linux', android: 'Android'};
+  const dialog = document.getElementById('install-dialog');
+  document.getElementById('download-label').textContent = labels[platform] ? `Download for ${labels[platform]}` : 'Downloads';
+  let channel = 'beta';
+  const base = () => channel === 'nightly' ? config.nightly_base : config.download_base;
+  const installCommand = () => channel === 'nightly' ? config.nightly_install_command : config.install_command;
 
-function startDownload() {
-  if (platform === 'windows') {
-    window.location.assign(base() + config.assets.windows.x86_64);
-    return;
+  function applyChannel() {
+    document.getElementById('install-command').value = installCommand();
+    document.querySelectorAll('[data-release-asset]').forEach(link => {
+      const [os, arch] = link.dataset.releaseAsset.split('/');
+      link.href = base() + assets[os][arch];
+    });
   }
-  if (platform === 'android') {
-    window.location.assign(base() + assets.android.arm64);
-    return;
+  setupDownloadChannel(selected => {
+    channel = selected;
+    applyChannel();
+  }, startDownload);
+
+  button.addEventListener('click', startDownload);
+
+  function startDownload() {
+    if (platform === 'windows') {
+      window.location.assign(base() + config.assets.windows.x86_64);
+      return;
+    }
+    if (platform === 'android') {
+      window.location.assign(base() + assets.android.arm64);
+      return;
+    }
+    document.getElementById('linux-install').hidden = platform !== 'linux';
+    document.getElementById('macos-install').hidden = platform !== 'macos';
+    document.getElementById('desktop-install').hidden = platform === 'linux' || platform === 'macos';
+    document.getElementById('install-title').textContent = platform === 'linux' ? 'Install on Linux' : platform === 'macos' ? 'Download for macOS' : 'Choose your platform';
+    document.getElementById('copy-command').textContent = 'Copy';
+    document.getElementById('copy-status').textContent = '';
+    dialog.showModal();
   }
-  document.getElementById('linux-install').hidden = platform !== 'linux';
-  document.getElementById('macos-install').hidden = platform !== 'macos';
-  document.getElementById('desktop-install').hidden = platform === 'linux' || platform === 'macos';
-  document.getElementById('install-title').textContent = platform === 'linux' ? 'Install on Linux' : platform === 'macos' ? 'Download for macOS' : 'Choose your platform';
-  document.getElementById('copy-command').textContent = 'Copy';
-  document.getElementById('copy-status').textContent = '';
-  dialog.showModal();
+  document.getElementById('close-dialog').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', event => {
+    if (event.target === dialog) {
+      const rect = dialog.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+    }
+  });
+  document.getElementById('copy-command').addEventListener('click', async event => {
+    const copyButton = event.currentTarget;
+    try {
+      await navigator.clipboard.writeText(installCommand());
+      copyButton.textContent = 'Copied';
+      document.getElementById('copy-status').textContent = 'Install command copied.';
+    } catch {
+      const input = document.getElementById('install-command');
+      input.focus();
+      input.select();
+      document.getElementById('copy-status').textContent = 'Select and copy the command above.';
+    }
+  });
 }
-document.getElementById('close-dialog').addEventListener('click', () => dialog.close());
-dialog.addEventListener('click', event => {
-  if (event.target === dialog) {
-    const rect = dialog.getBoundingClientRect();
-    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
-  }
-});
-document.getElementById('copy-command').addEventListener('click', async event => {
-  const copyButton = event.currentTarget;
-  try {
-    await navigator.clipboard.writeText(installCommand());
-    copyButton.textContent = 'Copied';
-    document.getElementById('copy-status').textContent = 'Install command copied.';
-  } catch {
-    const input = document.getElementById('install-command');
-    input.focus();
-    input.select();
-    document.getElementById('copy-status').textContent = 'Select and copy the command above.';
-  }
-});
