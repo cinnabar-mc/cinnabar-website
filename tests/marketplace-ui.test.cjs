@@ -500,6 +500,15 @@ test('the open linking panel follows a link that another session refresh noticed
   assert.equal(p.document.getElementById('xbox-code'), null);
 });
 
+test('a send conflict for a linked account shows its own error instead of the linking panel', async () => {
+  const api = accountApi(true);
+  api.send = () => ({ status: 409, body: { error: 'Your library is full. Remove a mod to add another.' } });
+  const p = await page('#/mod/live-mod', undefined, api);
+  await p.click(p.document.querySelector('[data-focus-key="project:add"]'));
+  assert.ok(!p.document.getElementById('xbox-dialog').open);
+  assert.equal(p.document.getElementById('feedback').textContent, 'Your library is full. Remove a mod to add another.');
+});
+
 test('link polling detects gamertag, pauses while hidden, resumes with current expiry and stops on close', async () => {
   const api = accountApi(); const p = await page('#/', undefined, api);
   await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));

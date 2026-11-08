@@ -433,8 +433,10 @@
     if (result.status === 409) {
       await loadSession();
       if (owner !== session.account?.id) return;
-      chrome(M.parseRoute(location.hash)); openXbox();
-      return;
+      chrome(M.parseRoute(location.hash));
+      // A 409 also reports other conflicts, such as a full library; only a missing link opens linking.
+      if (!session.account?.xbox) return openXbox();
+      return announce(result.body.error, true);
     }
     if (result.status !== 200) return announce(result.body.error, true);
     await loadSession(); chrome(M.parseRoute(location.hash));
