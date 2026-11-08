@@ -50,6 +50,7 @@ jobs:
       - name: Validate updated inputs
         if: steps.source.outputs.changed == 'true'
         run: |
+          npm ci
           python3 mdbook.py
           python3 render.py
           node --test tests/*.test.cjs

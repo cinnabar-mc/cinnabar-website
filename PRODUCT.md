@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Minecraft: Bedrock Edition players of every kind, on Windows, macOS, Linux and Android, who have heard of Cinnabar and want to get it onto their device. Secondary: players who already run Cinnabar and want the Official Mod, and mod authors reading the modding book.
+Minecraft: Bedrock Edition players of every kind, on Windows, macOS, Linux and Android, who have heard of Cinnabar and want to get it onto their device. Secondary: players who already run Cinnabar and want the Official Mod or community mods, mod authors reading the modding book or publishing to the marketplace, and staff who review marketplace releases.
 
 ## Product Purpose
 
@@ -26,6 +26,7 @@ Static pages served from a Cloudflare static-assets Worker. Live aggregates come
 
 - Home carries only its existing content: the logo, tagline, edition line, platform-aware download with a Beta/Nightly channel choice, install dialogs (Linux command, macOS architecture and first-open guidance, all-platform list), download total, server-risk warning, online and unique counts, and the player history chart with its 24h/7d/30d ranges. The owner confirmed this redesign adds no new product claims to the home page.
 - `/mod/` carries its existing content: the anonymous WASM download, 39-module catalog, settings and HUD Layout, profiles, waypoints, autosave, three-step install, Discord help.
+- `/mods/` is the community mod marketplace: browsing, project pages, per-account libraries the client downloads from, a creator editor, and staff review, report, role and audit screens. The default build targets the separate Cinnabar API; an explicit mock build is a clearly labelled preview with sample data. Runtime grants, compatibility and installation stay client responsibilities, and the site never invents a scan or review pass.
 - `/docs/modding/` is a generated book. Chapter text is upstream; the site owns its theme and shared header.
 - Release filenames, API origin, branding and the book come from the client repository through `source.json`. There is no build step beyond `render.py`, and no framework.
 

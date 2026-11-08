@@ -54,7 +54,7 @@ class RenderTests(unittest.TestCase):
         self.root = Path(temporary.name)
         self.repository = self.root / "source"
         self.output = self.root / "candidate"
-        self.config = json.loads((SOURCE / RENDER.INPUTS["release_manifest"]).read_text())
+        self.config = json.loads((SOURCE / RENDER.INPUTS["release_manifest"]).read_text(encoding="utf-8"))
         self.config["repository"] = "fixture/download-contract"
         self.config["website"] = "https://unrelated-site.invalid"
         self.config["install_script"] = "fixture-" + self.config["install_script"]
@@ -66,7 +66,7 @@ class RenderTests(unittest.TestCase):
             platform: {arch: "fixture-" + name for arch, name in arches.items()}
             for platform, arches in self.config["manual_assets"].items()
         }
-        for path in (RENDER.INPUTS["icon"], RENDER.INPUTS["title"], RENDER.INPUTS["discord_mark"]):
+        for path in (RENDER.INPUTS["icon"], RENDER.INPUTS["title"], RENDER.INPUTS["discord_mark"], RENDER.INPUTS["mod_grants"]):
             target = self.repository / path
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(SOURCE / path, target)
@@ -81,19 +81,19 @@ class RenderTests(unittest.TestCase):
         shutil.copytree(SITE / "tests/fixtures/modding", self.repository / RENDER.INPUTS["modding"])
 
     def config_from_output(self):
-        script = (self.output / "downloads.js").read_text()
+        script = (self.output / "downloads.js").read_text(encoding="utf-8")
         return json.loads(script.removeprefix("window.CINNABAR_DOWNLOADS = ").removesuffix(";\n"))
 
     def test_discord_mark_uses_shared_client_branding(self):
         (self.repository / RENDER.INPUTS["discord_mark"]).write_text("M0 0L1 1Z\n")
         RENDER.build(self.repository, self.output)
-        self.assertIn('<path d="M0 0L1 1Z"', (self.output / "index.html").read_text())
+        self.assertIn('<path d="M0 0L1 1Z"', (self.output / "index.html").read_text(encoding="utf-8"))
 
     def test_download_guidance_and_player_activity_stay_grouped(self):
         """Keep social navigation separate and presence inside its history region."""
         RENDER.build(self.repository, self.output)
         page = Page()
-        page.feed((self.output / "index.html").read_text())
+        page.feed((self.output / "index.html").read_text(encoding="utf-8"))
         positions = {}
         for index, (tag, attrs, ancestors) in enumerate(page.elements):
             if attrs.get("class") in {"github", "discord"}:
@@ -131,13 +131,16 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(config["nightly_install_command"], config["install_command"] + " -s -- --channel nightly")
         self.assertEqual({path.name for path in self.output.iterdir()}, {
             "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod", "assets",
+            "mods", "marketplace", "marketplace.css", "marketplace-capabilities.js",
+            "marketplace-core.js", "marketplace-mock.js", "marketplace-http.js", "marketplace-content.js",
+            "marketplace-validation.js", "marketplace.js", "validator",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
 
     def test_official_mod_page_download_and_shared_navigation(self):
         """Keep the pack reachable and use the configured API for anonymous downloads."""
         RENDER.build(self.repository, self.output)
-        mod_html = (self.output / "mod/index.html").read_text()
+        mod_html = (self.output / "mod/index.html").read_text(encoding="utf-8")
         self.assertNotIn("@@", mod_html)
         mod_page = Page()
         mod_page.feed(mod_html)
@@ -150,9 +153,9 @@ class RenderTests(unittest.TestCase):
             self.assertIn(f'src="/mod/{capture}"', mod_html)
             self.assertEqual((self.output / "mod" / capture).read_bytes(),
                              (SITE / "assets/mod" / capture).read_bytes())
-        for route in ["index.html", "mod/index.html", "docs/modding/index.html"]:
+        for route in ["index.html", "mod/index.html", "mods/index.html", "docs/modding/index.html"]:
             page = Page()
-            page.feed((self.output / route).read_text())
+            page.feed((self.output / route).read_text(encoding="utf-8"))
             links = [attrs for tag, attrs, parents in page.elements
                      if tag == "a" and attrs.get("class") == "official-mod"
                      and any(parent == "nav" for parent, _ in parents)]
@@ -160,7 +163,16 @@ class RenderTests(unittest.TestCase):
             self.assertEqual(links[0]["href"], "/mod/")
             self.assertEqual(links[0].get("aria-current"),
                              "page" if route == "mod/index.html" else None)
-        self.assertIn((SITE / "site-header.css").read_text(), mod_html)
+        self.assertIn((SITE / "site-header.css").read_text(encoding="utf-8"), mod_html)
+        for route in ["index.html", "mod/index.html", "mods/index.html", "docs/modding/index.html"]:
+            html = (self.output / route).read_text(encoding="utf-8")
+            self.assertNotIn("@@", html)
+            page = Page()
+            page.feed(html)
+            link, = [attrs for tag, attrs, _ in page.elements
+                     if tag == "a" and attrs.get("class") == "marketplace-link"]
+            self.assertEqual(link["href"], "/mods/")
+            self.assertEqual(link.get("aria-current"), "page" if route == "mods/index.html" else None)
 
     def test_gameplay_captures_are_published_unchanged(self):
         """Serve every capture from the repository at its stable /assets/ path."""
@@ -199,6 +211,7 @@ class RenderTests(unittest.TestCase):
         rule = "@media (prefers-reduced-motion: reduce)"
         self.assertIn(rule, (self.output / "index.html").read_text())
         self.assertIn(rule, (self.output / "mod/index.html").read_text())
+        self.assertIn(rule, (self.output / "mods/index.html").read_text())
         themes = list((self.output / "docs/modding").rglob("*.css"))
         self.assertTrue(any(rule in theme.read_text() for theme in themes))
 
@@ -244,7 +257,7 @@ class RenderTests(unittest.TestCase):
         """Give desktop and mobile the same accessible link to the book."""
         RENDER.build(self.repository, self.output)
         page = Page()
-        page.feed((self.output / "index.html").read_text())
+        page.feed((self.output / "index.html").read_text(encoding="utf-8"))
         links = [(attrs, parents) for tag, attrs, parents in page.elements
                  if tag == "a" and attrs.get("class") == "docs"]
         self.assertEqual(len(links), 1)
@@ -258,10 +271,10 @@ class RenderTests(unittest.TestCase):
         """Keep the brand, destinations, icons and navigation styles identical."""
         RENDER.build(self.repository, self.output)
         home = Page()
-        home_html = (self.output / "index.html").read_text()
+        home_html = (self.output / "index.html").read_text(encoding="utf-8")
         home.feed(home_html)
         book = Page()
-        book.feed((self.output / "docs/modding/guides/getting-started.html").read_text())
+        book.feed((self.output / "docs/modding/guides/getting-started.html").read_text(encoding="utf-8"))
 
         def header_elements(page):
             """Collect header markup, allowing only the Docs current-page marker to differ."""
@@ -273,18 +286,18 @@ class RenderTests(unittest.TestCase):
         docs, = [attrs for tag, attrs, _ in book.elements
                  if tag == "a" and attrs.get("class") == "docs"]
         self.assertEqual(docs["aria-current"], "page")
-        shared_styles = (SITE / "site-header.css").read_text()
+        shared_styles = (SITE / "site-header.css").read_text(encoding="utf-8")
         self.assertIn(shared_styles, home_html)
         stylesheet, = (self.output / "docs/modding/theme").glob("cinnabar-*.css")
-        self.assertTrue(stylesheet.read_text().startswith(shared_styles))
+        self.assertTrue(stylesheet.read_text(encoding="utf-8").startswith(shared_styles))
 
     def test_book_has_no_print_action_or_numbered_sidebar_sections(self):
         """Apply book-wide options without changing the client book configuration."""
         RENDER.build(self.repository, self.output)
         docs = self.output / "docs/modding"
-        self.assertNotIn('aria-label="Print this book"', (docs / "index.html").read_text())
+        self.assertNotIn('aria-label="Print this book"', (docs / "index.html").read_text(encoding="utf-8"))
         self.assertFalse((docs / "print.html").exists())
-        self.assertNotIn('<strong aria-hidden="true">', (docs / "toc.html").read_text())
+        self.assertNotIn('<strong aria-hidden="true">', (docs / "toc.html").read_text(encoding="utf-8"))
 
     def test_book_output_theme_and_nested_chapters_leave_source_unchanged(self):
         """Build with the real pinned binary and keep upstream book files untouched."""
@@ -293,14 +306,14 @@ class RenderTests(unittest.TestCase):
         RENDER.build(self.repository, self.output)
         docs = self.output / "docs/modding"
         self.assertTrue((docs / "index.html").is_file())
-        nested = (docs / "guides/getting-started.html").read_text()
+        nested = (docs / "guides/getting-started.html").read_text(encoding="utf-8")
         self.assertIn("Getting started", nested)
         self.assertIn('href="/" aria-label="Cinnabar home"', nested)
         self.assertIn('href="/docs/modding/"', nested)
         stylesheet, = docs.glob("theme/cinnabar-*.css")
         self.assertIn("../" + stylesheet.relative_to(docs).as_posix(), nested)
-        self.assertIn("system-ui", stylesheet.read_text())
-        self.assertNotIn("@@", nested + stylesheet.read_text())
+        self.assertIn("system-ui", stylesheet.read_text(encoding="utf-8"))
+        self.assertNotIn("@@", nested + stylesheet.read_text(encoding="utf-8"))
         self.assertTrue((docs / "404.html").is_file())
         favicon, = docs.glob("favicon-*.svg")
         self.assertEqual(favicon.read_bytes(), (self.repository / RENDER.INPUTS["icon"]).read_bytes())
@@ -318,7 +331,7 @@ class RenderTests(unittest.TestCase):
 
     def test_rendered_page_assets_and_mac_first_open_guidance_are_complete(self):
         RENDER.build(self.repository, self.output)
-        html = (self.output / "index.html").read_text()
+        html = (self.output / "index.html").read_text(encoding="utf-8")
         self.assertNotIn("@@", html)
         page = Page()
         page.feed(html)
@@ -342,6 +355,50 @@ class RenderTests(unittest.TestCase):
         self.assertIn('class="first-open"', html)
         self.assertEqual((self.output / "title.png").read_bytes(),
                          (self.repository / RENDER.INPUTS["title"]).read_bytes())
+
+    def test_packet_only_capability_metadata_preserves_the_complete_client_contract(self):
+        """Support the client's optional packet-only marker without dropping its grant."""
+        text = 'grants! {\n    /// Packet authority.\n    #[permission("Session packets", true, true)]\n    pub packets: bool,\n}\n'
+        descriptors = RENDER.capability_descriptors(text)
+        self.assertEqual(len(descriptors), 1)
+        self.assertEqual(descriptors[0]["name"], "packets")
+        self.assertTrue(descriptors[0]["packet_only"])
+        with self.assertRaisesRegex(ValueError, "unsupported grant type"):
+            RENDER.capability_descriptors(text.replace("bool", "u64"))
+
+    def test_marketplace_uses_shared_branding_origin_and_pinned_capability_descriptors(self):
+        """A client descriptor change must reach the page without a website snapshot edit."""
+        grants = self.repository / RENDER.INPUTS["mod_grants"]
+        grants.write_text(grants.read_text(encoding="utf-8").replace('permission("HUD",', 'permission("Fixture HUD",'), encoding="utf-8")
+        RENDER.build(self.repository, self.output)
+        config = self.config_from_output()
+        self.assertEqual(config["marketplace"], {"backend": "http", "api_url": "https://fixture-api.invalid/v1"})
+        caps = (self.output / "marketplace-capabilities.js").read_text(encoding="utf-8")
+        self.assertIn('"label": "Fixture HUD"', caps)
+        page = (self.output / "mods/index.html").read_text(encoding="utf-8")
+        self.assertNotIn("@@", page)
+        self.assertIn('id="preview-note"', page)
+        self.assertEqual(page, (self.output / "marketplace/index.html").read_text(encoding="utf-8"))
+        parser = Page()
+        parser.feed(page)
+        for script in parser.scripts:
+            self.assertIn("defer", script)
+            self.assertTrue((self.output / script["src"].lstrip("/")).is_file())
+        for filename in ("marketplace-validator-worker.js", "js-component-bindgen-component.core.wasm", "JCO-LICENSE"):
+            self.assertTrue((self.output / "validator" / filename).is_file())
+
+    def test_capability_extractor_refuses_unknown_grant_shapes(self):
+        """New client field types must not silently become boolean permissions."""
+        text = (self.repository / RENDER.INPUTS["mod_grants"]).read_text(encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "unsupported grant type"):
+            RENDER.capability_descriptors(text.replace('pub hud: bool,', 'pub hud: u64,'))
+
+    def test_preview_backend_requires_an_explicit_build_option(self):
+        """Production targets the shared API; mock data stays an intentional local preview."""
+        RENDER.build(self.repository, self.output, marketplace_backend="mock")
+        self.assertEqual(self.config_from_output()["marketplace"]["backend"], "mock")
+        with self.assertRaisesRegex(ValueError, "marketplace backend"):
+            RENDER.build(self.repository, self.output, marketplace_backend="other")
 
 
 if __name__ == "__main__":
