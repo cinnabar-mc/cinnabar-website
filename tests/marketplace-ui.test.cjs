@@ -457,6 +457,12 @@ test('signin_error uses only own messages and never renders injected markup or p
   }
 });
 
+test('the unlinked linking panel renders no placeholder text before a code exists', async () => {
+  const api = accountApi(); const p = await page('#/', undefined, api);
+  await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
+  assert.doesNotMatch(xboxText(p), /null|undefined/);
+});
+
 test('link code shows instructions, copy feedback and a wall-clock countdown with expiry recovery', async () => {
   const api = accountApi(); const p = await page('#/', undefined, api);
   await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));

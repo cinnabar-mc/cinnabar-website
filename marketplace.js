@@ -305,7 +305,8 @@
             button('Keep linked', () => { xboxConfirm = false; renderXbox(); }, 'btn quiet', 'xbox:cancel')))
           : button('Unlink', () => { xboxConfirm = true; renderXbox(); }, 'btn quiet gap', 'xbox:unlink'));
     } else {
-      body.replaceChildren(h('p', {}, 'Mods you add are sent to the game on your linked Xbox account.'),
+      // replaceChildren would render a null placeholder as the text "null", so drop absent sections.
+      body.replaceChildren(...[h('p', {}, 'Mods you add are sent to the game on your linked Xbox account.'),
         xboxCode ? h('div', { class: 'gap' },
           h('div', { class: 'row xbox-code-row' }, h('code', { id: 'xbox-code', class: 'xbox-code' }, xboxCode),
             button('Copy code', copyXboxCode, 'btn quiet', 'xbox:copy')),
@@ -316,7 +317,7 @@
           const epoch = xboxEpoch;
           await call('POST', '/auth/preview/xbox-link');
           if (currentXbox(epoch)) await pollXbox();
-        }, 'btn quiet gap', 'xbox:simulate') : null);
+        }, 'btn quiet gap', 'xbox:simulate') : null].filter(Boolean));
     }
     body.querySelectorAll('button').forEach(control => { control.disabled = xboxBusy; });
     updateXboxClock();
