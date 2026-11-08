@@ -44,6 +44,8 @@
   let xboxPolling = false;
   let xboxPollGeneration = 0;
   let xboxReturnFocus = null;
+  // The Xbox link state the dialog last drew; other session refreshes may change it before a poll does.
+  let xboxRendered = null;
   const reviewNotes = new Map();
   const steps = ['project', 'media', 'release', 'checks'];
   const paths = {
@@ -289,6 +291,7 @@
 
   /** Render linking, code and linked states using the existing quiet dialog vocabulary. */
   function renderXbox() {
+    xboxRendered = JSON.stringify(session.account?.xbox ?? null);
     const focused = document.activeElement;
     const hadFocus = xboxDialog.contains(focused);
     const focusKey = focused?.getAttribute('data-focus-key');
@@ -344,7 +347,6 @@
     const epoch = xboxEpoch;
     const owner = xboxOwner;
     const pollGeneration = xboxPollGeneration;
-    const before = JSON.stringify(session.account?.xbox);
     xboxPolling = true;
     const result = await loadSession(undefined, () => currentXbox(epoch) && !document.hidden && pollGeneration === xboxPollGeneration);
     if (pollGeneration === xboxPollGeneration) xboxPolling = false;
@@ -354,7 +356,7 @@
     if (result.status !== 200) document.getElementById('xbox-status').textContent = 'Could not refresh your Xbox link. Retrying…';
     else {
       chrome(M.parseRoute(location.hash));
-      if (before !== JSON.stringify(session.account.xbox)) { xboxConfirm = false; renderXbox(); }
+      if (xboxRendered !== JSON.stringify(session.account.xbox ?? null)) { xboxConfirm = false; renderXbox(); }
     }
     scheduleXboxPoll();
   }

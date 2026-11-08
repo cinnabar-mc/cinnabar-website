@@ -484,6 +484,22 @@ test('link code shows instructions, copy feedback and a wall-clock countdown wit
   assert.equal(p.document.getElementById('xbox-countdown').textContent, 'Expires in 5:00');
 });
 
+test('the open linking panel follows a link that another session refresh noticed first', async () => {
+  const api = accountApi();
+  const request = api.request;
+  api.request = async (method, path, body) => path === '/me/mods' ? { status: 200, body: [] } : request(method, path, body);
+  const p = await page('#/mine', undefined, api);
+  await p.tick(9000);
+  await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
+  await p.click(p.document.querySelector('[data-focus-key="xbox:code"]'));
+  api.account.xbox = { xuid: 'xbox-2', gamertag: 'Refreshed Gamertag' };
+  await p.tick(1000);
+  assert.equal(p.document.querySelector('[data-focus-key="account:xbox"]').textContent, 'Xbox linked');
+  await p.tick(3000);
+  assert.match(xboxText(p), /Refreshed Gamertag/);
+  assert.equal(p.document.getElementById('xbox-code'), null);
+});
+
 test('link polling detects gamertag, pauses while hidden, resumes with current expiry and stops on close', async () => {
   const api = accountApi(); const p = await page('#/', undefined, api);
   await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
