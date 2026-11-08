@@ -24,6 +24,8 @@
   let draft = null;
   let draftOwner = null;
   let step = 'project';
+  let editorErrors = {};
+  let distributionRights = false;
   let fileToken = 0;
   let validationPending = false;
   let validationController = null;
@@ -144,6 +146,7 @@
   function discardDraft() {
     validationController?.abort(); validationPending = false; mediaPending = false;
     fileToken++; draft = null; draftOwner = null;
+    editorErrors = {}; distributionRights = false;
   }
 
   /** Reflect server identity; preview account choices never appear in HTTP mode. */
@@ -706,7 +709,7 @@
     draftOwner = owner;
     let saved;
     try { saved = JSON.parse(storage.getItem(draftKey(owner))); } catch (_) { saved = null; }
-    const initial = { name: '', slug: '', summary: '', description: '', category: 'Interface', license: '', version: '', source: '', notes: '', gallery: [] };
+    const initial = { name: '', slug: '', summary: '', description: '', category: '', license: '', version: '', source: '', notes: '', gallery: [] };
     draft = Object.assign(initial, saved && typeof saved === 'object' ? Object.fromEntries(Object.keys(initial).map(key => [key, saved[key] ?? initial[key]])) : {});
     draft.gallery = Array.isArray(draft.gallery) ? draft.gallery.filter(item => item && C.imageUrl(item.url)).slice(0, 12) : [];
     draft.file = null; draft.parsed = null; draft.check = null;
@@ -756,13 +759,68 @@
       if (!draft.summary) draft.summary = parsed.description.slice(0, 140);
       announce('Component syntax checks passed. This is not a malware scan.');
     } catch (error) {
-      if (token === fileToken && owner === draftOwner) announce(error.message || String(error), true);
+      if (token === fileToken && owner === draftOwner) editorErrors.file = error.message || String(error);
     } finally {
-      if (token === fileToken && owner === draftOwner) { validationPending = false; render(); }
+      if (token === fileToken && owner === draftOwner) {
+        validationPending = false;
+        if (editorErrors.file) await showEditorErrors({ ...editorErrors }); else render();
+      }
     }
   }
 
-  const fieldLimits = { description: 40000, notes: 4000, license: 128, summary: 140, name: 64 };
+  const fieldLimits = { description: 40000, notes: 4000, license: 128, summary: 140, name: 64, slug: 40, version: 32 };
+  const requiredFields = new Set(['name', 'summary', 'version', 'file', 'rights']);
+  const projectFields = ['name', 'slug', 'summary', 'description', 'category', 'license', 'source'];
+
+  /** Locate errors in editor order, including the API's images/file field names. */
+  function fieldStep(key) {
+    return projectFields.includes(key) ? 'project' : key === 'images' || key.startsWith('gallery.') ? 'media'
+      : key === 'rights' ? 'checks' : 'release';
+  }
+
+  /** Present a field error on its step and bring the first invalid control into view. */
+  async function showEditorErrors(errors) {
+    editorErrors = errors;
+    step = steps.find(name => Object.keys(errors).some(key => fieldStep(key) === name)) || step;
+    await render();
+    const first = app.querySelector('[aria-invalid="true"]');
+    first?.focus();
+    first?.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+    const count = Object.keys(errors).length;
+    announce('Fix ' + count + (count === 1 ? ' field' : ' fields') + ' to continue.', true);
+  }
+
+  /** Clear only the edited field's error, preserving its format hint and focused DOM node. */
+  function clearEditorError(key) {
+    const hadError = Object.hasOwn(editorErrors, key);
+    delete editorErrors[key];
+    const control = document.getElementById(key === 'rights' ? 'distribution-rights' : 'draft-' + key);
+    control?.removeAttribute('aria-invalid');
+    const described = control?.getAttribute('aria-describedby')?.split(' ').filter(id => id !== 'error-' + key);
+    if (described?.length) control.setAttribute('aria-describedby', described.join(' '));
+    else control?.removeAttribute('aria-describedby');
+    document.getElementById('error-' + key)?.remove();
+    const count = Object.keys(editorErrors).length;
+    if (!count) announce('');
+    else if (hadError) announce('Fix ' + count + (count === 1 ? ' field' : ' fields') + ' to continue.', true);
+  }
+
+  /** Give every editor control the same explicit requirement label. */
+  function requirement(key) {
+    return h('span', { class: 'field-requirement' }, requiredFields.has(key) ? 'Required' : 'Optional');
+  }
+
+  /** Attach persistent helper and error text to a control for visual and screen reader use. */
+  function fieldFeedback(key, control, hint = '') {
+    control.id = key === 'rights' ? 'distribution-rights' : 'draft-' + key;
+    const error = editorErrors[key];
+    const ids = [hint ? 'hint-' + key : '', error ? 'error-' + key : ''].filter(Boolean);
+    if (ids.length) control.setAttribute('aria-describedby', ids.join(' '));
+    if (error) control.setAttribute('aria-invalid', 'true');
+    if (requiredFields.has(key)) control.setAttribute('aria-required', 'true');
+    return [hint ? h('span', { class: 'hint', id: 'hint-' + key }, hint) : null,
+      error ? h('span', { class: 'field-error', id: 'error-' + key }, error) : null];
+  }
 
   /** Build the creator's four-step editor, keeping every local field across step changes. */
   async function editor(token) {
@@ -785,26 +843,58 @@
       h('p', { class: 'rule small muted' }, 'Drafts are private to this account in this browser. Nothing is published until the service approves a release.'));
     const stepButtons = steps.map((name, index) => h('li', {}, button(h('span', { class: 'row' }, h('span', { class: 'num' }, index + 1),
       ['Project', 'Images', 'Release', 'Checks & publish'][index]), () => { step = name; render(); }, step === name ? 'active' : '', 'step:' + name)));
+    const addressPreview = h('span', { class: 'hint address-preview', id: 'address-preview' });
+    /** Show the actual hash route used by listing links, with a useful empty-state instruction. */
+    function updateAddressPreview() {
+      const slug = M.listingSlug(draft);
+      addressPreview.textContent = slug ? 'cinnabar.gg/mods/#/mod/' + slug : 'Enter a project name to preview its address.';
+    }
+    updateAddressPreview();
     /** Bind a labelled input to the draft without replacing focused controls. */
     function field(key, label, type = 'text', hint = '') {
       const input = h(type === 'textarea' ? 'textarea' : 'input', { id: 'draft-' + key, name: key, type: type === 'textarea' ? null : type,
         value: draft[key], maxlength: fieldLimits[key] || 2000,
-        oninput: event => { draft[key] = event.target.value; if (key === 'name') previewName.textContent = draft.name; if (key === 'summary') previewSummary.textContent = draft.summary; } });
-      return h('label', { class: 'field', for: 'draft-' + key }, label, input, hint ? h('span', { class: 'hint' }, hint) : null);
+        oninput: event => {
+          const control = event.target;
+          if (key === 'slug' && !event.isComposing) {
+            const value = control.value;
+            const start = control.selectionStart, end = control.selectionEnd;
+            control.value = M.normalizeAddress(value);
+            if (start !== null && end !== null && control.setSelectionRange) {
+              control.setSelectionRange(M.normalizeAddress(value.slice(0, start)).length, M.normalizeAddress(value.slice(0, end)).length);
+            }
+          }
+          draft[key] = control.value;
+          clearEditorError(key);
+          if (key === 'name') { previewName.textContent = draft.name; if (!draft.slug.trim()) clearEditorError('slug'); }
+          if (key === 'summary') previewSummary.textContent = draft.summary;
+          if (key === 'name' || key === 'slug') updateAddressPreview();
+        } });
+      if (key === 'slug') {
+        input.setAttribute('autocapitalize', 'none'); input.setAttribute('spellcheck', 'false');
+        input.addEventListener('compositionend', () => {
+          const event = document.createEvent('Event'); event.initEvent('input', true, false); input.dispatchEvent(event);
+        });
+      }
+      const feedback = fieldFeedback(key, input, hint);
+      if (key === 'slug') input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), 'address-preview'].filter(Boolean).join(' '));
+      return h('label', { class: 'field', for: 'draft-' + key }, h('span', { class: 'field-label' }, label, requirement(key)), input, feedback, key === 'slug' ? addressPreview : null);
     }
     if (step === 'project') {
-      panel.append(h('h2', {}, 'Tell players what it does.'), field('name', 'Project name'), field('slug', 'Project address', 'text', '3–40 lowercase letters, numbers and dashes.'),
-        field('summary', 'Summary', 'text', 'One clear sentence shown in search results.'), field('description', 'Description', 'textarea', 'Markdown headings, lists, bold text, code and HTTPS links are supported. HTML stays plain text.'),
+      panel.append(h('h2', {}, 'Tell players what it does.'), field('name', 'Project name', 'text', '1–64 characters.'), field('slug', 'Project address', 'text', 'Leave blank to use the project name. Custom addresses use 3–40 letters, numbers and dashes.'),
+        field('summary', 'Summary', 'text', 'One clear sentence shown in search results. 10–140 characters.'), field('description', 'Description', 'textarea', 'Markdown headings, lists, bold text, code and HTTPS links are supported. HTML stays plain text.'),
         button('Preview description', () => descriptionPreview.replaceChildren(C.markdown(document, draft.description)), 'btn quiet', 'draft:preview'));
       const descriptionPreview = h('div'); panel.append(descriptionPreview);
-      const select = h('select', { id: 'draft-category', onchange: event => { draft.category = event.target.value; } }, C.CATEGORIES.map(name => h('option', { value: name }, name)));
+      const select = h('select', { id: 'draft-category', onchange: event => { draft.category = event.target.value; clearEditorError('category'); } },
+        h('option', { value: '' }, 'No category'), C.CATEGORIES.map(name => h('option', { value: name }, name)));
       select.value = draft.category;
-      panel.append(h('div', { class: 'two gap' }, h('label', { class: 'field', for: 'draft-category' }, 'Category', select), field('license', 'License', 'text', 'For example MIT or All rights reserved.')),
-        field('source', 'Source repository', 'url', 'A GitHub repository is required for gameplay and packet permissions.'));
+      panel.append(h('div', { class: 'two gap' }, h('label', { class: 'field', for: 'draft-category' }, h('span', { class: 'field-label' }, 'Category', requirement('category')), select, fieldFeedback('category', select)), field('license', 'License', 'text', 'For example MIT or All rights reserved.')),
+        field('source', 'Source repository', 'url', 'Optional. Link a GitHub repository if you want players to see the code.'));
     } else if (step === 'media') {
       panel.append(h('h2', {}, 'Show it in action.'), h('p', { class: 'small muted', style: 'margin-bottom:20px' }, 'Upload screenshots with captions and alt text. Preview images are resized and stripped of metadata.'));
       const input = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: true, 'aria-label': 'Choose project images', disabled: mediaPending,
         onchange: async event => {
+          clearEditorError('images');
           const owner = draftOwner;
           const current = draft;
           const files = Array.from(event.target.files || []);
@@ -818,35 +908,45 @@
             if (owner !== draftOwner || current !== draft) return;
             if (JSON.stringify(current.gallery.concat(images)).length > 2000000) throw new Error('The preview gallery is limited to 2 MiB. Remove an image and retry.');
             current.gallery.push(...images); announce('Images added to your draft in this browser.');
-          } catch (error) { if (owner === draftOwner) announce(error.message, true); }
-          finally { if (owner === draftOwner && current === draft) { mediaPending = false; render(); } }
+          } catch (error) { if (owner === draftOwner) editorErrors.images = error.message; }
+          finally { if (owner === draftOwner && current === draft) { mediaPending = false; if (editorErrors.images) await showEditorErrors({ ...editorErrors }); else render(); } }
         } });
-      panel.append(h('div', { class: 'upload-zone' }, icon('upload'), h('b', {}, mediaPending ? 'Preparing images…' : 'Choose project images'),
-        h('span', { class: 'small muted' }, 'PNG, JPEG or WebP · up to 8 MiB and 24 megapixels each'), input),
+      panel.append(h('div', { class: 'upload-zone' }, icon('upload'), h('label', { class: 'field-label', for: 'draft-images' }, mediaPending ? 'Preparing images…' : 'Choose project images', requirement('images')),
+        h('span', { class: 'small muted' }, 'PNG, JPEG or WebP · up to 8 MiB and 24 megapixels each'), input, fieldFeedback('images', input)),
         h('p', { class: 'hint' }, liveMode ? 'Up to four prepared images are uploaded as files. Captions and alt text are saved with this release.' : 'Up to twelve images in the local preview.'));
       const media = h('div', { class: 'media-strip' }, draft.gallery.map((image, index) => {
-        const caption = h('input', { value: image.caption, maxlength: 140, 'aria-label': 'Caption for image ' + (index + 1), oninput: event => { image.caption = event.target.value; } });
-        const alt = h('input', { value: image.alt, maxlength: 300, 'aria-label': 'Alt text for image ' + (index + 1), oninput: event => { image.alt = event.target.value; } });
+        const captionKey = 'gallery.' + index + '.caption', altKey = 'gallery.' + index + '.alt';
+        const caption = h('input', { value: image.caption, maxlength: 140, 'aria-label': 'Caption for image ' + (index + 1), oninput: event => { image.caption = event.target.value; clearEditorError(captionKey); clearEditorError('images'); } });
+        const alt = h('input', { value: image.alt, maxlength: 300, 'aria-label': 'Alt text for image ' + (index + 1), oninput: event => { image.alt = event.target.value; clearEditorError(altKey); clearEditorError('images'); } });
         return h('div', { class: 'media-item' }, h('div', { class: 'media-tile' }, h('img', { src: C.imageUrl(image.url), alt: image.alt || 'Draft image ' + (index + 1) }),
-          button('Remove', () => { draft.gallery.splice(index, 1); render(); }, 'quiet', 'image:remove:' + index)),
-        h('label', { class: 'field' }, 'Caption', caption), h('label', { class: 'field' }, 'Alt text', alt));
+          button('Remove', () => {
+            draft.gallery.splice(index, 1); clearEditorError('images');
+            Object.keys(editorErrors).filter(key => key.startsWith('gallery.')).forEach(clearEditorError);
+            render();
+          }, 'quiet', 'image:remove:' + index)),
+        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Caption', requirement(captionKey)), caption, fieldFeedback(captionKey, caption)),
+        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Alt text', requirement(altKey)), alt, fieldFeedback(altKey, alt)));
       })); panel.append(media);
     } else if (step === 'release') {
-      panel.append(h('h2', {}, 'Add a release.'), h('div', { class: 'upload-zone' }, icon('upload'), h('b', {}, validationPending ? 'Checking component…' : 'Choose your Wasm component'),
-        h('span', { class: 'small muted' }, 'Portable .wasm component · up to 16 MiB'), h('input', { type: 'file', accept: '.wasm', 'aria-label': 'Choose mod component',
-          onchange: event => { const file = event.target.files?.[0]; if (file) takeFile(file); } })),
+      const fileInput = h('input', { type: 'file', accept: '.wasm', 'aria-label': 'Choose mod component',
+        onchange: event => { clearEditorError('file'); const file = event.target.files?.[0]; if (file) takeFile(file); } });
+      panel.append(h('h2', {}, 'Add a release.'), h('div', { class: 'upload-zone' }, icon('upload'), h('label', { class: 'field-label', for: 'draft-file' }, validationPending ? 'Checking component…' : 'Choose your Wasm component', requirement('file')),
+        h('span', { class: 'small muted' }, 'Portable .wasm component · up to 16 MiB'), fileInput, fieldFeedback('file', fileInput)),
       draft.file ? h('p', { class: 'small good gap' }, draft.file.name + ' · syntax checked') : h('p', { class: 'small muted gap' }, 'Select a file for this session. No uploaded code is executed.'),
       field('version', 'Version', 'text', 'Use SemVer, for example 1.2.0.'), field('notes', 'Release notes', 'textarea'));
       if (draft.parsed) panel.append(permissions({ capabilities: M.requestedCapabilities(draft.parsed.grants) }, draft.parsed.grants));
     } else {
       const checked = Boolean(draft.file && draft.parsed && draft.check);
+      const rights = h('input', { type: 'checkbox', id: 'distribution-rights', checked: distributionRights,
+        onchange: event => { distributionRights = event.target.checked; clearEditorError('rights'); } });
       panel.append(h('h2', {}, 'Ready when the checks are.'), h('p', { class: 'small muted' }, 'Established creators can publish automatically only when the service confirms eligibility and completes the required checks.'),
         h('div', { class: 'scan-status' }, h('div', {}, h('span', {}, 'Browser component syntax'), h('span', { class: checked ? 'good' : 'warning' }, checked ? 'Passed' : validationPending ? 'Checking…' : 'Choose a release file')),
           h('div', {}, h('span', {}, 'Server validation & AI triage'), h('span', { class: 'muted' }, liveMode ? 'Queued after upload' : 'Not connected')),
           h('div', {}, h('span', {}, 'Automatic publication'), h('span', { class: 'muted' }, liveMode ? 'Evaluated after server checks' : 'Unavailable')),
           h('div', {}, h('span', {}, 'Publication route'), h('span', {}, liveMode ? 'Checks → publication or review' : 'Submit for review'))),
         h('div', { class: 'notice gap' }, previewMode ? 'Preview submissions stay in this browser. Staff decisions simulate publication; they do not distribute code.' : 'The service must independently validate and review the artifact. A browser check cannot authorize publication.'),
-        h('label', { class: 'row gap small' }, h('input', { type: 'checkbox', id: 'distribution-rights' }), 'I have permission to distribute this code and these images.'));
+        h('label', { class: 'row gap small', for: 'distribution-rights' }, rights,
+          h('span', {}, 'I have permission to distribute this code and these images. ', requirement('rights'))), ...fieldFeedback('rights', rights).filter(Boolean));
     }
     const submitLabel = liveMode ? 'Upload release' : 'Submit for review';
     form.append(panel, h('div', { class: 'editor-actions' }, button('Save draft', saveDraft, 'btn quiet', 'draft:save'),
@@ -856,14 +956,20 @@
       event.preventDefault();
       if (!requireUsername()) return;
       if (validationPending || mediaPending || submitting) return announce('Wait for the current upload or file check to finish.', true);
-      if (step !== 'checks') { step = steps[steps.indexOf(step) + 1]; render(); return; }
-      if (!draft.file || !draft.parsed || !draft.check) { step = 'release'; await render(); return announce('Choose a valid component file first.', true); }
-      if (!document.getElementById('distribution-rights').checked) return announce('Confirm your distribution rights before submitting.', true);
-      const fields = { name: draft.name.trim(), slug: draft.slug.trim(), summary: draft.summary.trim(), description: draft.description,
+      const fields = { name: draft.name.trim(), slug: M.listingSlug(draft), summary: draft.summary.trim(), description: draft.description,
         version: draft.version.trim(), source: draft.source.trim(), category: draft.category, license: draft.license, notes: draft.notes,
-        reach: M.reachOf(draft.parsed.grants) };
-      const errors = M.validateListing(fields);
-      if (Object.keys(errors).length) { step = 'project'; await render(); announce(Object.values(errors).join(' '), true); return; }
+        reach: M.reachOf(draft.parsed?.grants) };
+      // Validate the blank address before resolving it so a failed derivation has actionable copy.
+      const errors = M.validateListing({ ...fields, slug: draft.slug });
+      if (!draft.file || !draft.parsed || !draft.check) errors.file = 'Choose a valid component file first.';
+      if (step === 'checks') {
+        distributionRights = document.getElementById('distribution-rights').checked;
+        if (!distributionRights) errors.rights = 'Confirm your distribution rights before submitting.';
+      }
+      const currentErrors = Object.fromEntries(Object.entries(errors).filter(([key]) => step === 'checks' || fieldStep(key) === step));
+      if (Object.keys(currentErrors).length) return showEditorErrors(currentErrors);
+      if (step !== 'checks') { step = steps[steps.indexOf(step) + 1]; await render(); announce(''); return; }
+      editorErrors = {};
       const submit = form.querySelector('[type=submit]'); submit.disabled = true;
       submitting = true; submit.textContent = 'Uploading…';
       const upload = ++uploadGeneration;
@@ -881,12 +987,15 @@
       controls.forEach(([control, disabled]) => { control.disabled = disabled; });
       submit.disabled = false; submit.textContent = submitLabel;
       if (result.status !== 200) {
+        if (M.parseRoute(location.hash).view === 'submit' && result.body.fields && Object.keys(result.body.fields).length) {
+          return showEditorErrors(result.body.fields);
+        }
         if (M.parseRoute(location.hash).view === 'submit') await render();
         return announce(result.body.error, true);
       }
       announce(previewMode ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded. Follow its checks and publication status in Your projects.');
       storage.removeItem(draftKey(owner));
-      draft = null; step = 'project'; location.hash = '#/mine';
+      draft = null; editorErrors = {}; distributionRights = false; step = 'project'; location.hash = '#/mine';
     });
     mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Give your mod a home.'), h('p', { class: 'muted' }, 'Publishing as ' + session.account.username))),
       h('div', { class: 'editor-layout' }, h('aside', {}, h('ol', { class: 'steps' }, stepButtons)), form, preview)));

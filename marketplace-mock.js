@@ -283,6 +283,7 @@
         try { reach = core.reachOf(body.grants); } catch (e) { return fail(400, e.message); }
         const errors = core.validateListing(Object.assign({}, body, { reach: reach }));
         if (Object.keys(errors).length) return { status: 422, body: { error: "Check the highlighted fields.", fields: errors } };
+        body = Object.assign({}, body, { slug: core.listingSlug(body) });
         const existing = state.listings[body.slug];
         if (existing && existing.creator !== state.session) return { status: 409, body: { error: "That name is taken.", fields: { slug: "Another creator owns this name." } } };
         if (state.versions.some(function (v) { return v.slug === body.slug && v.version === body.version; })) {
@@ -295,7 +296,7 @@
             || image.url.length > 360000 || typeof image.caption !== 'string' || typeof image.alt !== 'string';
         })) return fail(422, "Choose a valid, bounded raster gallery.");
         const metadata = { name: body.name, summary: body.summary, description: String(body.description || '').slice(0, 40000),
-          source: body.source || '', category: body.category || '', license: String(body.license || '').slice(0, 100),
+          source: body.source || '', category: body.category || '', license: String(body.license || '').slice(0, 128),
           gallery: gallery.map(function (image) { return { url: image.url, caption: image.caption.slice(0, 140), alt: image.alt.slice(0, 300) }; }) };
         if (!existing) state.listings[body.slug] = Object.assign({ created_at: now(), hidden: false, creator: state.session, slug: body.slug }, metadata);
         state.counter += 1;

@@ -25,6 +25,8 @@ async function page(hash = '#/', stored, http, options = {}) {
   // LinkeDOM deliberately omits navigation, layout and focus; model only those browser primitives.
   Object.defineProperty(document, 'activeElement', { value: document.body, writable: true });
   window.HTMLElement.prototype.focus = function () { if (this.isConnected) document.activeElement = this; };
+  const scrolled = [];
+  window.HTMLElement.prototype.scrollIntoView = function (options) { scrolled.push({ id: this.id, options }); };
   Object.defineProperty(window.HTMLSelectElement.prototype, 'value', {
     configurable: true,
     get() { return [...this.querySelectorAll('option')].find(option => option.hasAttribute('selected'))?.value || this.querySelector('option')?.value || ''; },
@@ -62,8 +64,135 @@ async function page(hash = '#/', stored, http, options = {}) {
     for (const [id, timer] of queued) { if (timers.delete(id)) await timer.fn(); }
     await settle();
   }
-  return { window, document, memory, sessionMemory, win, route, click, input, signIn, tick, timers, copied, text: () => document.getElementById('app').textContent };
+  return { window, document, memory, sessionMemory, win, route, click, input, signIn, tick, timers, copied, scrolled, text: () => document.getElementById('app').textContent };
 }
+
+/** Submit the current editor step with the form's real submit handler. */
+async function continueEditor(p) {
+  p.document.querySelector('form.editor').dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true }));
+  await settle();
+}
+
+/** Choose a minimal component through the real asynchronous file checker. */
+async function editorFile(p) {
+  const input = p.document.querySelector('#draft-file');
+  Object.defineProperty(input, 'files', { value: [{ name: 'test.wasm', size: 8,
+    arrayBuffer: async () => Uint8Array.from([0,97,115,109,13,0,1,0]).buffer }] });
+  input.dispatchEvent(new p.window.Event('change'));
+  for (let i = 0; i < 30 && !p.text().includes('syntax checked'); i++) { await new Promise(resolve => setTimeout(resolve, 5)); await settle(); }
+  assert.match(p.text(), /syntax checked/);
+}
+
+test('project errors are inline, described, focused and scrolled; continuing validates only the current step', async () => {
+  const p = await page('#/submit'); await p.signIn('BlockSmith42');
+  await continueEditor(p);
+  assert.equal(p.document.querySelectorAll('[aria-invalid="true"]').length, 3);
+  assert.equal(p.document.activeElement.id, 'draft-name');
+  assert.equal(p.scrolled.at(-1).id, 'draft-name');
+  assert.equal(p.document.getElementById('feedback').textContent, 'Fix 3 fields to continue.');
+  for (const key of ['name', 'slug', 'summary']) {
+    const control = p.document.getElementById('draft-' + key);
+    assert.ok(control.getAttribute('aria-describedby').split(' ').includes('error-' + key));
+    assert.equal(p.document.getElementById('error-' + key).parentNode, control.parentNode);
+    assert.ok([...control.parentNode.children].indexOf(p.document.getElementById('error-' + key)) > [...control.parentNode.children].indexOf(control));
+  }
+  await p.input('#draft-name', 'Steroids for Cinnabar');
+  assert.equal(p.document.getElementById('feedback').textContent, 'Fix 1 field to continue.');
+  await p.input('#draft-summary', 'A clear project summary.');
+  assert.equal(p.document.querySelectorAll('[aria-invalid="true"]').length, 0);
+  assert.match(p.document.getElementById('address-preview').textContent, /\/mods\/#\/mod\/steroids-for-cinnabar$/);
+  await p.input('#draft-slug', '!bad'); await continueEditor(p);
+  assert.equal(p.document.activeElement.id, 'draft-slug');
+  assert.equal(p.document.querySelector('#draft-slug').getAttribute('aria-invalid'), 'true');
+  await p.input('#draft-slug', 'None');
+  assert.equal(p.document.getElementById('draft-slug').value, 'none');
+  assert.equal(p.document.getElementById('draft-slug').hasAttribute('aria-invalid'), false);
+  assert.equal(p.document.getElementById('error-slug'), null);
+  assert.match(p.document.getElementById('draft-slug').getAttribute('aria-describedby'), /hint-slug.*address-preview/);
+  await p.input('#draft-slug', '');
+  await continueEditor(p); assert.match(p.text(), /Show it in action/);
+  await continueEditor(p); assert.match(p.text(), /Add a release/);
+  await continueEditor(p);
+  assert.equal(p.document.activeElement.id, 'draft-file');
+  assert.equal(p.document.getElementById('feedback').textContent, 'Fix 2 fields to continue.');
+  await p.input('#draft-version', '1.0.0'); await editorFile(p); await continueEditor(p);
+  assert.match(p.text(), /Ready when the checks are/);
+  await continueEditor(p);
+  assert.equal(p.document.activeElement.id, 'distribution-rights');
+  assert.match(p.document.getElementById('error-rights').textContent, /distribution rights/);
+  const rights = p.document.getElementById('distribution-rights'); rights.checked = true;
+  rights.dispatchEvent(new p.window.Event('change')); await settle();
+  assert.equal(p.document.getElementById('error-rights'), null);
+});
+
+test('every editor field has a consistent Required or Optional label matching its validation', async () => {
+  const api = liveApi(liveRelease(), 'player');
+  const memory = new Map([['cinnabar.marketplace.draft.creator', JSON.stringify({ gallery: [{ url: 'data:image/png;base64,AQID', caption: '', alt: '' }] })]]);
+  const p = await page('#/submit', memory, api);
+  for (const [step, fields] of Object.entries({ project: { name: 'Required', slug: 'Optional', summary: 'Required', description: 'Optional', category: 'Optional', license: 'Optional', source: 'Optional' },
+    media: { images: 'Optional', 'gallery.0.caption': 'Optional', 'gallery.0.alt': 'Optional' }, release: { file: 'Required', version: 'Required', notes: 'Optional' }, checks: { rights: 'Required' } })) {
+    await p.click(p.document.querySelector('[data-focus-key="step:' + step + '"]'));
+    for (const [key, expected] of Object.entries(fields)) {
+      const control = p.document.getElementById(key === 'rights' ? 'distribution-rights' : 'draft-' + key);
+      const label = control.closest('label') || p.document.querySelector('label[for="' + control.id + '"]');
+      assert.equal(label.querySelector('.field-requirement').textContent, expected, key);
+      assert.equal(control.getAttribute('aria-required'), expected === 'Required' ? 'true' : null, key);
+    }
+  }
+});
+
+test('address normalization preserves the edited control and cursor, including composition', async () => {
+  const p = await page('#/submit'); await p.signIn('BlockSmith42');
+  const control = p.document.getElementById('draft-slug');
+  control.setSelectionRange = (start, end) => { control.selectionStart = start; control.selectionEnd = end; };
+  control.value = 'My  Project'; control.setSelectionRange(4, 4);
+  control.dispatchEvent(new p.window.Event('input')); await settle();
+  assert.equal(control.value, 'my-project'); assert.equal(control.selectionStart, 3);
+  assert.equal(p.document.getElementById('draft-slug'), control);
+  control.value = 'None'; control.dispatchEvent(new p.window.Event('compositionend')); await settle();
+  assert.equal(control.value, 'none');
+});
+
+test('422 field errors select their step, use inline aria feedback, and clear on editing', async () => {
+  for (const [key, step] of [['slug', 'project'], ['source', 'project'], ['category', 'project'], ['version', 'release'], ['notes', 'release'], ['file', 'release'], ['images', 'media']]) {
+    const api = liveApi(liveRelease(), 'player');
+    let uploaded;
+    api.submit = async fields => { uploaded = fields; return { status: 422, body: { error: 'Invalid fields.', fields: { [key]: 'Server correction for ' + key } } }; };
+    const memory = new Map([['cinnabar.marketplace.draft.creator', JSON.stringify({ name: 'Steroids for Cinnabar', summary: 'A valid project summary.', version: '1.0.0',
+      gallery: [{ url: 'data:image/png;base64,AQID', caption: '', alt: '' }] })]]);
+    const p = await page('#/submit', memory, api);
+    await p.click(p.document.querySelector('[data-focus-key="step:release"]')); await editorFile(p);
+    await p.click(p.document.querySelector('[data-focus-key="step:checks"]'));
+    p.document.getElementById('distribution-rights').checked = true;
+    await continueEditor(p);
+    assert.equal(uploaded.slug, 'steroids-for-cinnabar'); assert.equal(uploaded.source, '');
+    assert.equal(p.document.querySelector('.steps .active').getAttribute('data-focus-key'), 'step:' + step);
+    const control = p.document.getElementById('draft-' + key);
+    assert.equal(p.document.activeElement, control);
+    assert.equal(control.getAttribute('aria-invalid'), 'true');
+    assert.match(control.getAttribute('aria-describedby'), new RegExp('error-' + key));
+    assert.equal(p.document.getElementById('error-' + key).textContent, 'Server correction for ' + key);
+    assert.equal(p.document.getElementById('feedback').textContent, 'Fix 1 field to continue.');
+    if (key === 'file') await editorFile(p);
+    else if (key === 'images') await p.input('[aria-label="Caption for image 1"]', 'Corrected caption');
+    else if (key === 'category') { control.value = 'Utilities'; control.dispatchEvent(new p.window.Event('change')); await settle(); }
+    else await p.input('#draft-' + key, key === 'slug' ? 'another-address' : key === 'source' ? 'https://github.com/you/mod' : '1.0.1');
+    assert.equal(p.document.getElementById('error-' + key), null);
+  }
+});
+
+test('invalid release files show an inline error and a corrected selection clears it', async () => {
+  const p = await page('#/submit'); await p.signIn('BlockSmith42');
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  const input = p.document.getElementById('draft-file');
+  Object.defineProperty(input, 'files', { value: [{ name: 'bad.wasm', size: 3, arrayBuffer: async () => new Uint8Array(3).buffer }] });
+  input.dispatchEvent(new p.window.Event('change')); await settle();
+  assert.equal(p.document.activeElement.id, 'draft-file');
+  assert.match(p.document.getElementById('error-file').textContent, /WebAssembly/);
+  assert.equal(p.document.getElementById('feedback').textContent, 'Fix 1 field to continue.');
+  await editorFile(p);
+  assert.equal(p.document.getElementById('error-file'), null);
+});
 
 test('search retains input focus, category state survives a detail round trip, and gallery absence is explicit', async () => {
   const p = await page();

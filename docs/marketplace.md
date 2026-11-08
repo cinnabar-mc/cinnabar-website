@@ -8,6 +8,19 @@ No SPA fallback or dynamic Worker is required.
 
 ## Website behavior
 
+- The project editor labels every field Required or Optional. Name, summary,
+  version and a valid release component are required; distribution rights must be
+  confirmed before submission. Description, category, license, source repository,
+  release notes, images, captions and alt text are optional. A source repository
+  is optional at every permission level; when supplied it must be a GitHub URL.
+- Project address is optional. Blank addresses use the name lowercased, with runs
+  outside ASCII letters/digits replaced by one dash, trimmed and limited to 40
+  characters (trailing dashes are removed again after truncation). If fewer than
+  three characters remain, choose an address. Reserved addresses are rejected.
+  The preview shows the listing's `/mods/#/mod/<address>` route. Continuing a step
+  validates that step; submission validates all steps. Client and API field
+  errors appear beside the controls and focus the first invalid field.
+
 - Live sign-in uses a Cinnabar account through Google. The provider is named on the
   sign-in control; additional providers can be added alongside it later. Signed-in
   controls show the username, quieter email, staff role when applicable, Sign

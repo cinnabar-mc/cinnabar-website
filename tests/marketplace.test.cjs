@@ -118,13 +118,59 @@ test('only admins add moderators and only owners add admins', () => {
   assert.equal(M.can(mod1, 'pull').ok, false);
 });
 
-test('listings need a source link once a mod can act or touch the network', () => {
+test('source is optional at every reach and a supplied link must be a GitHub repository', () => {
   const base = { slug: 'zoom', name: 'Zoom', summary: 'Zooms the camera in.', version: '1.0.0' };
-  assert.deepEqual(M.validateListing({ ...base, reach: 1 }), {});
-  assert.ok(M.validateListing({ ...base, reach: 3 }).source);
-  assert.deepEqual(M.validateListing({ ...base, reach: 4, source: 'https://github.com/a/zoom' }), {});
+  for (let reach = 0; reach <= 4; reach++) {
+    assert.deepEqual(M.validateListing({ ...base, reach }), {});
+    assert.deepEqual(M.validateListing({ ...base, reach, source: 'https://github.com/a/zoom' }), {});
+    assert.ok(M.validateListing({ ...base, reach, source: 'https://example.com/a/zoom' }).source);
+  }
   const bad = M.validateListing({ slug: 'Zoom!', name: '', summary: 'short', version: 'v1', source: 'http://x', reach: 0 });
   assert.deepEqual(Object.keys(bad).sort(), ['name', 'slug', 'source', 'summary', 'version']);
+});
+
+test('optional addresses derive bounded ASCII slugs while custom addresses are lowercased and reserved names rejected', () => {
+  const base = { summary: 'A valid project summary.', version: '1.0.0', category: '' };
+  for (const [name, slug] of [['Steroids for Cinnabar', 'steroids-for-cinnabar'], ['None', 'none'],
+    ['  Hello, 👋 WORLD!! ', 'hello-world'], ['a'.repeat(39) + ' !! b', 'a'.repeat(39)], ['A'.repeat(64), 'a'.repeat(40)]]) {
+    assert.equal(M.listingSlug({ name }), slug);
+    assert.deepEqual(M.validateListing({ ...base, name, slug: '' }), {});
+  }
+  assert.equal(M.listingSlug({ name: 'Other', slug: 'None' }), 'none');
+  for (const name of ['ab', '😀🎮', '---']) {
+    assert.match(M.validateListing({ ...base, name }).slug, /Pick a project address/);
+    assert.deepEqual(M.validateListing({ ...base, name, slug: 'custom-address' }), {});
+  }
+  for (const slug of ['revocations', 'assets', 'media', 'cinnabar-mod']) {
+    assert.match(M.validateListing({ ...base, name: 'Valid project', slug }).slug, /reserved/);
+    assert.match(M.validateListing({ ...base, name: slug }).slug, /reserved/);
+  }
+  assert.equal(M.normalizeAddress('None'), 'none');
+  assert.equal(M.normalizeAddress('My Project  Address'), 'my-project-address');
+  assert.ok(M.validateListing({ ...base, name: 'Valid', license: 'a'.repeat(129) }).license);
+  assert.ok(M.validateListing({ ...base, name: 'Valid', notes: 'a'.repeat(4001) }).notes);
+  assert.ok(M.validateListing({ ...base, name: 'Valid', category: 'Other' }).category);
+  assert.ok(M.validateListing({ ...base, name: 'Valid', version: '1.0.0-' + 'a'.repeat(27) }).version);
+});
+
+test('mock submissions derive blank addresses and accept missing source at every reach', async () => {
+  const client = await api('BlockSmith42');
+  const grants = [{ hud: true }, { player_state: true }, { render_through_walls: true }, { camera: true }, { packets: true }];
+  for (const [reach, request] of grants.entries()) {
+    const result = await client.request('POST', '/submissions', { name: 'Steroids for Cinnabar ' + reach, slug: '',
+      summary: 'A valid project summary.', version: '1.0.0', grants: request, sha256: 'a'.repeat(64), bytes: 8 });
+    assert.equal(result.status, 200, JSON.stringify(result.body));
+    assert.equal(result.body.slug, 'steroids-for-cinnabar-' + reach);
+    assert.equal(result.body.reach, reach);
+    assert.equal(result.body.source, '');
+  }
+  const base = { name: 'Another project', summary: 'A valid project summary.', version: '1.0.0', grants: {}, sha256: 'a'.repeat(64), bytes: 8 };
+  assert.equal((await client.request('POST', '/submissions', { ...base, slug: 'None' })).body.slug, 'none');
+  for (const name of ['ab', '🎮']) {
+    const result = await client.request('POST', '/submissions', { ...base, name });
+    assert.equal(result.status, 422); assert.match(result.body.fields.slug, /Pick a project address/);
+  }
+  assert.equal((await client.request('POST', '/submissions', { ...base, slug: 'media' })).status, 422);
 });
 
 test('routes come from the hash so static hosting serves every view', () => {

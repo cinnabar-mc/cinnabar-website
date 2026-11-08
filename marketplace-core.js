@@ -164,25 +164,43 @@
     return next;
   }
 
+  /** Derive a bounded ASCII address from the name, trimming separators after truncation. */
+  function slugFromName(name) {
+    return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '');
+  }
+
+  /** Normalise a typed address without removing intentional leading or trailing dashes. */
+  function normalizeAddress(value) {
+    return String(value || '').toLowerCase().replace(/\s+/g, '-');
+  }
+
+  /** Resolve an optional address the same way for validation, preview and submission. */
+  function listingSlug(fields) {
+    return String(fields.slug || '').trim().toLowerCase() || slugFromName(fields.name);
+  }
+
   /** Validates the listing fields a creator submits with an upload. */
   function validateListing(fields) {
     const errors = {};
-    const slug = String(fields.slug || "");
+    const slug = listingSlug(fields);
     if (!/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(slug)) {
-      errors.slug = "Use 3–40 lowercase letters, numbers and dashes.";
-    }
+      errors.slug = String(fields.slug || '').trim() ? "Use 3–40 lowercase letters, numbers and dashes."
+        : "Pick a project address with 3–40 letters, numbers and dashes; this name cannot make one.";
+    } else if (['revocations', 'assets', 'media', 'cinnabar-mod'].includes(slug)) errors.slug = "That address is reserved. Choose another.";
     if (!String(fields.name || "").trim() || String(fields.name).length > 64) errors.name = "Name it in 64 characters or fewer.";
     const summary = String(fields.summary || "").trim();
     if (summary.length < 10 || summary.length > 140) errors.summary = "Summarise it in 10–140 characters.";
-    if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(String(fields.version || ""))) {
+    if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(String(fields.version || "")) || String(fields.version).length > 32) {
       errors.version = "Use a SemVer version such as 1.0.0.";
     }
     if (typeof fields.description !== "undefined" && (typeof fields.description !== "string" || fields.description.length > 40000)) errors.description = "Keep the description under 40,000 characters.";
+    if (fields.category && !['Interface', 'Visuals', 'Camera', 'Utilities', 'Gameplay', 'Network'].includes(fields.category)) errors.category = "Choose a category.";
+    if (String(fields.license || '').length > 128) errors.license = "Keep the license under 128 characters.";
+    if (String(fields.notes || '').length > 4000) errors.notes = "Keep release notes under 4,000 characters.";
     const source = String(fields.source || "");
     if (source && !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/.test(source)) {
       errors.source = "Link the GitHub repository, like https://github.com/you/mod.";
     }
-    if (fields.reach >= 3 && !source) errors.source = "Mods that act for players or touch the network must link their source.";
     return errors;
   }
 
@@ -313,6 +331,7 @@
     RUNGS: RUNGS, REPORT_REASONS: REPORT_REASONS, CAPABILITIES: CAPABILITIES, capability: function (name) { return BY_NAME.get(name); },
     requestedCapabilities: requestedCapabilities, reachOf: reachOf, grantDiff: grantDiff,
     approvalRule: approvalRule, can: can, decide: decide, validateListing: validateListing,
+    slugFromName: slugFromName, normalizeAddress: normalizeAddress, listingSlug: listingSlug,
     parseRoute: parseRoute, filterMods: filterMods, readComponent: readComponent, atLeast: atLeast,
   };
   if (typeof module !== "undefined") module.exports = api;
