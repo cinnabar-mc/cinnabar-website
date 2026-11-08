@@ -179,10 +179,13 @@ class RenderTests(unittest.TestCase):
             self.assertNotIn("@@", html)
             page = Page()
             page.feed(html)
-            link, = [attrs for tag, attrs, _ in page.elements
+            links = [attrs for tag, attrs, _ in page.elements
                      if tag == "a" and attrs.get("class") == "marketplace-link"]
-            self.assertEqual(link["href"], "/mods/")
-            self.assertEqual(link.get("aria-current"), "page" if route == "mods/index.html" else None)
+            # The marketplace stays reachable at /mods/ but only its own page links to it.
+            if route == "mods/index.html":
+                self.assertEqual(links, [{"class": "marketplace-link", "href": "/mods/", "aria-current": "page"}])
+            else:
+                self.assertEqual(links, [])
 
     def test_gameplay_captures_are_published_unchanged(self):
         """Serve every capture from the repository at its stable /assets/ path."""
