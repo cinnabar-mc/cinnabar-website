@@ -199,7 +199,7 @@
     if (String(fields.notes || '').length > 4000) errors.notes = "Keep release notes under 4,000 characters.";
     const source = String(fields.source || "");
     if (source && !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/.test(source)) {
-      errors.source = "Link the GitHub repository, like https://github.com/you/mod.";
+      errors.source = "Enter a GitHub repository link like https://github.com/you/mod, or leave this empty.";
     }
     return errors;
   }
@@ -274,7 +274,8 @@
     }
     if (![13, 0, 1, 0].every(function (v, i) { return bytes[i + 4] === v; })) throw new Error("Invalid component header.");
     const decoder = new TextDecoder("utf-8", { fatal: true });
-    const found = { name: "", description: "", version: "", authors: "", licenses: "", grants: null, grantsDeclared: false };
+    const found = { name: "", description: "", version: "", authors: "", licenses: "", grants: null, grantsDeclared: false, icon: null };
+    let icons = 0;
     const seen = new Set();
     let offset = 8;
     while (offset < bytes.length) {
@@ -294,6 +295,10 @@
           seen.add(name);
         }
         const data = bytes.subarray(nameEnd, end);
+        if (name === "cinnabar:extension/icon@1") {
+          icons++;
+          found.icon = icons === 1 && data.length <= 256 * 1024 ? data : null;
+        }
         if (text) {
           if (data.length > 65536) throw new Error("Metadata section is too large.");
           found[name] = decoder.decode(data);

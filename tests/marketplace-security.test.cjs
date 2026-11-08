@@ -121,13 +121,15 @@ test('preview resends at the same clock value cannot be erased by an older remov
   assert.equal((await api.request('POST', '/mods/time-changer/remove', old)).status, 409);
 });
 
-test('rejects executable gallery data without creating any submission', async () => {
+test('legacy gallery data is ignored rather than saved with a submission', async () => {
   const api = createMockApi({ getItem: () => null, setItem: () => {} });
   await api.request('POST', '/auth/preview', { id: '2535400000000102' });
   const response = await api.request('POST', '/submissions', { slug: 'unsafe-media', name: 'Media', summary: 'A gallery validation example.', version: '1.0.0',
     grants: {}, sha256: 'a'.repeat(64), bytes: 8, gallery: [{ url: 'data:image/svg+xml,<svg/>', caption: '', alt: '' }] });
-  assert.equal(response.status, 422);
-  assert.equal((await api.request('GET', '/mods/unsafe-media')).status, 404);
+  assert.equal(response.status, 200);
+  assert.equal(response.body.listing.gallery, undefined);
+  assert.equal(response.body.gallery, undefined);
+  assert.equal(response.body.listing.icon, null);
 });
 
 test('release states and approval readiness fail closed on pending, failed, missing and expired evidence', () => {

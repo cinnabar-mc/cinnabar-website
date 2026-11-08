@@ -150,9 +150,9 @@ fall back to fictional data. For a labelled local preview, run
 `python3 render.py --marketplace-backend mock`; sample accounts appear only there.
 
 The HTTP adapter uses Cinnabar accounts with Google sign-in, credentials, CSRF and
-multipart component and image uploads. Captions, alt text, descriptions, category, license and release
-notes are versioned by the API. Prepared raster derivatives are uploaded as files;
-pending screenshots use authenticated creator/staff routes. Drafts stay local,
+multipart component uploads. Descriptions, category, license and release notes
+are versioned by the API. The component can embed its listing icon as a bounded
+PNG; existing listing galleries still display. Drafts stay local,
 keyed by Cinnabar account ID, and do not retain component bytes:
 reselect the file after reloading. Link Xbox from the account controls to send mods
 to your game; enter the website link code in Cinnabar under Settings → Account →

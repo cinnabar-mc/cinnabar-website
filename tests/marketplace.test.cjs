@@ -331,7 +331,7 @@ test('the live adapter refuses oversized descriptions while retaining the draft'
   assert.equal(sent, false);
 });
 
-test('live uploads send prepared image bytes, captions and alt text without fetching arbitrary URLs', async () => {
+test('live uploads send only listing text and the component, dropping legacy images', async () => {
   const { createHttpApi } = require('../marketplace-http.js');
   const calls = [];
   const client = createHttpApi('https://api.test/v1', async (url, init) => {
@@ -339,15 +339,11 @@ test('live uploads send prepared image bytes, captions and alt text without fetc
   }, {});
   const file = new File(['component'], 'mod.wasm');
   const fields = { description: 'd'.repeat(40000), license: 'MIT', notes: 'Release notes' };
-  assert.equal((await client.submit(fields, file, [{ url: 'data:image/png;base64,AQID', caption: 'HUD screenshot', alt: 'Coordinates in the top left' }])).status, 200);
+  assert.equal((await client.submit({ ...fields, gallery: ['legacy'], images: ['legacy'] }, file, ['legacy'])).status, 200);
   const form = calls[0].init.body;
+  assert.deepEqual([...form.keys()], ['listing', 'file']);
   assert.deepEqual(JSON.parse(form.get('listing')), fields);
-  assert.deepEqual(JSON.parse(form.get('image_metadata')), [{ caption: 'HUD screenshot', alt: 'Coordinates in the top left' }]);
-  assert.deepEqual([...new Uint8Array(await form.get('images').arrayBuffer())], [1, 2, 3]);
-  assert.equal(form.get('images').type, 'image/png');
-  assert.equal((await client.submit({}, file, [{ url: 'https://attacker.test/secret.png' }])).status, 422);
-  assert.equal((await client.submit({}, file, Array(5).fill({ url: 'data:image/png;base64,AQID' }))).status, 422);
-  assert.equal(calls.length, 1);
+  assert.equal(await form.get('file').text(), 'component');
 });
 
 test('the HTTP adapter derives public and private media routes from digests and clears stale CSRF on signout', async () => {

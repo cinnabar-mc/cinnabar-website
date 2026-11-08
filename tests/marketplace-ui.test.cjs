@@ -41,7 +41,7 @@ async function page(hash = '#/', stored, http, options = {}) {
   const win = { CinnabarMarket: M, CinnabarContent: C, CinnabarMarketMock: Mock,
     CinnabarMarketHttp: { createHttpApi: () => http },
     CINNABAR_DOWNLOADS: { marketplace: { backend: http ? 'http' : 'mock', api_url: 'https://api.invalid/v1' } }, localStorage: storage, sessionStorage,
-    CinnabarValidation: { validate: async () => ({ imports: [], exports: [] }) },
+    CinnabarValidation: { iconUrl: async bytes => bytes ? "data:image/png;base64,AQID" : null, validate: async () => ({ imports: [], exports: [] }) },
     addEventListener: (name, fn) => { listeners[name] = fn; }, scrollTo() {}, fetch() {}, location,
     navigator: { clipboard: { writeText: async code => { copied.push(code); } } },
     setTimeout: (fn, delay) => { timers.set(++timerId, { fn, at: clock + delay }); return timerId; }, clearTimeout: id => timers.delete(id) };
@@ -74,12 +74,12 @@ async function continueEditor(p) {
 }
 
 /** Choose a minimal component through the real asynchronous file checker. */
-async function editorFile(p) {
+async function editorFile(p, bytes = Uint8Array.from([0,97,115,109,13,0,1,0])) {
   const input = p.document.querySelector('#draft-file');
-  Object.defineProperty(input, 'files', { value: [{ name: 'test.wasm', size: 8,
-    arrayBuffer: async () => Uint8Array.from([0,97,115,109,13,0,1,0]).buffer }] });
+  Object.defineProperty(input, 'files', { value: [{ name: 'test.wasm', size: bytes.length,
+    arrayBuffer: async () => bytes.buffer }] });
   input.dispatchEvent(new p.window.Event('change'));
-  for (let i = 0; i < 30 && !p.text().includes('syntax checked'); i++) { await new Promise(resolve => setTimeout(resolve, 5)); await settle(); }
+  for (let i = 0; i < 30 && input.isConnected; i++) { await new Promise(resolve => setTimeout(resolve, 5)); await settle(); }
   assert.match(p.text(), /syntax checked/);
 }
 
@@ -110,13 +110,12 @@ test('project errors are inline, described, focused and scrolled; continuing val
   assert.equal(p.document.getElementById('error-slug'), null);
   assert.match(p.document.getElementById('draft-slug').getAttribute('aria-describedby'), /hint-slug.*address-preview/);
   await p.input('#draft-slug', '');
-  await continueEditor(p); assert.match(p.text(), /Show it in action/);
   await continueEditor(p); assert.match(p.text(), /Add a release/);
   await continueEditor(p);
   assert.equal(p.document.activeElement.id, 'draft-file');
   assert.equal(p.document.getElementById('feedback').textContent, 'Fix 2 fields to continue.');
   await p.input('#draft-version', '1.0.0'); await editorFile(p); await continueEditor(p);
-  assert.match(p.text(), /Ready when the checks are/);
+  assert.match(p.text(), /Ready to submit/);
   await continueEditor(p);
   assert.equal(p.document.activeElement.id, 'distribution-rights');
   assert.match(p.document.getElementById('error-rights').textContent, /distribution rights/);
@@ -130,7 +129,7 @@ test('every editor field has a consistent Required or Optional label matching it
   const memory = new Map([['cinnabar.marketplace.draft.creator', JSON.stringify({ gallery: [{ url: 'data:image/png;base64,AQID', caption: '', alt: '' }] })]]);
   const p = await page('#/submit', memory, api);
   for (const [step, fields] of Object.entries({ project: { name: 'Required', slug: 'Optional', summary: 'Required', description: 'Optional', category: 'Optional', license: 'Optional', source: 'Optional' },
-    media: { images: 'Optional', 'gallery.0.caption': 'Optional', 'gallery.0.alt': 'Optional' }, release: { file: 'Required', version: 'Required', notes: 'Optional' }, checks: { rights: 'Required' } })) {
+    release: { file: 'Required', version: 'Required', notes: 'Optional' }, checks: { rights: 'Required' } })) {
     await p.click(p.document.querySelector('[data-focus-key="step:' + step + '"]'));
     for (const [key, expected] of Object.entries(fields)) {
       const control = p.document.getElementById(key === 'rights' ? 'distribution-rights' : 'draft-' + key);
@@ -154,7 +153,7 @@ test('address normalization preserves the edited control and cursor, including c
 });
 
 test('422 field errors select their step, use inline aria feedback, and clear on editing', async () => {
-  for (const [key, step] of [['slug', 'project'], ['source', 'project'], ['category', 'project'], ['version', 'release'], ['notes', 'release'], ['file', 'release'], ['images', 'media']]) {
+  for (const [key, step] of [['slug', 'project'], ['source', 'project'], ['category', 'project'], ['version', 'release'], ['notes', 'release'], ['file', 'release']]) {
     const api = liveApi(liveRelease(), 'player');
     let uploaded;
     api.submit = async fields => { uploaded = fields; return { status: 422, body: { error: 'Invalid fields.', fields: { [key]: 'Server correction for ' + key } } }; };
@@ -174,7 +173,6 @@ test('422 field errors select their step, use inline aria feedback, and clear on
     assert.equal(p.document.getElementById('error-' + key).textContent, 'Server correction for ' + key);
     assert.equal(p.document.getElementById('feedback').textContent, 'Fix 1 field to continue.');
     if (key === 'file') await editorFile(p);
-    else if (key === 'images') await p.input('[aria-label="Caption for image 1"]', 'Corrected caption');
     else if (key === 'category') { control.value = 'Utilities'; control.dispatchEvent(new p.window.Event('change')); await settle(); }
     else await p.input('#draft-' + key, key === 'slug' ? 'another-address' : key === 'source' ? 'https://github.com/you/mod' : '1.0.1');
     assert.equal(p.document.getElementById('error-' + key), null);
@@ -332,15 +330,14 @@ test('library serializes different-card removals and keeps recreated filter cont
   assert.match(p.text(), /Your library is empty/);
 });
 
-test('draft steps preserve content, preview escapes HTML, and another account cannot read a saved draft', async () => {
+test('draft steps preserve inert content and another account cannot read a saved draft', async () => {
   const p = await page('#/submit');
   await p.signIn('BlockSmith42');
   await p.input('#draft-name', 'Creator draft');
   await p.input('#draft-description', '## Heading\n<script>alert(1)</script>');
-  await p.click(p.document.querySelector('[data-focus-key="draft:preview"]'));
+  assert.equal(p.document.querySelector('[data-focus-key="draft:preview"]'), null);
   assert.equal(p.document.querySelector('#app script'), null);
-  assert.equal(p.document.querySelector('.markdown h2').textContent, 'Heading');
-  await p.click(p.document.querySelector('[data-focus-key="step:media"]'));
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
   await p.click(p.document.querySelector('[data-focus-key="step:project"]'));
   assert.equal(p.document.querySelector('#draft-name').value, 'Creator draft');
   await p.click(p.document.querySelector('[data-focus-key="draft:save"]'));
@@ -505,7 +502,7 @@ test('status refresh preserves review notes on network errors and removes staff 
   assert.match(p.text(), /Sign in with a moderator/);
 });
 
-test('failed real uploads retain local images and description and forward the complete draft', async () => {
+test('failed real uploads retain description and component, dropping old gallery drafts', async () => {
   const version = liveRelease(); const api = liveApi(version, 'player');
   const memory = new Map([['cinnabar.marketplace.draft.creator', JSON.stringify({ name: 'Upload test', slug: 'upload-test',
     summary: 'A complete live upload fixture.', description: 'Long description retained', version: '1.0.0', category: 'Interface',
@@ -514,21 +511,18 @@ test('failed real uploads retain local images and description and forward the co
   api.submit = async (fields, file, gallery) => { uploaded = { fields, file, gallery }; return { status: 413, body: { error: 'Upload rejected. Resize and retry.' } }; };
   const p = await page('#/submit', memory, api);
   await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
-  const input = p.document.querySelector('input[type=file]');
-  Object.defineProperty(input, 'files', { value: [{ name: 'test.wasm', size: 8,
-    arrayBuffer: async () => Uint8Array.from([0,97,115,109,13,0,1,0]).buffer }] });
-  input.dispatchEvent(new p.window.Event('change'));
-  for (let i = 0; i < 20 && !p.text().includes('syntax checked'); i++) { await new Promise(resolve => setTimeout(resolve, 5)); await settle(); }
+  await editorFile(p);
   await p.click(p.document.querySelector('[data-focus-key="step:checks"]'));
   p.document.querySelector('#distribution-rights').checked = true;
   p.document.querySelector('form').dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true })); await settle();
   assert.match(p.document.querySelector('#feedback').textContent, /Resize and retry/);
   assert.equal(uploaded.fields.license, 'MIT'); assert.equal(uploaded.fields.notes, 'Initial release');
-  assert.equal(uploaded.gallery[0].alt, 'Coordinates');
+  assert.equal(uploaded.gallery, undefined); assert.equal(uploaded.fields.gallery, undefined);
   await p.click(p.document.querySelector('[data-focus-key="step:project"]'));
   assert.equal(p.document.querySelector('#draft-description').value, 'Long description retained');
-  await p.click(p.document.querySelector('[data-focus-key="step:media"]'));
-  assert.equal(p.document.querySelectorAll('.media-item').length, 1);
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  assert.equal(p.document.querySelectorAll('.media-item').length, 0);
+  assert.match(p.text(), /test.wasm/);
 });
 
 /** A live account fixture with separate website identity and optional Xbox delivery identity. */
@@ -909,4 +903,101 @@ test('old username errors do not populate a reopened chooser', async () => {
   assert.equal(p.document.getElementById('username-dialog').open, true);
   assert.equal(p.document.getElementById('username-status').textContent, '');
   assert.equal(p.document.getElementById('username-confirm').disabled, false);
+});
+
+test('editor has three steps, ignores old gallery drafts and saves only current fields', async () => {
+  const api = liveApi(liveRelease(), 'player');
+  api.account.username = 'WebsiteName'; api.account.email = 'private@example.test'; api.account.xbox = { gamertag: 'Game Name' };
+  const memory = new Map([['cinnabar.marketplace.draft.creator', JSON.stringify({ name: 'Old draft', summary: 'An existing draft summary.', gallery: [{ url: 'data:image/png;base64,AQID', caption: 'Old image', alt: 'Old alt' }] })]]);
+  const p = await page('#/submit', memory, api);
+  assert.deepEqual([...p.document.querySelectorAll('.steps button')].map(button => button.textContent), ['1Project', '2Release', '3Checks & publish']);
+  assert.equal(p.document.querySelector('.editor-heading p').textContent, 'Publishing as WebsiteName');
+  assert.equal(p.document.querySelector('#draft-name').value, 'Old draft');
+  assert.equal(p.document.querySelector('[data-focus-key="draft:preview"]'), null);
+  assert.match(p.document.getElementById('hint-description').textContent, /Markdown/);
+  for (const step of ['project', 'release', 'checks']) {
+    await p.click(p.document.querySelector('[data-focus-key="step:' + step + '"]'));
+    assert.doesNotMatch(p.text(), /Images|screenshots|captions|alt text|Preview description/i);
+    assert.equal(p.document.querySelector('input[accept*="image"]'), null);
+  }
+  await p.click(p.document.querySelector('[data-focus-key="draft:save"]'));
+  const saved = JSON.parse(memory.get('cinnabar.marketplace.draft.creator'));
+  assert.equal(saved.name, 'Old draft'); assert.equal(saved.gallery, undefined);
+});
+
+test('Source None shows an inline error through the form handler with no native constraints', async () => {
+  const p = await page('#/submit'); await p.signIn('BlockSmith42');
+  await p.input('#draft-name', 'Source test'); await p.input('#draft-summary', 'A valid source test summary.'); await p.input('#draft-source', 'None');
+  const source = p.document.getElementById('draft-source');
+  assert.equal(source.type, 'text'); assert.equal(source.getAttribute('inputmode'), 'url');
+  assert.ok(p.document.querySelector('form.editor').hasAttribute('novalidate'));
+  assert.equal(p.document.querySelector('.editor [required], .editor [minlength], .editor [maxlength], .editor [pattern], .editor [type=url]'), null);
+  await continueEditor(p);
+  assert.equal(p.document.activeElement.id, 'draft-source');
+  assert.equal(p.document.getElementById('error-source').textContent, 'Enter a GitHub repository link like https://github.com/you/mod, or leave this empty.');
+  assert.match(p.document.getElementById('draft-source').getAttribute('aria-describedby'), /error-source/);
+  await p.input('#draft-source', ''); await continueEditor(p);
+  assert.match(p.text(), /Add a release/);
+});
+
+test('checks use plain language, required rights and a notice only in preview mode', async () => {
+  for (const live of [false, true]) {
+    const p = await page('#/submit', undefined, live ? liveApi(liveRelease(), 'player') : undefined);
+    if (!live) await p.signIn('BlockSmith42');
+    await p.click(p.document.querySelector('[data-focus-key="step:checks"]'));
+    assert.match(p.text(), /Ready to submit/); assert.match(p.text(), /After you upload, we check your mod/);
+    assert.match(p.text(), /A reviewer approves it before it goes live/); assert.match(p.text(), /Your projects/);
+    assert.match(p.text(), /Your mod fileChoose a file/); assert.match(p.text(), /ReviewAfter upload/);
+    assert.doesNotMatch(p.text(), /AI triage|Publication route|Established creators|independently validate|browser check cannot|Server validation|Automatic publication/);
+    assert.match(p.text(), /I have permission to share this mod/);
+    assert.equal(p.document.getElementById('distribution-rights').getAttribute('aria-required'), 'true');
+    assert.equal(p.text().includes('This is a preview.'), !live);
+    await p.click(p.document.querySelector('[data-focus-key="step:release"]')); await editorFile(p);
+    await p.click(p.document.querySelector('[data-focus-key="step:checks"]'));
+    assert.match(p.text(), /✓ Looks good/);
+  }
+});
+
+test('release preview uses the extracted component icon, falls back when absent and links real docs', async () => {
+  const { png, component, ICON } = require('./icon-fixtures.cjs');
+  const p = await page('#/submit'); await p.signIn('BlockSmith42');
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  assert.ok(p.document.querySelector('.preview-card .mod-icon svg'));
+  await editorFile(p, new Uint8Array(component([[ICON, png()]])));
+  assert.equal(p.document.querySelector('.preview-card img').getAttribute('src'), 'data:image/png;base64,AQID');
+  assert.match(p.document.getElementById('component-icon-status').textContent, /Icon: from your mod file/);
+  const href = p.document.querySelector('#component-icon-status a').getAttribute('href');
+  const [file, anchor] = href.split('#');
+  assert.match(fs.readFileSync(path.join(root, 'dist', file), 'utf8'), new RegExp('id="' + anchor + '"'));
+  await editorFile(p);
+  assert.equal(p.document.querySelector('.preview-card img'), null);
+  assert.ok(p.document.querySelector('.preview-card .mod-icon svg'));
+  assert.match(p.document.getElementById('component-icon-status').textContent, /No icon in your mod file; the category icon is used/);
+});
+
+test('listing, detail, library and staff rows use API artwork with safe and failed-load fallbacks', async () => {
+  for (const icon of ['https://cdn.test/mod.png', null, 'javascript:alert(1)']) {
+    const p = await page(); await p.signIn('MossyCobble');
+    const state = JSON.parse(p.memory.get(Mock.STORAGE_KEY));
+    for (const listing of Object.values(state.listings)) listing.icon = icon;
+    p.memory.set(Mock.STORAGE_KEY, JSON.stringify(state));
+    // Recreate the controller to load the modified persisted API fixture.
+    const next = await page('#/', p.memory);
+    const check = selector => {
+      const tile = next.document.querySelector(selector);
+      assert.ok(tile, selector);
+      assert.equal(Boolean(tile.querySelector('img')), Boolean(icon?.startsWith('https:')), selector);
+      assert.equal(Boolean(tile.querySelector('svg')), !icon?.startsWith('https:'), selector);
+    };
+    check('.mod-card .mod-icon');
+    await next.route('#/mod/time-changer'); check('.project-heading .mod-icon');
+    await next.click(next.document.querySelector('[data-focus-key="project:add"]'));
+    await next.route('#/library'); check('.mod-card .mod-icon');
+    await next.signIn('PixelWarden'); await next.route('#/staff/queue'); check('.queue .mod-icon');
+    if (icon?.startsWith('https:')) {
+      const tile = next.document.querySelector('.queue .mod-icon');
+      tile.querySelector('img').dispatchEvent(new next.window.Event('error'));
+      assert.ok(tile.querySelector('svg')); assert.equal(tile.querySelector('img'), null);
+    }
+  }
 });
