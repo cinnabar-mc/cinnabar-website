@@ -87,7 +87,7 @@
   function can(actor, action, context) {
     const ctx = context || {};
     const deny = function (reason) { return { ok: false, reason: reason }; };
-    if (!actor) return deny("Sign in with Microsoft first.");
+    if (!actor) return deny("Sign in with Google first.");
     if (actor.suspended && action !== "report") return deny("Your account is suspended.");
     switch (action) {
       case "send":
@@ -97,9 +97,9 @@
       case "review": {
         if (!atLeast(actor, "moderator")) return deny("Only staff review mods.");
         const version = ctx.version;
-        if (version.creator === actor.xuid) return deny("You can't review your own mod.");
+        if (version.creator === actor.id) return deny("You can't review your own mod.");
         if (version.status !== "submitted") return deny("This version isn't waiting for review.");
-        if (version.approvals.some(function (a) { return a.xuid === actor.xuid; })) {
+        if (version.approvals.some(function (a) { return a.id === actor.id; })) {
           return deny("You've already approved this version.");
         }
         return { ok: true };
@@ -124,7 +124,7 @@
         const target = ctx.target;
         const role = ctx.role;
         if (!atLeast(actor, "admin")) return deny("Only admins manage staff.");
-        if (target && target.xuid === actor.xuid) return deny("You can't change your own role.");
+        if (target && target.id === actor.id) return deny("You can't change your own role.");
         if (!Object.hasOwn(ROLE_RANK, role) || role === "owner") return deny("Owners are set in the API's configuration.");
         if (target && target.role === "owner") return deny("Owners are set in the API's configuration.");
         const needed = role === "admin" || (target && target.role === "admin") ? "owner" : "admin";
@@ -147,7 +147,7 @@
     }
     const next = Object.assign({}, version, { approvals: version.approvals.slice() });
     if (decision === "approve") {
-      next.approvals.push({ xuid: actor.xuid, admin: atLeast(actor, "admin"), at: at });
+      next.approvals.push({ id: actor.id, admin: atLeast(actor, "admin"), at: at });
       const rule = approvalRule(version.reach);
       const hasAdmin = next.approvals.some(function (a) { return a.admin; });
       if (next.approvals.length >= rule.count && (!rule.admin || hasAdmin)) {

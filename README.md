@@ -149,11 +149,14 @@ merging this website rollout. Failed requests show recovery controls and never
 fall back to fictional data. For a labelled local preview, run
 `python3 render.py --marketplace-backend mock`; sample accounts appear only there.
 
-The HTTP adapter uses Microsoft sign-in, credentials, CSRF and multipart component
-and image uploads. Captions, alt text, descriptions, category, license and release
+The HTTP adapter uses Cinnabar accounts with Google sign-in, credentials, CSRF and
+multipart component and image uploads. Captions, alt text, descriptions, category, license and release
 notes are versioned by the API. Prepared raster derivatives are uploaded as files;
-pending screenshots use authenticated creator/staff routes. Drafts stay local and
-do not retain component bytes: reselect the file after reloading.
+pending screenshots use authenticated creator/staff routes. Drafts stay local,
+keyed by Cinnabar account ID, and do not retain component bytes:
+reselect the file after reloading. Link Xbox from the account controls to send mods
+to your game; enter the website link code in Cinnabar under Settings → Account →
+Link website account.
 
 Your projects and the review workspace refresh server scan/publication states every
 ten seconds while visible. Staff notes survive refreshes and failed requests.

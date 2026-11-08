@@ -28,8 +28,13 @@
   </div>
   <dialog id="signin-dialog" aria-labelledby="signin-title">
     <div class="row between"><h2 id="signin-title">Choose a preview account</h2><button type="button" data-close class="quiet" aria-label="Close account chooser">Close</button></div>
-    <p class="muted">Sample accounts demonstrate player, creator and staff workflows. Real Microsoft sign-in is provided by the API in live mode.</p>
+    <p class="muted">Sample accounts demonstrate player, creator and staff workflows. Real Google sign-in is provided by the API in live mode.</p>
     <div id="signin-body" class="personas"></div>
+  </dialog>
+  <dialog id="xbox-dialog" aria-labelledby="xbox-title">
+    <div class="row between"><h2 id="xbox-title">Link Xbox</h2><button type="button" id="xbox-close" class="quiet" aria-label="Close Xbox linking">Close</button></div>
+    <div id="xbox-body"></div>
+    <p id="xbox-status" class="small" role="status" aria-live="polite"></p>
   </dialog>
   <script src="/downloads.js" defer></script>
   <script src="/marketplace-capabilities.js" defer></script>

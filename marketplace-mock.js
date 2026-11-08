@@ -2,30 +2,35 @@
   "use strict";
 
   const core = typeof module !== "undefined" ? require("./marketplace-core.js") : window.CinnabarMarket;
-  const STORAGE_KEY = "cinnabar.marketplace.preview.v2";
+  const STORAGE_KEY = "cinnabar.marketplace.preview.v3";
   const HOUR = 3600000;
   const DAY = 24 * HOUR;
 
   /** Sample accounts for the preview's sign-in step. None of these are real players. */
   const PERSONAS = [
-    { xuid: "2535400000000101", gamertag: "MossyCobble", role: "player", blurb: "Player" },
-    { xuid: "2535400000000102", gamertag: "BlockSmith42", role: "player", blurb: "Player who has published mods" },
-    { xuid: "2535400000000201", gamertag: "PixelWarden", role: "moderator", blurb: "Moderator" },
-    { xuid: "2535400000000301", gamertag: "RedstoneRook", role: "admin", blurb: "Admin" },
-    { xuid: "2535400000000401", gamertag: "OreKeeper", role: "owner", blurb: "Owner" },
-  ];
+    { id: "2535400000000101", gamertag: "MossyCobble", role: "player", blurb: "Player" },
+    { id: "2535400000000102", gamertag: "BlockSmith42", role: "player", blurb: "Player who has published mods" },
+    { id: "2535400000000201", gamertag: "PixelWarden", role: "moderator", blurb: "Moderator" },
+    { id: "2535400000000301", gamertag: "RedstoneRook", role: "admin", blurb: "Admin" },
+    { id: "2535400000000401", gamertag: "OreKeeper", role: "owner", blurb: "Owner" },
+    { id: "google-only", gamertag: "GoogleBuilder", role: "player", blurb: "Google account · Xbox not linked" },
+  ].map(function (a) {
+    return { ...a, display_name: a.gamertag, email: a.gamertag.toLowerCase() + '@example.test' };
+  });
 
   /** Builds the sample marketplace relative to `now`, so ages read naturally on any day. */
   function seed(now) {
     const accounts = {};
     PERSONAS.concat([
-      { xuid: "2535400000000103", gamertag: "LumenLeaf", role: "player" },
-      { xuid: "2535400000000104", gamertag: "GridWalker", role: "player" },
-      { xuid: "2535400000000105", gamertag: "QuartzQueue", role: "player" },
-      { xuid: "2535400000000106", gamertag: "GhastlyGus", role: "player" },
-      { xuid: "2535400000000107", gamertag: "TideTurner", role: "player" },
-    ]).forEach(function (a) { accounts[a.xuid] = { xuid: a.xuid, gamertag: a.gamertag, role: a.role, suspended: false }; });
-    const by = function (tag) { return Object.values(accounts).find(function (a) { return a.gamertag === tag; }).xuid; };
+      { id: "2535400000000103", gamertag: "LumenLeaf", role: "player" },
+      { id: "2535400000000104", gamertag: "GridWalker", role: "player" },
+      { id: "2535400000000105", gamertag: "QuartzQueue", role: "player" },
+      { id: "2535400000000106", gamertag: "GhastlyGus", role: "player" },
+      { id: "2535400000000107", gamertag: "TideTurner", role: "player" },
+    ]).forEach(function (a) { accounts[a.id] = { id: a.id, display_name: a.gamertag, gamertag: a.gamertag,
+      email: a.gamertag.toLowerCase() + '@example.test', role: a.role, suspended: false,
+      xbox: a.id === 'google-only' ? null : { xuid: 'xbox-' + a.id, gamertag: a.gamertag } }; });
+    const by = function (tag) { return Object.values(accounts).find(function (a) { return a.gamertag === tag; }).id; };
     const listings = {};
     const versions = [];
     let n = 0;
@@ -38,8 +43,8 @@
         n += 1;
         versions.push({ id: "v" + n, slug: slug, version: row[0], grants: row[1], reach: core.reachOf(row[1]),
           status: row[2], approvals: (row[4] || []).map(function (tag) {
-            const xuid = by(tag);
-            return { xuid: xuid, admin: core.atLeast(accounts[xuid], "admin"), at: at + HOUR };
+            const id = by(tag);
+            return { id: id, admin: core.atLeast(accounts[id], "admin"), at: at + HOUR };
           }),
           creator: by(creator), sha256: hash(slug + row[0]), bytes: 90000 + (slug.length * 7919 + n * 3301) % 400000,
           submitted_at: at, decided_at: row[2] === "submitted" ? null : at + 2 * HOUR,
@@ -123,7 +128,7 @@
     const ok = function (body) { return { status: 200, body: body }; };
     const fail = function (status, error) { return { status: status, body: { error: error } }; };
     const me = function () { return state.session ? state.accounts[state.session] : null; };
-    const name = function (xuid) { return (state.accounts[xuid] || { gamertag: "Unknown" }).gamertag; };
+    const name = function (id) { return (state.accounts[id] || { gamertag: "Unknown" }).gamertag; };
     const log = function (action, target, note) {
       state.audit.unshift({ at: now(), actor: state.session, action: action, target: target, note: note || "" });
     };
@@ -144,7 +149,7 @@
         source: published.source, creator: listing.creator, creator_name: name(listing.creator),
         version: live.version, version_id: live.id, reach: live.reach,
         capabilities: core.requestedCapabilities(live.grants), sha256: live.sha256, bytes: live.bytes,
-        updated_at: live.decided_at, reviewed_by: live.approvals.map(function (a) { return name(a.xuid); }).join(", ") };
+        updated_at: live.decided_at, reviewed_by: live.approvals.map(function (a) { return name(a.id); }).join(", ") };
     }
 
     /** Adds display fields a staff or creator view needs to a version. */
@@ -155,7 +160,7 @@
       const submitted = v.listing || listing;
       return Object.assign({}, v, { name: submitted.name, creator_name: name(v.creator), source: submitted.source,
         summary: submitted.summary, capabilities: core.requestedCapabilities(v.grants),
-        approvals: v.approvals.map(function (a) { return Object.assign({ gamertag: name(a.xuid) }, a); }),
+        approvals: v.approvals.map(function (a) { return Object.assign({ display_name: name(a.id) }, a); }),
         previous: previous ? { version: previous.version, grants: previous.grants, diff: core.grantDiff(previous.grants, v.grants) } : null });
     }
 
@@ -164,16 +169,32 @@
     const routes = [
       ["GET", /^\/me$/, function () {
         const account = me();
-        return ok({ account: account, library: account ? state.library[account.xuid] || [] : [] });
+        return ok({ account: account, library: account ? state.library[account.id] || [] : [], csrf: 'preview-csrf', game_online: Boolean(account?.xbox) });
       }],
       ["GET", /^\/auth\/personas$/, function () { return ok(PERSONAS); }],
       ["POST", /^\/auth\/preview$/, function (body) {
-        const persona = PERSONAS.find(function (p) { return p.xuid === body.xuid; });
+        const persona = PERSONAS.find(function (p) { return p.id === body.id; });
         if (!persona) return fail(400, "Unknown sample account.");
-        state.session = persona.xuid;
-        return ok({ account: state.accounts[persona.xuid] });
+        state.session = persona.id;
+        return ok({ account: state.accounts[persona.id] });
       }],
       ["POST", /^\/auth\/signout$/, function () { state.session = null; return ok({}); }],
+      ["POST", /^\/me\/xbox\/link-code$/, function () {
+        if (!me()) return fail(401, "Sign in first.");
+        state.link_code = { account: state.session, expires_at: now() + 300000 };
+        return ok({ code: "DEMO-1234", expires_in: 300 });
+      }],
+      ["POST", /^\/me\/xbox\/unlink$/, function () {
+        if (!me()) return fail(401, "Sign in first.");
+        me().xbox = null; state.link_code = null;
+        return { status: 204, body: null };
+      }],
+      ["POST", /^\/auth\/preview\/xbox-link$/, function () {
+        if (!me() || state.link_code?.account !== state.session || state.link_code.expires_at <= now()) return fail(400, "Get a current preview link code first.");
+        me().xbox = { xuid: 'xbox-' + me().id, gamertag: me().display_name };
+        state.link_code = null;
+        return ok({});
+      }],
       ["GET", /^\/mods$/, function () {
         return ok(Object.values(state.listings).map(publicListing).filter(Boolean)
           .sort(function (a, b) { return a.reach - b.reach || b.updated_at - a.updated_at; }));
@@ -185,12 +206,13 @@
         view.history = state.versions.filter(function (v) { return v.slug === slug && v.status === "approved"; })
           .sort(function (a, b) { return b.decided_at - a.decided_at; })
           .map(function (v) { return { version: v.version, notes: v.notes || "", at: v.decided_at, pulled: v.pulled, reach: v.reach,
-            reviewers: v.approvals.map(function (a) { return name(a.xuid); }) }; });
+            reviewers: v.approvals.map(function (a) { return name(a.id); }) }; });
         return ok(view);
       }],
       ["POST", /^\/mods\/([a-z0-9-]+)\/send$/, function (body, slug) {
         const check = core.can(me(), "send");
         if (!check.ok) return fail(401, check.reason);
+        if (!me().xbox) return fail(409, "Link your Xbox account in Cinnabar first.");
         const listing = state.listings[slug];
         const view = listing && publicListing(listing);
         if (!view) return fail(404, "No public mod with that name.");
@@ -224,7 +246,7 @@
         return ok({ received: true });
       }],
       ["GET", /^\/me\/mods$/, function () {
-        if (!me()) return fail(401, "Sign in with Microsoft first.");
+        if (!me()) return fail(401, "Sign in with Google first.");
         return ok(state.versions.filter(function (v) { return v.creator === state.session; }).map(versionView)
           .sort(function (a, b) { return b.submitted_at - a.submitted_at; }));
       }],
@@ -322,8 +344,8 @@
           .sort(function (a, b) { return core.atLeast(b, a.role) - core.atLeast(a, b.role) || a.gamertag.localeCompare(b.gamertag); }));
       }],
       ["POST", /^\/staff\/people\/role$/, function (body) {
-        const target = Object.values(state.accounts).find(function (a) { return a.gamertag.toLowerCase() === String(body.gamertag || "").trim().toLowerCase(); });
-        if (!target) return fail(404, "No Cinnabar account with that gamertag has signed in yet.");
+        const target = Object.values(state.accounts).find(function (a) { return a.gamertag.toLowerCase() === String(body.display_name || body.gamertag || "").trim().toLowerCase(); });
+        if (!target) return fail(404, "No Cinnabar account with that display name has signed in yet.");
         const check = core.can(me(), "set-role", { target: target, role: body.role });
         if (!check.ok) return fail(403, check.reason);
         if (!String(body.reason || "").trim()) return fail(400, "Note why, for the audit log.");

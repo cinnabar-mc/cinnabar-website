@@ -2,7 +2,7 @@
   "use strict";
 
   /**
-   * A client for the live marketplace API. It sends the session cookie the API set after Microsoft sign-in,
+   * A client for the live marketplace API. It sends the session cookie the API set after Google sign-in,
    * and repeats the CSRF token from `GET /me` on every write. Uploads go as multipart, so the API reads the
    * component's grants and hash itself.
    */
@@ -34,17 +34,17 @@
           body: form ? body : body ? JSON.stringify(body) : undefined,
           signal: AbortSignal.timeout(form ? 120000 : 10000),
         });
-        const data = await response.json().catch(function () { return { error: "The marketplace didn't answer properly." }; });
+        const data = response.status === 204 ? null : await response.json().catch(function () { return { error: "The marketplace didn't answer properly." }; });
         if (path === "/me" && response.status === 200 && identity === identityGeneration) csrf = data && typeof data.csrf === "string" ? data.csrf : '';
-        if (path === '/auth/signout' && response.status === 200) csrf = '';
+        if (path === '/auth/signout' && (response.status === 200 || response.status === 204)) csrf = '';
         const privateView = path === '/me/mods' || path.startsWith('/staff/') || path === '/submissions';
         const bodyData = response.status === 200 && path !== '/me'
           ? (Array.isArray(data) ? data.map(item => release(item, privateView)) : release(data, privateView)) : data;
         return { status: response.status, body: bodyData };
       },
-      /** Leaves for Microsoft sign-in, returning to this exact page. */
+      /** Leaves for Google sign-in, returning to this exact page. */
       signIn: function () {
-        location.assign(base + "/auth/microsoft/start?return_to=" + encodeURIComponent(location.href));
+        location.assign(base + "/auth/google/start?return_to=" + encodeURIComponent(location.href));
       },
       /** Link to an authenticated attachment download of the exact submitted release. */
       fileUrl: function (id) { return /^[0-9]{1,12}$/.test(String(id)) ? base + '/staff/versions/' + id + '/file' : null; },

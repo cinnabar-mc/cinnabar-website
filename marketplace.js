@@ -32,6 +32,18 @@
   let refreshTimer = null;
   let refreshing = false;
   let writes = 0;
+  const xboxDialog = document.getElementById('xbox-dialog');
+  let xboxPollTimer = null;
+  let xboxClockTimer = null;
+  let xboxEpoch = 0;
+  let xboxOwner = null;
+  let xboxCode = null;
+  let xboxExpiresAt = 0;
+  let xboxBusy = false;
+  let xboxConfirm = false;
+  let xboxPolling = false;
+  let xboxPollGeneration = 0;
+  let xboxReturnFocus = null;
   const reviewNotes = new Map();
   const steps = ['project', 'media', 'release', 'checks'];
   const paths = {
@@ -124,12 +136,12 @@
   }
 
   /** Reflect server identity; preview account choices never appear in HTTP mode. */
-  async function loadSession(expectedGeneration) {
+  async function loadSession(expectedGeneration, current = () => true) {
     const response = await call('GET', '/me');
-    if (expectedGeneration !== undefined && expectedGeneration !== generation) return { status: 0, stale: true, body: {} };
+    if (!current() || (expectedGeneration !== undefined && expectedGeneration !== generation)) return { status: 0, stale: true, body: {} };
     if (response.status !== 200) return response;
-    if (session.account?.xuid !== response.body.account?.xuid) {
-      discardDraft(); reviewNotes.clear();
+    if (session.account?.id !== response.body.account?.id) {
+      closeXbox(); discardDraft(); reviewNotes.clear();
       submitting = false; uploadGeneration++;
     }
     session = response.body;
@@ -142,10 +154,14 @@
     document.querySelector('.market-heading').classList.toggle('market-heading-compact', route.view === 'mod');
     const box = document.getElementById('account');
     const account = session.account;
-    box.replaceChildren(account ? h('div', { class: 'row' }, h('span', { class: 'who small' }, account.gamertag,
-      h('small', {}, previewMode ? 'Preview account · ' + account.role : account.role)),
-    button(previewMode ? 'Switch account' : 'Sign out', previewMode ? signIn : signOut, 'btn quiet', 'account'))
-      : button(previewMode ? 'Preview account' : 'Sign in', signIn, 'btn quiet', 'account'));
+    box.replaceChildren(account ? h('div', { class: 'account-details' },
+      h('span', { class: 'who small' }, account.display_name,
+        h('small', { class: 'account-email' }, account.email),
+        previewMode || M.atLeast(account, 'moderator') ? h('small', {}, previewMode ? 'Preview account · ' + account.role : account.role) : null),
+      h('div', { class: 'account-actions' },
+        button(account.xbox ? 'Xbox linked' : 'Link Xbox', openXbox, 'btn quiet', 'account:xbox'),
+        button(previewMode ? 'Switch account' : 'Sign out', previewMode ? signIn : signOut, 'btn quiet', 'account')))
+      : button(previewMode ? 'Preview account' : 'Sign in with Google', signIn, 'btn quiet auth-provider', 'account'));
     const links = [['catalogue', '#/', 'Explore'], ['library', '#/library', 'My library (' + session.library.length + ')']];
     if (account) links.push(['mine', '#/mine', 'Your projects']);
     if (M.atLeast(account, 'moderator')) links.push(['staff', '#/staff/queue', 'Review']);
@@ -156,30 +172,199 @@
     }, label)));
   }
 
-  /** Use Microsoft's real redirect only through the configured HTTP adapter. */
+  /** Use Google's real redirect only through the configured HTTP adapter. */
   async function signIn() {
     if (backend.signIn) { backend.signIn(); return; }
     const response = await call('GET', '/auth/personas');
     if (response.status !== 200) { announce(response.body.error, true); return; }
     const dialog = document.getElementById('signin-dialog');
     document.getElementById('signin-body').replaceChildren(...response.body.map(persona =>
-      button(h('span', {}, persona.gamertag, h('small', {}, persona.blurb)), async () => {
-        const signed = await call('POST', '/auth/preview', { xuid: persona.xuid });
+      button(h('span', {}, persona.display_name, h('small', {}, persona.blurb)), async () => {
+        const signed = await call('POST', '/auth/preview', { id: persona.id });
         if (signed.status !== 200) { announce(signed.body.error, true); return; }
         discardDraft(); step = 'project';
         dialog.close(); await loadSession(); await render();
-        announce('Using the ' + persona.gamertag + ' preview account.');
+        announce('Using the ' + persona.display_name + ' preview account.');
       }, 'btn quiet')));
     dialog.showModal();
   }
 
   /** End the session and discard in-memory artifacts on account changes. */
   async function signOut() {
-    generation++; window.clearTimeout(refreshTimer);
+    generation++; closeXbox(); window.clearTimeout(refreshTimer);
     const result = await call('POST', '/auth/signout');
-    if (result.status !== 200) { await render(); return announce(result.body.error, true); }
+    if (result.status !== 200 && result.status !== 204) { await render(); return announce(result.body.error, true); }
     discardDraft(); reviewNotes.clear();
     await loadSession(); location.hash = '#/'; await render(); announce('Signed out.');
+  }
+
+  /** Invalidate pending link work and forget codes whenever the dialog is dismissed. */
+  function stopXbox() {
+    window.clearTimeout(xboxPollTimer); window.clearTimeout(xboxClockTimer);
+    xboxEpoch++; xboxOwner = null; xboxCode = null; xboxBusy = false; xboxConfirm = false;
+    xboxPollGeneration++; xboxPolling = false;
+    xboxReturnFocus = null;
+  }
+
+  /** Close linking on sign-out or identity changes as well as the explicit Close action. */
+  function closeXbox() {
+    const wasOpen = xboxDialog.open;
+    const previous = xboxReturnFocus;
+    if (wasOpen) xboxDialog.close();
+    stopXbox();
+    if (wasOpen) {
+      const key = previous?.getAttribute('data-focus-key');
+      const target = previous?.isConnected ? previous : [...document.querySelectorAll('[data-focus-key]')]
+        .find(control => key && control.getAttribute('data-focus-key') === key);
+      (target || document.getElementById('account').querySelector('button'))?.focus();
+    }
+  }
+
+  /** A pending code or poll may only update the account that opened this dialog. */
+  function currentXbox(epoch) {
+    return xboxDialog.open && xboxEpoch === epoch && xboxOwner === session.account?.id;
+  }
+
+  /** Keep a wall-clock expiry visible without replacing the focused dialog controls. */
+  function updateXboxClock() {
+    window.clearTimeout(xboxClockTimer);
+    const countdown = document.getElementById('xbox-countdown');
+    if (!xboxDialog.open || !xboxCode || !countdown) return;
+    const seconds = Math.max(0, Math.ceil((xboxExpiresAt - Date.now()) / 1000));
+    countdown.textContent = seconds ? 'Expires in ' + Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0')
+      : 'This code expired. Get a new link code.';
+    const copy = document.querySelector('[data-focus-key="xbox:copy"]');
+    if (copy) copy.disabled = !seconds;
+    if (seconds && !document.hidden) xboxClockTimer = window.setTimeout(updateXboxClock, 1000);
+  }
+
+  /** Request a short-lived code using the authenticated transport and its CSRF token. */
+  async function getXboxCode() {
+    if (xboxBusy) return;
+    const epoch = xboxEpoch;
+    xboxBusy = true; renderXbox();
+    const result = await call('POST', '/me/xbox/link-code');
+    if (!currentXbox(epoch)) return;
+    xboxBusy = false;
+    if (result.status !== 200 || typeof result.body?.code !== 'string' || !result.body.code
+      || !Number.isFinite(result.body.expires_in) || result.body.expires_in <= 0) {
+      renderXbox();
+      document.getElementById('xbox-status').textContent = result.body?.error || 'Could not get a link code. Please retry.';
+      return;
+    }
+    xboxCode = result.body.code; xboxExpiresAt = Date.now() + result.body.expires_in * 1000;
+    renderXbox();
+  }
+
+  /** Copy only a current code; clipboard denial leaves the selectable code available. */
+  async function copyXboxCode() {
+    const epoch = xboxEpoch;
+    if (!xboxCode || xboxExpiresAt <= Date.now()) return;
+    try {
+      await window.navigator.clipboard.writeText(xboxCode);
+      if (currentXbox(epoch)) document.getElementById('xbox-status').textContent = 'Link code copied.';
+    } catch (_) {
+      if (currentXbox(epoch)) document.getElementById('xbox-status').textContent = 'Could not copy. Select the code and copy it manually.';
+    }
+  }
+
+  /** Require a separate confirmation before disconnecting the game's delivery account. */
+  async function unlinkXbox() {
+    if (xboxBusy || !xboxConfirm) return;
+    const epoch = xboxEpoch;
+    xboxBusy = true; renderXbox();
+    const result = await call('POST', '/me/xbox/unlink');
+    if (!currentXbox(epoch)) return;
+    if (result.status !== 204) {
+      xboxBusy = false; renderXbox();
+      document.getElementById('xbox-status').textContent = result.body?.error || 'Could not unlink Xbox. Please retry.';
+      return;
+    }
+    const refreshed = await loadSession(undefined, () => currentXbox(epoch));
+    if (!currentXbox(epoch)) return;
+    xboxBusy = false; xboxConfirm = false; renderXbox(); chrome(M.parseRoute(location.hash));
+    document.getElementById('xbox-status').textContent = refreshed.status === 200 ? 'Xbox account unlinked.'
+      : 'Xbox was unlinked. Close and reopen this panel to refresh your account.';
+  }
+
+  /** Render linking, code and linked states using the existing quiet dialog vocabulary. */
+  function renderXbox() {
+    const focused = document.activeElement;
+    const hadFocus = xboxDialog.contains(focused);
+    const focusKey = focused?.getAttribute('data-focus-key');
+    const linked = session.account?.xbox;
+    document.getElementById('xbox-title').textContent = linked ? 'Xbox linked' : 'Link Xbox';
+    document.getElementById('xbox-status').textContent = '';
+    const body = document.getElementById('xbox-body');
+    if (linked) {
+      xboxCode = null; window.clearTimeout(xboxClockTimer);
+      body.replaceChildren(h('p', {}, 'Mods you add are sent to Cinnabar on ', h('strong', {}, linked.gamertag), '.'),
+        xboxConfirm ? h('div', { class: 'gap' }, h('h3', {}, 'Unlink ' + linked.gamertag + '?'),
+          h('p', {}, 'You will need to link an Xbox account again before sending more mods to your game.'),
+          h('div', { class: 'row xbox-actions gap' }, button('Confirm unlink', unlinkXbox, 'btn quiet', 'xbox:confirm'),
+            button('Keep linked', () => { xboxConfirm = false; renderXbox(); }, 'btn quiet', 'xbox:cancel')))
+          : button('Unlink', () => { xboxConfirm = true; renderXbox(); }, 'btn quiet gap', 'xbox:unlink'));
+    } else {
+      body.replaceChildren(h('p', {}, 'Mods you add are sent to the game on your linked Xbox account.'),
+        xboxCode ? h('div', { class: 'gap' },
+          h('div', { class: 'row xbox-code-row' }, h('code', { id: 'xbox-code', class: 'xbox-code' }, xboxCode),
+            button('Copy code', copyXboxCode, 'btn quiet', 'xbox:copy')),
+          h('p', { id: 'xbox-countdown', class: 'small muted', role: 'timer', 'aria-live': 'off' }),
+          h('p', {}, 'In Cinnabar, open Settings → Account → Link website account and enter this code.')) : null,
+        button(xboxBusy ? 'Getting code…' : xboxCode ? 'Get a new link code' : 'Get link code', getXboxCode, 'btn primary gap', 'xbox:code'),
+        previewMode && xboxCode ? button('Simulate linking in game', async () => {
+          const epoch = xboxEpoch;
+          await call('POST', '/auth/preview/xbox-link');
+          if (currentXbox(epoch)) await pollXbox();
+        }, 'btn quiet gap', 'xbox:simulate') : null);
+    }
+    body.querySelectorAll('button').forEach(control => { control.disabled = xboxBusy; });
+    updateXboxClock();
+    if (hadFocus && !focused.isConnected) {
+      const target = [...body.querySelectorAll('button')].find(control => !control.disabled && control.getAttribute('data-focus-key') === focusKey)
+        || body.querySelector('button:not(:disabled)') || document.getElementById('xbox-close');
+      target.focus();
+    }
+  }
+
+  /** Poll only while linking is open and visible, without overlapping a write or another poll. */
+  function scheduleXboxPoll() {
+    window.clearTimeout(xboxPollTimer);
+    if (xboxDialog.open && !document.hidden && xboxOwner === session.account?.id) {
+      xboxPollTimer = window.setTimeout(pollXbox, 3000);
+    }
+  }
+
+  /** Refresh /me to observe the link completed in game; dismissed or hidden polls cannot update UI. */
+  async function pollXbox() {
+    window.clearTimeout(xboxPollTimer);
+    if (!xboxDialog.open || document.hidden) return;
+    if (writes || xboxBusy || xboxPolling) { scheduleXboxPoll(); return; }
+    const epoch = xboxEpoch;
+    const owner = xboxOwner;
+    const pollGeneration = xboxPollGeneration;
+    const before = JSON.stringify(session.account?.xbox);
+    xboxPolling = true;
+    const result = await loadSession(undefined, () => currentXbox(epoch) && !document.hidden && pollGeneration === xboxPollGeneration);
+    if (pollGeneration === xboxPollGeneration) xboxPolling = false;
+    if (result.stale) return;
+    if (result.status === 200 && owner !== session.account?.id) { await render(); return; }
+    if (!currentXbox(epoch) || document.hidden) return;
+    if (result.status !== 200) document.getElementById('xbox-status').textContent = 'Could not refresh your Xbox link. Retrying…';
+    else {
+      chrome(M.parseRoute(location.hash));
+      if (before !== JSON.stringify(session.account.xbox)) { xboxConfirm = false; renderXbox(); }
+    }
+    scheduleXboxPoll();
+  }
+
+  /** Let an account link Xbox without losing the current project or automatically sending a mod. */
+  async function openXbox() {
+    if (!session.account) return signIn();
+    if (xboxDialog.open) return;
+    stopXbox(); xboxOwner = session.account.id;
+    xboxReturnFocus = document.activeElement;
+    renderXbox(); xboxDialog.showModal(); scheduleXboxPoll();
   }
 
   /** Show actual permissions with their client-owned descriptions. */
@@ -236,11 +421,18 @@
   /** Add to the account library without claiming an installation or runtime grant. */
   async function addToLibrary(mod, control) {
     if (!session.account) return signIn();
+    if (!session.account.xbox) return openXbox();
     control.disabled = true;
-    const owner = session.account.xuid;
+    const owner = session.account.id;
     const result = await call('POST', '/mods/' + encodeURIComponent(mod.slug) + '/send');
     control.disabled = false;
-    if (owner !== session.account?.xuid) return;
+    if (owner !== session.account?.id) return;
+    if (result.status === 409) {
+      await loadSession();
+      if (owner !== session.account?.id) return;
+      chrome(M.parseRoute(location.hash)); openXbox();
+      return;
+    }
     if (result.status !== 200) return announce(result.body.error, true);
     await loadSession(); chrome(M.parseRoute(location.hash));
     control.textContent = 'In your library';
@@ -259,20 +451,20 @@
     removingLibrary = true;
     control.textContent = 'Removing…';
     setRemovalDisabled(true);
-    const owner = session.account.xuid;
+    const owner = session.account.id;
     const token = generation;
     try {
       const result = await call('POST', '/mods/' + encodeURIComponent(selection.slug) + '/remove', {
         sha256: selection.sha256, sent_at: selection.sent_at,
       });
-      if (owner !== session.account?.xuid || token !== generation) return;
+      if (owner !== session.account?.id || token !== generation) return;
       if (result.status !== 200 && result.status !== 409) return announce(result.body.error, true);
       const refreshed = await loadSession(token);
       if (refreshed.stale) return;
       if (refreshed.status !== 200) return announce(result.status === 200
         ? 'Removed from your library. Refresh the page to load your current library.' : refreshed.body.error, true);
       await render();
-      if (owner !== session.account?.xuid || generation !== token + 1) return;
+      if (owner !== session.account?.id || generation !== token + 1) return;
       announce(result.status === 409 ? result.body.error : previewMode
         ? 'Removed from your preview library.' : 'Removed from your library. Manage installed mods in Cinnabar.', result.status === 409);
     } finally {
@@ -419,7 +611,7 @@
 
   /** Restore only draft fields for this account; artifact bytes are never stored in browser storage. */
   function loadDraft() {
-    const owner = session.account.xuid;
+    const owner = session.account.id;
     if (draft && owner === draftOwner) return;
     draftOwner = owner;
     let saved;
@@ -485,7 +677,7 @@
   /** Build the creator's four-step editor, keeping every local field across step changes. */
   async function editor(token) {
     if (!session.account) return mount(token, h('section', { class: 'empty' }, h('h2', {}, 'Give your mod a home.'),
-      h('p', {}, 'Sign in to prepare a project and submit a release.'), button(previewMode ? 'Choose a preview account' : 'Sign in with Microsoft', signIn, 'btn primary', 'editor:signin')));
+      h('p', {}, 'Sign in to prepare a project and submit a release.'), button(previewMode ? 'Choose a preview account' : 'Sign in with Google', signIn, 'btn primary', 'editor:signin')));
     if (submitting) return mount(token, h('section', { class: 'empty', role: 'status' }, h('h2', {}, 'Uploading your release…'), h('p', {}, 'Keep this tab open. Your draft will stay available if the upload fails.')));
     loadDraft();
     const form = h('form', { class: 'editor', novalidate: true });
@@ -494,7 +686,7 @@
     const previewSummary = h('p', {}, draft.summary || 'Your summary appears here.');
     const preview = h('aside', { class: 'editor-aside' }, h('p', { class: 'small muted', style: 'margin-bottom:12px' }, 'Listing preview'),
       h('div', { class: 'preview-card' }, modIcon({ capabilities: [], category: draft.category }), previewName,
-        h('span', { class: 'small muted' }, session.account.gamertag), previewSummary, h('span', { class: 'tag' }, 'Free')),
+        h('span', { class: 'small muted' }, session.account.display_name), previewSummary, h('span', { class: 'tag' }, 'Free')),
       h('p', { class: 'rule small muted' }, 'Drafts are private to this account in this browser. Nothing is published until the service approves a release.'));
     const stepButtons = steps.map((name, index) => h('li', {}, button(h('span', { class: 'row' }, h('span', { class: 'num' }, index + 1),
       ['Project', 'Images', 'Release', 'Checks & publish'][index]), () => { step = name; render(); }, step === name ? 'active' : '', 'step:' + name)));
@@ -600,7 +792,7 @@
       storage.removeItem(draftKey(owner));
       draft = null; step = 'project'; location.hash = '#/mine';
     });
-    mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Give your mod a home.'), h('p', { class: 'muted' }, 'Publishing as ' + session.account.gamertag))),
+    mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Give your mod a home.'), h('p', { class: 'muted' }, 'Publishing as ' + session.account.display_name))),
       h('div', { class: 'editor-layout' }, h('aside', {}, h('ol', { class: 'steps' }, stepButtons)), form, preview)));
   }
 
@@ -658,7 +850,7 @@
     if (result.status !== 200) { body.append(failure(result.body.error)); return; }
     const version = result.body;
     const diff = permissionDiff(version);
-    const noteKey = session.account.xuid + ':' + version.id;
+    const noteKey = session.account.id + ':' + version.id;
     const notes = h('textarea', { id: 'review-note', 'data-focus-key': 'review:note', value: reviewNotes.get(noteKey) || '',
       placeholder: 'Explain the decision or requested change.', maxlength: 1000,
       oninput: event => { reviewNotes.set(noteKey, event.target.value); updateApprove(); } });
@@ -696,7 +888,7 @@
     if (liveMode) {
       trust.append(h('p', { class: 'small gap' }, version.trust?.trusted
         ? 'Established creator for this project until ' + new Date(version.trust.expires_at).toLocaleDateString() + '.' : 'Automatic publication has not been established for this project.'));
-      if (M.atLeast(session.account, 'admin') && version.creator !== session.account.xuid) {
+      if (M.atLeast(session.account, 'admin') && version.creator !== session.account.id) {
         const key = noteKey + ':trust';
         const reason = h('input', { id: 'trust-reason', value: reviewNotes.get(key) || '', maxlength: 500, 'data-focus-key': 'review:trust-reason',
           oninput: event => reviewNotes.set(key, event.target.value) });
@@ -722,7 +914,7 @@
           : h('p', { class: 'warning small gap' }, 'This API response does not include command-value changes. Compare the exact grant lists before approving.'),
         diff.expanded ? h('p', { class: 'warning small gap' }, 'This release expands authority and cannot publish automatically.') : null) : null,
       h('dl', { class: 'facts' }, h('dt', {}, 'Artifact SHA-256'), h('dd', {}, version.sha256),
-        h('dt', {}, 'Approvals'), h('dd', {}, version.approvals.map(person => person.gamertag || person.xuid).join(', ') || 'None'),
+        h('dt', {}, 'Approvals'), h('dd', {}, version.approvals.map(person => person.display_name || person.id).join(', ') || 'None'),
         h('dt', {}, 'Source'), h('dd', {}, C.externalUrl(version.source) ? h('a', { href: C.externalUrl(version.source), rel: 'noopener noreferrer' }, version.source) : 'Not linked'))),
     h('aside', { class: 'verdict' }, h('h3', {}, 'Decision'), h('p', { class: 'small muted gap' }, approve.ok ? 'Compare the file, permissions and description before approving. Explain any AI flags in your note.' : approve.reason),
       backend.fileUrl && backend.fileUrl(version.id) ? h('a', { class: 'btn quiet gap', href: backend.fileUrl(version.id), rel: 'noopener noreferrer', target: '_blank' }, 'Download component') : null,
@@ -767,12 +959,12 @@
     const role = h('select', { id: 'staff-role' }, ['player', 'moderator', 'admin'].map(value => h('option', { value }, value)));
     const reason = h('textarea', { id: 'staff-reason', required: true, maxlength: 2000 });
     const error = h('p', { class: 'error', role: 'alert' });
-    body.append(h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, 'Gamertag'), h('th', {}, 'Role'))),
-      h('tbody', {}, people.map(person => h('tr', {}, h('td', {}, person.gamertag), h('td', {}, person.role)))))),
+    body.append(h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, 'Display name'), h('th', {}, 'Role'))),
+      h('tbody', {}, people.map(person => h('tr', {}, h('td', {}, person.display_name), h('td', {}, person.role)))))),
     M.atLeast(session.account, 'admin') ? h('form', { class: 'sidebox gap', onsubmit: async event => {
-      event.preventDefault(); const result = await call('POST', '/staff/people/role', { gamertag: name.value, role: role.value, reason: reason.value });
+      event.preventDefault(); const result = await call('POST', '/staff/people/role', { display_name: name.value, role: role.value, reason: reason.value });
       if (result.status !== 200) { error.textContent = result.body.error; return; } await loadSession(); render(); announce('Staff assignment updated.');
-    } }, h('h2', {}, 'Change a staff assignment'), h('label', { class: 'field gap', for: 'staff-name' }, 'Gamertag', name),
+    } }, h('h2', {}, 'Change a staff assignment'), h('label', { class: 'field gap', for: 'staff-name' }, 'Display name', name),
     h('label', { class: 'field', for: 'staff-role' }, 'Role', role), h('label', { class: 'field', for: 'staff-reason' }, 'Reason', reason), error,
     h('button', { type: 'submit', class: 'btn primary' }, 'Save assignment')) : null);
   }
@@ -836,12 +1028,20 @@
   }
 
   document.querySelector('[data-close]').addEventListener('click', () => document.getElementById('signin-dialog').close());
+  document.getElementById('xbox-close').addEventListener('click', closeXbox);
+  xboxDialog.addEventListener('close', stopXbox);
+  xboxDialog.addEventListener('cancel', event => { event.preventDefault(); closeXbox(); });
   window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
   document.addEventListener('visibilitychange', () => {
     window.clearTimeout(refreshTimer);
-    if (!document.hidden) scheduleRefresh(generation, M.parseRoute(location.hash));
+    window.clearTimeout(xboxPollTimer); window.clearTimeout(xboxClockTimer);
+    xboxPollGeneration++; xboxPolling = false;
+    if (!document.hidden) {
+      scheduleRefresh(generation, M.parseRoute(location.hash));
+      updateXboxClock(); scheduleXboxPoll();
+    }
   });
-  window.addEventListener('pagehide', () => window.clearTimeout(refreshTimer));
+  window.addEventListener('pagehide', () => { window.clearTimeout(refreshTimer); closeXbox(); });
   document.getElementById('preview-note').hidden = !previewMode;
   document.getElementById('reset-preview').addEventListener('click', async () => {
     backend.reset(); discardDraft(); await loadSession(); await render(); announce('Sample data restored.');
@@ -850,7 +1050,7 @@
   if (signInError) {
     const messages = { cancelled: 'Sign-in was cancelled.', child_account: 'Xbox family settings must allow this account to sign in.',
       no_xbox_profile: 'This Microsoft account does not have an Xbox profile.', xbox_unavailable: 'Xbox sign-in is unavailable. Retry shortly.' };
-    announce(messages[signInError] || 'Sign-in could not finish. Please retry.', true);
+    announce(Object.hasOwn(messages, signInError) ? messages[signInError] : 'Sign-in could not finish. Please retry.', true);
     history.replaceState(null, '', location.pathname + location.hash);
   }
   loadSession().then(result => { if (result.status !== 200) announce(result.body.error, true); return render(); });

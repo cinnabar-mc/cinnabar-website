@@ -8,6 +8,28 @@ No SPA fallback or dynamic Worker is required.
 
 ## Website behavior
 
+- Live sign-in uses a Cinnabar account through Google. The provider is named on the
+  sign-in control; additional providers can be added alongside it later. Signed-in
+  controls show the display name, quieter email, staff role when applicable, Sign
+  out and Link Xbox / Xbox linked. The explicit mock build keeps its persona
+  chooser, including an unlinked GoogleBuilder account and a labelled simulated
+  in-game linking action.
+- Xbox is a separate delivery identity. An unlinked account can browse, publish
+  and keep a library and local drafts. Add to Cinnabar opens the linking panel
+  before sending; the API's unlinked-account 409 also opens it. Linking does not
+  automatically send the previously selected mod: choose Add to Cinnabar again.
+- The linking panel explains that mods go to the linked Xbox account. Get link
+  code displays a selectable monospace code, Copy code and a wall-clock expiry
+  countdown. In Cinnabar, open Settings → Account → Link website account and enter
+  this code. Expired codes cannot be copied; request a new one. Clipboard failures
+  leave the code available to copy manually.
+- While the panel is open and visible, `/me` refreshes every three seconds to
+  detect the link and show the gamertag. Closing the panel, Escape, page exit or
+  hiding the tab stops its timers; stale poll responses cannot update the session.
+  Returning to a visible tab resumes polling and updates the expiry immediately.
+  Unlink requires an explicit confirmation and retains the Cinnabar account,
+  library and local drafts. Account changes close the panel and discard its code.
+
 - Compact catalogue rows show each mod's creator, summary, category and version.
   Project pages keep the install action prominent, with expandable permissions
   and dedicated overview, version and permission tabs.
@@ -22,8 +44,9 @@ No SPA fallback or dynamic Worker is required.
   rendered as DOM nodes. Creator HTML is plain text. Images accept raster data
   in local drafts or API-derived HTTPS URLs; captions and alt text are plain text.
 - Project → Images → Release → Checks & publish keeps a browser-local draft per
-  account. Image inputs are limited to 8 MiB and 24 megapixels, resized to at most
-  1600 pixels and re-encoded as WebP. Live uploads allow four prepared images, each
+  Cinnabar account ID, independent of Xbox linking or gamertag changes. Older
+  Xbox-keyed local drafts are not reassigned to a new account. Image inputs are
+  limited to 8 MiB and 24 megapixels, resized to at most 1600 pixels and re-encoded as WebP. Live uploads allow four prepared images, each
   below the API's 1 MiB limit; the local preview allows twelve. Draft image data is
   capped at 2 MiB. Component bytes are never saved in browser storage.
 - Strict metadata checks enforce the whole component header, known section IDs,
@@ -54,6 +77,24 @@ It includes the host session cookie, repeats `/me`'s CSRF token on writes and se
 release bytes as multipart forms. The API must derive identity, hashes, requested
 grants and publication authorization from trusted state and actual uploaded bytes.
 
+Sign-in navigates to `{api}/v1/auth/google/start?return_to=<current URL>`,
+including the current hash route. The API returns to that URL and may add
+`signin_error=<code>`. The website selects messages with `Object.hasOwn`; unknown
+codes (including `__proto__`) use inert generic error text.
+
+`GET /v1/me` returns `{account, library, csrf, game_online}`. `account` is null or
+`{id, display_name, email, role, suspended, xbox}`, where `xbox` is null or
+`{xuid, gamertag}`. Draft keys, ownership checks, review-note keys, approval
+identities and stale-response guards use the Cinnabar `id`, never the Xbox XUID.
+Staff records and approvals show `display_name`; role changes send `display_name`.
+
+`POST /v1/me/xbox/link-code` uses credentials and CSRF and returns
+`{code, expires_in}` (seconds). `POST /v1/me/xbox/unlink` uses the same protections
+and returns 204 with no JSON body. Linking completes in the game, not in a browser
+provider flow. `POST /v1/mods/:slug/send` returns 409 with
+`{error: "Link your Xbox account in Cinnabar first."}` if Xbox is not linked.
+The website does not persist link codes in browser storage.
+
 Multipart submissions contain `listing`, one component `file`, repeated `images`
 file parts, and ordered `image_metadata` JSON entries `{caption, alt}`. The adapter
 decodes only locally prepared PNG/JPEG/WebP data; it never fetches arbitrary image
@@ -82,12 +123,14 @@ client value types fail the build rather than silently becoming booleans.
 
 ## Required before production enablement
 
-1. Test Microsoft personal-account OAuth + PKCE and Xbox/XUID resolution, bound
-   state, exact redirect/origin allowlists, Secure HttpOnly cookies, CSRF, role
-   revocation and account-switch isolation on the real site/API domains.
+1. Deploy the parallel Cinnabar account API change before this website: Google
+   OAuth, the new `/me` shape with opaque IDs, code issuance/game redemption,
+   unlink and send-without-link 409 behavior. Test bound OAuth state, exact
+   redirect/origin allowlists, Secure HttpOnly cookies, CSRF, role revocation,
+   account-switch isolation and Xbox linking on the real site/API/game domains.
 2. Merge and deploy [the API implementation](https://github.com/cinnabar-mc/cinnabar-api/pull/32)
    before deploying this website. Provision the private artifact bucket,
-   the separate scanner and its limited credentials, signing and Microsoft secrets.
+   the separate scanner and its limited credentials, signing and Google OAuth secrets.
    The API owns static validation, raster decoding, bounded AI triage, trust,
    signed publication and recovery. Browser checks can be bypassed.
 3. Verify scanner failures, expired evidence, trust revocation and interrupted
@@ -113,5 +156,8 @@ that must never run, inert Markdown/media, private pending metadata and removabl
 unavailable entries. Controller tests cover focus/search retention, identity-scoped
 drafts/libraries, stale file checks, server scan gates, AI flag notes, status polling,
 session expiry and upload recovery. HTTP tests assert multipart bytes/metadata,
-digest-derived private/public gallery routes and CSRF cleanup. Renderer tests
-assert a live default, an explicit mock override and generated client descriptors.
+digest-derived private/public gallery routes, Google return URLs, credentialed
+link writes, empty unlink responses and CSRF cleanup. Account UI tests cover
+prototype-safe sign-in errors, code/countdown/copy, poll pause and cancellation,
+confirmed unlink, send interception and ID-keyed drafts with and without Xbox.
+Renderer tests assert a live default, an explicit mock override and generated client descriptors.

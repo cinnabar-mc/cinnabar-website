@@ -14,11 +14,12 @@ const root = path.join(__dirname, '..');
 async function settle() { for (let i = 0; i < 8; i++) await new Promise(resolve => setImmediate(resolve)); }
 
 /** Exercise the real controller against a DOM and the actual mock transport. */
-async function page(hash = '#/', stored, http) {
+async function page(hash = '#/', stored, http, options = {}) {
   const { window, document } = parseHTML(fs.readFileSync(path.join(root, 'dist/mods/index.html'), 'utf8'));
   const memory = stored || new Map();
   const storage = { getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: key => memory.delete(key) };
-  const location = { hash, search: '', pathname: '/mods/' };
+  const location = { hash, search: options.search || '', pathname: '/mods/' };
+  location.href = 'https://site.test/mods/' + location.search + hash;
   // LinkeDOM deliberately omits navigation, layout and focus; model only those browser primitives.
   Object.defineProperty(document, 'activeElement', { value: document.body, writable: true });
   window.HTMLElement.prototype.focus = function () { if (this.isConnected) document.activeElement = this; };
@@ -30,16 +31,19 @@ async function page(hash = '#/', stored, http) {
   window.HTMLElement.prototype.showModal = function () { this.open = true; };
   window.HTMLElement.prototype.close = function () { this.open = false; };
   const listeners = {};
-  const timers = new Map(); let timerId = 0;
+  const timers = new Map(); let timerId = 0; let clock = Date.now();
+  class ClockDate extends Date { static now() { return clock; } }
+  const copied = [];
   const win = { CinnabarMarket: M, CinnabarContent: C, CinnabarMarketMock: Mock,
     CinnabarMarketHttp: { createHttpApi: () => http },
     CINNABAR_DOWNLOADS: { marketplace: { backend: http ? 'http' : 'mock', api_url: 'https://api.invalid/v1' } }, localStorage: storage,
     CinnabarValidation: { validate: async () => ({ imports: [], exports: [] }) },
     addEventListener: (name, fn) => { listeners[name] = fn; }, scrollTo() {}, fetch() {}, location,
-    setTimeout: fn => { timers.set(++timerId, fn); return timerId; }, clearTimeout: id => timers.delete(id) };
+    navigator: { clipboard: { writeText: async code => { copied.push(code); } } },
+    setTimeout: (fn, delay) => { timers.set(++timerId, { fn, at: clock + delay }); return timerId; }, clearTimeout: id => timers.delete(id) };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'marketplace.js'), 'utf8'), {
     window: win, document, location, history: { replaceState() {} }, URLSearchParams, URL,
-    crypto: webcrypto, AbortController, TextDecoder, TextEncoder, Uint8Array, ArrayBuffer,
+    Date: ClockDate, crypto: webcrypto, AbortController, TextDecoder, TextEncoder, Uint8Array, ArrayBuffer,
   });
   await settle();
   /** Change routes exactly as a browser hashchange would. */
@@ -49,9 +53,14 @@ async function page(hash = '#/', stored, http) {
   /** Enter a value without rerendering the focused input. */
   async function input(selector, value) { const element = document.querySelector(selector); element.value = value; element.focus(); element.dispatchEvent(new window.Event('input', { bubbles: true })); await settle(); }
   /** Select a fictional persona through the actual sign-in dialogue. */
-  async function signIn(name) { await click(document.querySelector('#account button')); await click([...document.querySelectorAll('#signin-body button')].find(button => button.textContent.includes(name))); }
-  async function tick() { const queued = [...timers.values()]; timers.clear(); for (const fn of queued) await fn(); await settle(); }
-  return { window, document, memory, win, route, click, input, signIn, tick, timers, text: () => document.getElementById('app').textContent };
+  async function signIn(name) { await click(document.querySelector('#account [data-focus-key="account"]')); await click([...document.querySelectorAll('#signin-body button')].find(button => button.textContent.includes(name))); }
+  async function tick(ms = 10000) {
+    clock += ms;
+    const queued = [...timers.entries()].filter(([, timer]) => timer.at <= clock);
+    for (const [id, timer] of queued) { if (timers.delete(id)) await timer.fn(); }
+    await settle();
+  }
+  return { window, document, memory, win, route, click, input, signIn, tick, timers, copied, text: () => document.getElementById('app').textContent };
 }
 
 test('search retains input focus, category state survives a detail round trip, and gallery absence is explicit', async () => {
@@ -97,7 +106,7 @@ test('library selections are isolated by identity and removal keeps a usable foc
 /** A live library fixture with observable mutations and controllable delayed responses. */
 function libraryApi() {
   const selection = { slug: 'saved-mod', version: '1.0.0', sha256: 'a'.repeat(64), sent_at: '2026-01-01T00:00:00.000Z' };
-  const api = { backend: 'http', calls: [], account: { xuid: 'player', gamertag: 'Player', role: 'player' },
+  const api = { backend: 'http', calls: [], account: { id: 'player', display_name: 'Player', email: 'player@example.test', xbox: { xuid: 'xbox-player', gamertag: 'Player' }, role: 'player' },
     library: [selection], mods: [], remove: async () => { api.library = []; return { status: 200, body: { removed: true } }; },
     request: async (method, path, body) => {
       api.calls.push(structuredClone({ method, path, body }));
@@ -159,7 +168,7 @@ test('pending removal rejects duplicate clicks and cannot replace a later route 
   await p.click(control); await p.click(control);
   assert.equal(control.disabled, true);
   assert.equal(api.calls.filter(call => call.method === 'POST').length, 1);
-  api.account = { xuid: 'other', gamertag: 'Other player', role: 'player' }; api.library = [];
+  api.account = { id: 'other', display_name: 'Other player', email: 'other@example.test', xbox: null, role: 'player' }; api.library = [];
   await p.route('#/library');
   assert.match(p.document.getElementById('account').textContent, /Other player/);
   await p.route('#/');
@@ -256,7 +265,7 @@ test('staff queue shows exact command changes and rejected decisions preserve th
 test('an older HTTP API cannot approve command updates from a name-only diff', async () => {
   const memory = new Map();
   const api = Mock.createMockApi({ getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) });
-  await api.request('POST', '/auth/preview', { xuid: '2535400000000301' });
+  await api.request('POST', '/auth/preview', { id: '2535400000000301' });
   const state = JSON.parse(memory.get(Mock.STORAGE_KEY));
   const next = state.versions.find(version => version.slug === 'coords-hud' && version.status === 'submitted');
   next.grants = { hud: true, commands: ['op'] }; next.reach = 3;
@@ -299,7 +308,7 @@ function liveRelease(state = 'queued') {
 /** HTTP-shaped fixture keeps session, reads and mutation responses observable. */
 function liveApi(version, role = 'moderator') {
   const calls = [];
-  const api = { backend: 'http', calls, account: { xuid: role === 'player' ? 'creator' : 'staff', gamertag: 'Signed in', role },
+  const api = { backend: 'http', calls, account: { id: role === 'player' ? 'creator' : 'staff', display_name: 'Signed in', email: 'signedin@example.test', xbox: null, role },
     fileUrl: id => 'https://api.invalid/v1/staff/versions/' + id + '/file',
     request: async (method, path, body) => {
       calls.push({ method, path, body });
@@ -389,4 +398,199 @@ test('failed real uploads retain local images and description and forward the co
   assert.equal(p.document.querySelector('#draft-description').value, 'Long description retained');
   await p.click(p.document.querySelector('[data-focus-key="step:media"]'));
   assert.equal(p.document.querySelectorAll('.media-item').length, 1);
+});
+
+/** A live account fixture with separate website identity and optional Xbox delivery identity. */
+function accountApi(linked = false) {
+  const api = libraryApi();
+  api.account = { id: 'google-account-1', display_name: 'Google Player', email: 'player@example.test', role: 'admin', suspended: false,
+    xbox: linked ? { xuid: 'xbox-1', gamertag: 'Game Player' } : null };
+  api.library = [];
+  const mod = { ...liveRelease('complete'), status: 'approved', summary: 'A real API response fixture.', history: [] };
+  api.mods = [mod];
+  api.send = () => ({ status: 200, body: { game_online: true } });
+  api.me = () => ({ status: 200, body: structuredClone({ account: api.account, library: api.library, csrf: 'csrf-1', game_online: false }) });
+  api.request = async (method, path, body) => {
+    api.calls.push({ method, path, body });
+    if (path === '/me') return api.me();
+    if (path === '/mods') return { status: 200, body: api.mods };
+    if (path === '/mods/live-mod') return { status: 200, body: mod };
+    if (path === '/me/xbox/link-code') return { status: 200, body: { code: 'ABCD-1234', expires_in: 300 } };
+    if (path === '/me/xbox/unlink') { api.account.xbox = null; return { status: 204, body: null }; }
+    if (path.endsWith('/send')) return api.send();
+    if (path === '/auth/signout') { api.account = null; return { status: 204, body: null }; }
+    return { status: 404, body: { error: 'Not found.' } };
+  };
+  return api;
+}
+
+/** Read the linking panel's status independently of the underlying marketplace route. */
+function xboxText(p) { return p.document.getElementById('xbox-dialog').textContent; }
+
+/** Change tab visibility through the same event used in browsers. */
+function visibility(p, hidden) {
+  Object.defineProperty(p.document, 'hidden', { configurable: true, value: hidden });
+  p.document.dispatchEvent(new p.window.Event('visibilitychange'));
+}
+
+test('live Google account chrome renders display name, quiet email, staff role and separate Xbox status', async () => {
+  const api = accountApi();
+  const p = await page('#/', undefined, api);
+  const account = p.document.getElementById('account');
+  assert.match(account.textContent, /Google Player/);
+  assert.equal(account.querySelector('.account-email').textContent, 'player@example.test');
+  assert.match(account.textContent, /admin/);
+  assert.match(account.textContent, /Link Xbox/);
+  assert.doesNotMatch(account.textContent, /undefined/);
+  await p.click(account.querySelector('[data-focus-key="account"]'));
+  assert.equal(p.document.querySelector('#account button').textContent, 'Sign in with Google');
+  assert.equal(p.document.querySelector('#preview-note').hidden, true);
+});
+
+test('signin_error uses only own messages and never renders injected markup or prototype members', async () => {
+  for (const [code, expected] of [['cancelled', 'Sign-in was cancelled.'], ['__proto__', 'Sign-in could not finish. Please retry.'],
+    ['constructor', 'Sign-in could not finish. Please retry.'], ['<img src=x onerror=alert(1)>', 'Sign-in could not finish. Please retry.']]) {
+    const api = accountApi(); api.account = null;
+    const p = await page('#/', undefined, api, { search: '?signin_error=' + encodeURIComponent(code) });
+    assert.equal(p.document.getElementById('feedback').textContent, expected);
+    assert.equal(p.document.querySelector('#feedback img'), null);
+  }
+});
+
+test('link code shows instructions, copy feedback and a wall-clock countdown with expiry recovery', async () => {
+  const api = accountApi(); const p = await page('#/', undefined, api);
+  await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
+  assert.match(xboxText(p), /Mods you add are sent to the game on your linked Xbox account/);
+  await p.click(p.document.querySelector('[data-focus-key="xbox:code"]'));
+  assert.deepEqual(api.calls.find(call => call.path === '/me/xbox/link-code'), { method: 'POST', path: '/me/xbox/link-code', body: undefined });
+  assert.equal(p.document.getElementById('xbox-code').textContent, 'ABCD-1234');
+  assert.match(xboxText(p), /In Cinnabar, open Settings → Account → Link website account and enter this code\./);
+  assert.equal(p.document.getElementById('xbox-countdown').textContent, 'Expires in 5:00');
+  await p.tick(1000);
+  assert.equal(p.document.getElementById('xbox-countdown').textContent, 'Expires in 4:59');
+  await p.click(p.document.querySelector('[data-focus-key="xbox:copy"]'));
+  assert.deepEqual(p.copied, ['ABCD-1234']);
+  assert.match(xboxText(p), /Link code copied/);
+  await p.tick(299000);
+  assert.match(xboxText(p), /This code expired/);
+  assert.equal(p.document.querySelector('[data-focus-key="xbox:copy"]').disabled, true);
+  await p.click(p.document.querySelector('[data-focus-key="xbox:code"]'));
+  assert.equal(p.document.getElementById('xbox-countdown').textContent, 'Expires in 5:00');
+});
+
+test('link polling detects gamertag, pauses while hidden, resumes with current expiry and stops on close', async () => {
+  const api = accountApi(); const p = await page('#/', undefined, api);
+  await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
+  await p.click(p.document.querySelector('[data-focus-key="xbox:code"]'));
+  const reads = () => api.calls.filter(call => call.path === '/me').length;
+  visibility(p, true);
+  assert.equal(p.timers.size, 0);
+  const before = reads(); await p.tick(20000); assert.equal(reads(), before);
+  visibility(p, false);
+  assert.equal(p.document.getElementById('xbox-countdown').textContent, 'Expires in 4:40');
+  api.account.xbox = { xuid: 'different-xbox-id', gamertag: 'Linked Gamertag' };
+  await p.tick(3000);
+  assert.equal(reads(), before + 1);
+  assert.match(xboxText(p), /Linked Gamertag/);
+  assert.equal(p.document.getElementById('xbox-code'), null);
+  assert.equal(p.document.querySelector('[data-focus-key="account:xbox"]').textContent, 'Xbox linked');
+  await p.click(p.document.getElementById('xbox-close'));
+  assert.equal(p.document.getElementById('xbox-dialog').open, false);
+  assert.equal(p.document.activeElement.getAttribute('data-focus-key'), 'account:xbox');
+  assert.equal(p.timers.size, 0);
+  await p.tick(); assert.equal(reads(), before + 1);
+});
+
+test('dismissed and hidden in-flight link polls cannot replace a newer session', async () => {
+  for (const dismiss of ['close', 'hide', 'hide-resume']) {
+    const api = accountApi(); const p = await page('#/', undefined, api);
+    await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
+    let finish;
+    api.me = () => new Promise(resolve => { finish = resolve; });
+    const pending = p.tick(3000); await settle();
+    if (dismiss === 'close') await p.click(p.document.getElementById('xbox-close'));
+    else { visibility(p, true); if (dismiss === 'hide-resume') visibility(p, false); }
+    finish({ status: 200, body: { account: { ...api.account, display_name: 'Stale account', xbox: { xuid: 'x', gamertag: 'Stale link' } }, library: [] } });
+    await pending;
+    assert.doesNotMatch(p.document.getElementById('account').textContent, /Stale/);
+    assert.doesNotMatch(xboxText(p), /Could not refresh/);
+    assert.equal(p.timers.size, dismiss === 'hide-resume' ? 1 : 0);
+  }
+});
+
+test('unlink requires a separate confirmation and preserves the library and account identity', async () => {
+  const api = accountApi(true); api.library = [{ slug: 'saved', sha256: 'a'.repeat(64) }];
+  const p = await page('#/', undefined, api);
+  await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
+  assert.match(xboxText(p), /Game Player/);
+  await p.click(p.document.querySelector('[data-focus-key="xbox:unlink"]'));
+  assert.match(xboxText(p), /Unlink Game Player\?/);
+  assert.equal(api.calls.some(call => call.path === '/me/xbox/unlink'), false);
+  await p.click(p.document.querySelector('[data-focus-key="xbox:cancel"]'));
+  assert.equal(api.calls.some(call => call.path === '/me/xbox/unlink'), false);
+  await p.click(p.document.querySelector('[data-focus-key="xbox:unlink"]'));
+  await p.click(p.document.querySelector('[data-focus-key="xbox:confirm"]'));
+  assert.equal(api.calls.filter(call => call.path === '/me/xbox/unlink').length, 1);
+  assert.match(xboxText(p), /Get link code/);
+  assert.match(p.document.getElementById('account').textContent, /Google Player/);
+  assert.match(p.document.getElementById('navigation').textContent, /My library \(1\)/);
+});
+
+test('Add to Cinnabar opens linking before sending, including a server 409 after a stale linked session', async () => {
+  for (const linked of [false, true]) {
+    const api = accountApi(linked);
+    api.send = () => { api.account.xbox = null; return { status: 409, body: { error: 'Link your Xbox account in Cinnabar first.' } }; };
+    const p = await page('#/mod/live-mod', undefined, api);
+    await p.click(p.document.querySelector('[data-focus-key="project:add"]'));
+    assert.equal(p.document.getElementById('xbox-dialog').open, true);
+    assert.match(xboxText(p), /Get link code/);
+    assert.equal(api.calls.filter(call => call.path.endsWith('/send')).length, linked ? 1 : 0);
+  }
+});
+
+test('drafts use Google account ids without Xbox, survive linking and remain isolated after account switches', async () => {
+  const api = accountApi(); const p = await page('#/submit', undefined, api);
+  await p.input('#draft-name', 'Google draft');
+  await p.click(p.document.querySelector('[data-focus-key="draft:save"]'));
+  assert.equal(JSON.parse(p.memory.get('cinnabar.marketplace.draft.google-account-1')).name, 'Google draft');
+  assert.equal(p.memory.has('cinnabar.marketplace.draft.undefined'), false);
+  await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
+  api.account.xbox = { xuid: 'not-a-website-id', gamertag: 'Game Player' }; await p.tick(3000);
+  await p.click(p.document.getElementById('xbox-close'));
+  await p.route('#/submit'); assert.equal(p.document.querySelector('#draft-name').value, 'Google draft');
+  const first = api.account;
+  api.account = { ...first, id: 'google-account-2' };
+  await p.route('#/library'); await p.route('#/submit');
+  assert.equal(p.document.querySelector('#draft-name').value, '');
+  api.account = first;
+  await p.route('#/library'); await p.route('#/submit');
+  assert.equal(p.document.querySelector('#draft-name').value, 'Google draft');
+});
+
+test('mock preview retains personas and demonstrates code linking and unlinking for an unlinked Google account', async () => {
+  const p = await page();
+  assert.equal(p.document.querySelectorAll('.mod-card').length, 8);
+  assert.equal(p.document.querySelector('#preview-note').hidden, false);
+  await p.signIn('GoogleBuilder');
+  assert.match(p.document.getElementById('account').textContent, /googlebuilder@example.test/);
+  await p.click(p.document.querySelector('[data-focus-key="account:xbox"]'));
+  await p.click(p.document.querySelector('[data-focus-key="xbox:code"]'));
+  assert.equal(p.document.getElementById('xbox-code').textContent, 'DEMO-1234');
+  await p.click(p.document.querySelector('[data-focus-key="xbox:simulate"]'));
+  assert.match(xboxText(p), /GoogleBuilder/);
+  assert.ok(p.document.querySelector('[data-focus-key="xbox:unlink"]'));
+});
+
+test('staff people and role writes use Cinnabar display names instead of Xbox gamertags', async () => {
+  const api = accountApi(); const original = api.request;
+  api.request = async (method, path, body) => path === '/staff/people'
+    ? { status: 200, body: [{ id: 'staff-1', display_name: 'Staff Person', role: 'admin' }] } : original(method, path, body);
+  const p = await page('#/staff/people', undefined, api);
+  assert.match(p.text(), /Staff Person/);
+  assert.match(p.text(), /Display name/);
+  await p.input('#staff-name', 'New Moderator');
+  await p.input('#staff-reason', 'Helps with reports.');
+  p.document.querySelector('form').dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true })); await settle();
+  assert.deepEqual(structuredClone(api.calls.find(call => call.path === '/staff/people/role').body),
+    { display_name: 'New Moderator', role: 'player', reason: 'Helps with reports.' });
 });
