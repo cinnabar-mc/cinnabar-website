@@ -18,6 +18,7 @@ from mdbook import binary
 
 
 HERE = Path(__file__).resolve().parent
+MARKETPLACE_LINK = '      <a class="marketplace-link" href="/mods/" aria-current="page">Marketplace</a>\n'
 INPUTS = load_config()["inputs"]
 # In-game screenshots of the mod shown on /mod/.
 MOD_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")
@@ -41,7 +42,7 @@ def build_book(repository, output, red, header):
         stylesheet = theme / "cinnabar.css"
         stylesheet.write_text((HERE / "site-header.css").read_text(encoding="utf-8")
                               + stylesheet.read_text(encoding="utf-8").replace("@@RED@@", red))
-        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"').replace("@@MOD_CURRENT@@", "").replace("@@MARKETPLACE_CURRENT@@", ""))
+        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"').replace("@@MOD_CURRENT@@", "").replace("@@MARKETPLACE_LINK@@", ""))
         environment = dict(os.environ, **{
             "MDBOOK_OUTPUT__HTML__THEME": "theme",
             "MDBOOK_OUTPUT__HTML__ADDITIONAL_CSS": '["theme/cinnabar.css"]',
@@ -133,7 +134,8 @@ def build(repository, output, marketplace_backend="http"):
     for template, target in (("index.html.in", "index.html"), ("mod.html.in", "mod/index.html"), ("mods.html.in", "mods/index.html")):
         page_header = header.replace("@@DOCS_CURRENT@@", "").replace(
             "@@MOD_CURRENT@@", ' aria-current="page"' if target.startswith("mod/") else "").replace(
-            "@@MARKETPLACE_CURRENT@@", ' aria-current="page"' if target.startswith("mods/") else "")
+            # The marketplace is hidden from the rest of the site for now; only its own page links to itself.
+            "@@MARKETPLACE_LINK@@", MARKETPLACE_LINK if target.startswith("mods/") else "")
         page = (HERE / template).read_text(encoding="utf-8").replace("@@SITE_HEADER@@", page_header)
         for marker, value in replacements.items():
             page = page.replace(marker, value)
