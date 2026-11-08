@@ -147,7 +147,17 @@ class RenderTests(unittest.TestCase):
         downloads = [attrs for tag, attrs, _ in mod_page.elements
                      if tag == "a" and attrs.get("class") == "download"]
         self.assertEqual([item["href"] for item in downloads],
-                         ["https://fixture-api.invalid/v1/mod/download"])
+                         ["https://fixture-api.invalid/v1/mod/download?channel=beta"])
+        self.assertEqual(downloads[0]["data-mod-download"],
+                         "https://fixture-api.invalid/v1/mod/download")
+        options = [attrs for tag, attrs, _ in mod_page.elements
+                   if tag == "button" and attrs.get("role") == "menuitemradio"]
+        self.assertEqual([(item["data-channel"], item["aria-checked"]) for item in options],
+                         [("beta", "true"), ("nightly", "false")])
+        self.assertIn("Beta<span class=\"hint\">Recommended</span>", mod_html)
+        self.assertIn("Nightly (Unstable)<span class=\"hint\">Built daily from dev and may break.</span>", mod_html)
+        self.assertEqual(mod_page.scripts, [{"src": "/app.js", "defer": None}])
+        self.assertEqual((self.output / "app.js").read_bytes(), (SITE / "app.js").read_bytes())
         self.assertIn("Right Shift", mod_html)
         for capture in RENDER.MOD_CAPTURES:
             self.assertIn(f'src="/mod/{capture}"', mod_html)
