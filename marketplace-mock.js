@@ -2,6 +2,8 @@
   "use strict";
 
   const core = typeof module !== "undefined" ? require("./marketplace-core.js") : window.CinnabarMarket;
+  // Original pixel artwork for fictional preview listings.
+  const SAMPLE_ICONS = {"time-changer": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAIUlEQVR4nGNQtIv+D8M/D4aCMbIYA+UKYIK4MGEFtHckAO2rk40Vjt/fAAAAAElFTkSuQmCC", "coords-hud": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAIUlEQVR4nGPQsDf4D8M77y0DY2QxBsoVwARxYcIKaO9IAPNVk6lELZvTAAAAAElFTkSuQmCC"};
   const STORAGE_KEY = "cinnabar.marketplace.preview.v4";
   const HOUR = 3600000;
   const DAY = 24 * HOUR;
@@ -37,7 +39,7 @@
     /** Adds a listing with its versions; each version is `[version, grants, status, age, approvers]`. */
     function mod(slug, name, creator, summary, description, source, rows) {
       listings[slug] = { slug: slug, name: name, creator: by(creator), summary: summary, description: description,
-        source: source, hidden: false };
+        source: source, icon: SAMPLE_ICONS[slug] || null, hidden: false };
       rows.forEach(function (row) {
         const at = now - row[3];
         n += 1;
@@ -120,6 +122,7 @@
    * (sessions, roles, review policy) and keeps its state in `storage` so the preview survives reloads.
    */
   function createMockApi(storage, clock) {
+    const validation = typeof module !== "undefined" ? require("./marketplace-validation.js") : window.CinnabarValidation;
     const now = clock || function () { return Date.now(); };
     let state;
     try { state = JSON.parse(storage.getItem(STORAGE_KEY)); } catch (e) { state = null; }
@@ -150,7 +153,7 @@
       if (!live || listing.hidden) return null;
       const published = live.listing || listing;
       return { slug: listing.slug, name: published.name, summary: published.summary, description: published.description,
-        category: published.category, license: published.license, gallery: published.gallery || [], grants: live.grants,
+        icon: published.icon || null, category: published.category, license: published.license, gallery: published.gallery || [], grants: live.grants,
         source: published.source, creator: listing.creator, creator_name: name(listing.creator),
         version: live.version, version_id: live.id, reach: live.reach,
         capabilities: core.requestedCapabilities(live.grants), sha256: live.sha256, bytes: live.bytes,
@@ -164,7 +167,7 @@
         .sort(function (a, b) { return b.submitted_at - a.submitted_at; })[0];
       const submitted = v.listing || listing;
       return Object.assign({}, v, { name: submitted.name, creator_name: name(v.creator), source: submitted.source,
-        summary: submitted.summary, capabilities: core.requestedCapabilities(v.grants),
+        icon: submitted.icon || null, category: submitted.category, summary: submitted.summary, capabilities: core.requestedCapabilities(v.grants),
         approvals: v.approvals.map(function (a) { return Object.assign({ username: name(a.id) }, a); }),
         previous: previous ? { version: previous.version, grants: previous.grants, diff: core.grantDiff(previous.grants, v.grants) } : null });
     }
@@ -283,20 +286,16 @@
         try { reach = core.reachOf(body.grants); } catch (e) { return fail(400, e.message); }
         const errors = core.validateListing(Object.assign({}, body, { reach: reach }));
         if (Object.keys(errors).length) return { status: 422, body: { error: "Check the highlighted fields.", fields: errors } };
+        body = Object.assign({}, body, { slug: core.listingSlug(body) });
         const existing = state.listings[body.slug];
         if (existing && existing.creator !== state.session) return { status: 409, body: { error: "That name is taken.", fields: { slug: "Another creator owns this name." } } };
         if (state.versions.some(function (v) { return v.slug === body.slug && v.version === body.version; })) {
           return { status: 409, body: { error: "That version exists.", fields: { version: "Bump the version to submit again." } } };
         }
         if (!/^[0-9a-f]{64}$/.test(String(body.sha256 || ""))) return fail(400, "Upload the component file.");
-        const gallery = Array.isArray(body.gallery) ? body.gallery : [];
-        if (gallery.length > 12 || JSON.stringify(gallery).length > 2000000 || gallery.some(function (image) {
-          return !image || typeof image.url !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image.url)
-            || image.url.length > 360000 || typeof image.caption !== 'string' || typeof image.alt !== 'string';
-        })) return fail(422, "Choose a valid, bounded raster gallery.");
         const metadata = { name: body.name, summary: body.summary, description: String(body.description || '').slice(0, 40000),
-          source: body.source || '', category: body.category || '', license: String(body.license || '').slice(0, 100),
-          gallery: gallery.map(function (image) { return { url: image.url, caption: image.caption.slice(0, 140), alt: image.alt.slice(0, 300) }; }) };
+          source: body.source || '', category: body.category || '', license: String(body.license || '').slice(0, 128),
+          icon: typeof body.icon === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(body.icon) && body.icon.length <= 360000 ? body.icon : null };
         if (!existing) state.listings[body.slug] = Object.assign({ created_at: now(), hidden: false, creator: state.session, slug: body.slug }, metadata);
         state.counter += 1;
         const version = { listing: metadata, notes: String(body.notes || "").slice(0, 4000), id: "v" + state.counter, slug: body.slug, version: body.version, grants: body.grants || {}, reach: reach,
@@ -399,6 +398,17 @@
           }
         }
         return Promise.resolve(fail(404, "Not found."));
+      },
+      /** Read the uploaded component for preview metadata just as the service reads live uploads. */
+      submit: async function (fields, file) {
+        const owner = state.session;
+        const bytes = await file.arrayBuffer();
+        const parsed = core.readComponent(bytes);
+        const icon = await validation.iconUrl(parsed.icon);
+        const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))).map(byte => byte.toString(16).padStart(2, '0')).join('');
+        if (owner !== state.session) return fail(409, 'Your account changed. Select the file and retry.');
+        const listing = { ...fields }; delete listing.gallery; delete listing.images;
+        return this.request('POST', '/submissions', { ...listing, icon, grants: parsed.grants || {}, sha256, bytes: file.size });
       },
       /** Restores the sample data. */
       reset: function () { state = seed(now()); save(); },

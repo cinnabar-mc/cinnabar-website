@@ -24,10 +24,11 @@
   let draft = null;
   let draftOwner = null;
   let step = 'project';
+  let editorErrors = {};
+  let distributionRights = false;
   let fileToken = 0;
   let validationPending = false;
   let validationController = null;
-  let mediaPending = false;
   let submitting = false;
   let uploadGeneration = 0;
   let refreshTimer = null;
@@ -56,7 +57,7 @@
   // The Xbox link state the dialog last drew; other session refreshes may change it before a poll does.
   let xboxRendered = null;
   const reviewNotes = new Map();
-  const steps = ['project', 'media', 'release', 'checks'];
+  const steps = ['project', 'release', 'checks'];
   const paths = {
     hud: '<rect x="4" y="5" width="24" height="22"/><path d="M4 12h24M10 12v15m5-10h8m-8 5h5"/>',
     sun: '<path d="M3 23h26M8 23a8 8 0 0 1 16 0M16 3v5M4 10l4 4m20-4-4 4M2 18h5m18 0h5M11 28h10"/>',
@@ -96,11 +97,19 @@
     return svg;
   }
 
-  /** Pick an icon from actual listing categories rather than invent an uploaded image. */
+  /** Use safe API or component artwork, retaining the category fallback if loading fails. */
   function modIcon(mod) {
     const category = C.category(mod);
-    return h('div', { class: category === 'Visuals' ? 'mod-icon warm' : 'mod-icon' },
-      icon(category === 'Visuals' ? 'sun' : category === 'Camera' ? 'zoom' : category === 'Utilities' ? 'grid' : 'hud'));
+    const fallback = icon(category === 'Visuals' ? 'sun' : category === 'Camera' ? 'zoom' : category === 'Utilities' ? 'grid' : 'hud');
+    const tile = h('div', { class: category === 'Visuals' ? 'mod-icon warm' : 'mod-icon' }, fallback);
+    const url = C.imageUrl(mod.icon);
+    if (url) {
+      const picture = h('img', { src: url, alt: '', referrerpolicy: 'no-referrer',
+        crossorigin: mod.private ? 'use-credentials' : null,
+        onerror: () => { tile.classList.remove('has-artwork'); tile.replaceChildren(fallback); } });
+      tile.classList.add('has-artwork'); tile.replaceChildren(picture);
+    }
+    return tile;
   }
 
   /** Create an explicit non-submitting action with a stable focus identity. */
@@ -140,10 +149,11 @@
       h('p', {}, message || 'Please retry.'), button('Try again', render, 'btn primary', 'retry'));
   }
 
-  /** Cancel file and image work and forget the in-memory draft. */
+  /** Cancel file work and forget the in-memory draft. */
   function discardDraft() {
-    validationController?.abort(); validationPending = false; mediaPending = false;
+    validationController?.abort(); validationPending = false;
     fileToken++; draft = null; draftOwner = null;
+    editorErrors = {}; distributionRights = false;
   }
 
   /** Reflect server identity; preview account choices never appear in HTTP mode. */
@@ -676,8 +686,7 @@
     select('description');
     mount(token, h('section', {}, h('a', { class: 'back', href: '#/' }, 'Back to mods'),
       h('div', { class: 'project-heading' }, modIcon(mod), h('div', {}, h('h1', {}, mod.name), h('p', {}, mod.summary),
-        h('div', { class: 'tags' }, h('span', { class: 'small muted' }, 'by ' + mod.creator_name), h('span', { class: 'tag' }, C.category(mod)),
-          h('span', { class: 'tag' }, 'Free')))), tabs, h('div', { class: 'detail-layout' }, content, sidebar)));
+        h('div', { class: 'tags' }, h('span', { class: 'small muted' }, 'by ' + mod.creator_name), h('span', { class: 'tag' }, C.category(mod))))), tabs, h('div', { class: 'detail-layout' }, content, sidebar)));
     document.title = mod.name + ' · Cinnabar';
   }
 
@@ -706,9 +715,8 @@
     draftOwner = owner;
     let saved;
     try { saved = JSON.parse(storage.getItem(draftKey(owner))); } catch (_) { saved = null; }
-    const initial = { name: '', slug: '', summary: '', description: '', category: 'Interface', license: '', version: '', source: '', notes: '', gallery: [] };
+    const initial = { name: '', slug: '', summary: '', description: '', category: '', license: '', version: '', source: '', notes: '' };
     draft = Object.assign(initial, saved && typeof saved === 'object' ? Object.fromEntries(Object.keys(initial).map(key => [key, saved[key] ?? initial[key]])) : {});
-    draft.gallery = Array.isArray(draft.gallery) ? draft.gallery.filter(item => item && C.imageUrl(item.url)).slice(0, 12) : [];
     draft.file = null; draft.parsed = null; draft.check = null;
   }
 
@@ -716,23 +724,7 @@
   function saveDraft() {
     const data = { ...draft }; delete data.file; delete data.parsed; delete data.check;
     try { storage.setItem(draftKey(draftOwner), JSON.stringify(data)); announce('Draft saved in this browser. Reselect the release file after reloading.'); }
-    catch (_) { announce('Browser storage is unavailable or full. Your current draft remains open; enable storage or remove images before retrying.', true); }
-  }
-
-  /** Keep image decoders and storage bounded; persist only re-encoded raster derivatives. */
-  async function readImage(file) {
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) throw new Error('Choose PNG, JPEG or WebP images up to 8 MiB each.');
-    const bitmap = await createImageBitmap(file);
-    try {
-      if (bitmap.width * bitmap.height > 24000000) throw new Error('Images must have at most 24 megapixels.');
-      const canvas = document.createElement('canvas');
-      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const url = canvas.toDataURL('image/webp', 0.8);
-      if (url.length > 360000) throw new Error('This preview image is too large. Resize or simplify it and retry.');
-      return { url, caption: file.name.replace(/\.[^.]+$/, '').slice(0, 140), alt: '' };
-    } finally { bitmap.close(); }
+    catch (_) { announce('Browser storage is unavailable or full. Your current draft remains open; enable storage and retry.', true); }
   }
 
   /** Check both declarations and the complete component before accepting a release file. */
@@ -748,23 +740,77 @@
       if (file.size > 16 * 1024 * 1024) throw new Error('The file is over 16 MiB.');
       const bytes = await file.arrayBuffer();
       const parsed = M.readComponent(bytes);
+      const extractedIcon = await window.CinnabarValidation.iconUrl(parsed.icon);
       const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))).map(byte => byte.toString(16).padStart(2, '0')).join('');
       const check = await window.CinnabarValidation.validate(bytes.slice(0), { signal });
       if (token !== fileToken || owner !== draftOwner) return;
-      draft.file = file; draft.parsed = { ...parsed, sha256: digest, bytes: file.size }; draft.check = check;
+      draft.file = file; draft.parsed = { ...parsed, icon: extractedIcon, sha256: digest, bytes: file.size }; draft.check = check;
       for (const key of ['name', 'version', 'description']) if (!draft[key]) draft[key] = parsed[key] || '';
       if (!draft.summary) draft.summary = parsed.description.slice(0, 140);
       announce('Component syntax checks passed. This is not a malware scan.');
     } catch (error) {
-      if (token === fileToken && owner === draftOwner) announce(error.message || String(error), true);
+      if (token === fileToken && owner === draftOwner) editorErrors.file = error.message || String(error);
     } finally {
-      if (token === fileToken && owner === draftOwner) { validationPending = false; render(); }
+      if (token === fileToken && owner === draftOwner) {
+        validationPending = false;
+        if (editorErrors.file) await showEditorErrors({ ...editorErrors }); else render();
+      }
     }
   }
 
-  const fieldLimits = { description: 40000, notes: 4000, license: 128, summary: 140, name: 64 };
+  const requiredFields = new Set(['name', 'summary', 'version', 'file', 'rights']);
+  const projectFields = ['name', 'slug', 'summary', 'description', 'category', 'license', 'source'];
 
-  /** Build the creator's four-step editor, keeping every local field across step changes. */
+  /** Locate errors in editor order. */
+  function fieldStep(key) {
+    return projectFields.includes(key) ? 'project' : key === 'rights' ? 'checks' : 'release';
+  }
+
+  /** Present a field error on its step and bring the first invalid control into view. */
+  async function showEditorErrors(errors) {
+    editorErrors = errors;
+    step = steps.find(name => Object.keys(errors).some(key => fieldStep(key) === name)) || step;
+    await render();
+    const first = app.querySelector('[aria-invalid="true"]');
+    first?.focus();
+    first?.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+    const count = Object.keys(errors).length;
+    announce('Fix ' + count + (count === 1 ? ' field' : ' fields') + ' to continue.', true);
+  }
+
+  /** Clear only the edited field's error, preserving its format hint and focused DOM node. */
+  function clearEditorError(key) {
+    const hadError = Object.hasOwn(editorErrors, key);
+    delete editorErrors[key];
+    const control = document.getElementById(key === 'rights' ? 'distribution-rights' : 'draft-' + key);
+    control?.removeAttribute('aria-invalid');
+    const described = control?.getAttribute('aria-describedby')?.split(' ').filter(id => id !== 'error-' + key);
+    if (described?.length) control.setAttribute('aria-describedby', described.join(' '));
+    else control?.removeAttribute('aria-describedby');
+    document.getElementById('error-' + key)?.remove();
+    const count = Object.keys(editorErrors).length;
+    if (!count) announce('');
+    else if (hadError) announce('Fix ' + count + (count === 1 ? ' field' : ' fields') + ' to continue.', true);
+  }
+
+  /** Give every editor control the same explicit requirement label. */
+  function requirement(key) {
+    return h('span', { class: 'field-requirement' }, requiredFields.has(key) ? 'Required' : 'Optional');
+  }
+
+  /** Attach persistent helper and error text to a control for visual and screen reader use. */
+  function fieldFeedback(key, control, hint = '') {
+    control.id = key === 'rights' ? 'distribution-rights' : 'draft-' + key;
+    const error = editorErrors[key];
+    const ids = [hint ? 'hint-' + key : '', error ? 'error-' + key : ''].filter(Boolean);
+    if (ids.length) control.setAttribute('aria-describedby', ids.join(' '));
+    if (error) control.setAttribute('aria-invalid', 'true');
+    if (requiredFields.has(key)) control.setAttribute('aria-required', 'true');
+    return [hint ? h('span', { class: 'hint', id: 'hint-' + key }, hint) : null,
+      error ? h('span', { class: 'field-error', id: 'error-' + key }, error) : null];
+  }
+
+  /** Build the creator's three-step editor, keeping every local field across step changes. */
   async function editor(token) {
     if (!session.account) return mount(token, h('section', { class: 'empty' }, h('h2', {}, 'Give your mod a home.'),
       h('p', {}, 'Sign in to prepare a project and submit a release.'), button(previewMode ? 'Choose a preview account' : 'Sign in with Google', signIn, 'btn primary', 'editor:signin')));
@@ -780,90 +826,102 @@
     const previewName = h('h3', {}, draft.name || 'Your mod');
     const previewSummary = h('p', {}, draft.summary || 'Your summary appears here.');
     const preview = h('aside', { class: 'editor-aside' }, h('p', { class: 'small muted', style: 'margin-bottom:12px' }, 'Listing preview'),
-      h('div', { class: 'preview-card' }, modIcon({ capabilities: [], category: draft.category }), previewName,
-        h('span', { class: 'small muted' }, session.account.username), previewSummary, h('span', { class: 'tag' }, 'Free')),
+      h('div', { class: 'preview-card' }, modIcon({ capabilities: [], category: draft.category, icon: draft.parsed?.icon }), previewName,
+        h('span', { class: 'small muted' }, session.account.username), previewSummary),
       h('p', { class: 'rule small muted' }, 'Drafts are private to this account in this browser. Nothing is published until the service approves a release.'));
     const stepButtons = steps.map((name, index) => h('li', {}, button(h('span', { class: 'row' }, h('span', { class: 'num' }, index + 1),
-      ['Project', 'Images', 'Release', 'Checks & publish'][index]), () => { step = name; render(); }, step === name ? 'active' : '', 'step:' + name)));
+      ['Project', 'Release', 'Checks & publish'][index]), () => { step = name; render(); }, step === name ? 'active' : '', 'step:' + name)));
+    const addressPreview = h('span', { class: 'hint address-preview', id: 'address-preview' });
+    /** Show the actual hash route used by listing links, with a useful empty-state instruction. */
+    function updateAddressPreview() {
+      const slug = M.listingSlug(draft);
+      addressPreview.textContent = slug ? 'cinnabar.gg/mods/#/mod/' + slug : 'Enter a project name to preview its address.';
+    }
+    updateAddressPreview();
     /** Bind a labelled input to the draft without replacing focused controls. */
     function field(key, label, type = 'text', hint = '') {
       const input = h(type === 'textarea' ? 'textarea' : 'input', { id: 'draft-' + key, name: key, type: type === 'textarea' ? null : type,
-        value: draft[key], maxlength: fieldLimits[key] || 2000,
-        oninput: event => { draft[key] = event.target.value; if (key === 'name') previewName.textContent = draft.name; if (key === 'summary') previewSummary.textContent = draft.summary; } });
-      return h('label', { class: 'field', for: 'draft-' + key }, label, input, hint ? h('span', { class: 'hint' }, hint) : null);
+        value: draft[key], inputmode: key === 'source' ? 'url' : null,
+        oninput: event => {
+          const control = event.target;
+          if (key === 'slug' && !event.isComposing) {
+            const value = control.value;
+            const start = control.selectionStart, end = control.selectionEnd;
+            control.value = M.normalizeAddress(value);
+            if (start !== null && end !== null && control.setSelectionRange) {
+              control.setSelectionRange(M.normalizeAddress(value.slice(0, start)).length, M.normalizeAddress(value.slice(0, end)).length);
+            }
+          }
+          draft[key] = control.value;
+          clearEditorError(key);
+          if (key === 'name') { previewName.textContent = draft.name; if (!draft.slug.trim()) clearEditorError('slug'); }
+          if (key === 'summary') previewSummary.textContent = draft.summary;
+          if (key === 'name' || key === 'slug') updateAddressPreview();
+        } });
+      if (key === 'slug') {
+        input.setAttribute('autocapitalize', 'none'); input.setAttribute('spellcheck', 'false');
+        input.addEventListener('compositionend', () => {
+          const event = document.createEvent('Event'); event.initEvent('input', true, false); input.dispatchEvent(event);
+        });
+      }
+      const feedback = fieldFeedback(key, input, hint);
+      if (key === 'slug') input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), 'address-preview'].filter(Boolean).join(' '));
+      return h('label', { class: 'field', for: 'draft-' + key }, h('span', { class: 'field-label' }, label, requirement(key)), input, feedback, key === 'slug' ? addressPreview : null);
     }
     if (step === 'project') {
-      panel.append(h('h2', {}, 'Tell players what it does.'), field('name', 'Project name'), field('slug', 'Project address', 'text', '3–40 lowercase letters, numbers and dashes.'),
-        field('summary', 'Summary', 'text', 'One clear sentence shown in search results.'), field('description', 'Description', 'textarea', 'Markdown headings, lists, bold text, code and HTTPS links are supported. HTML stays plain text.'),
-        button('Preview description', () => descriptionPreview.replaceChildren(C.markdown(document, draft.description)), 'btn quiet', 'draft:preview'));
-      const descriptionPreview = h('div'); panel.append(descriptionPreview);
-      const select = h('select', { id: 'draft-category', onchange: event => { draft.category = event.target.value; } }, C.CATEGORIES.map(name => h('option', { value: name }, name)));
+      panel.append(h('h2', {}, 'Tell players what it does.'), field('name', 'Project name', 'text', '1–64 characters.'), field('slug', 'Project address', 'text', 'Leave blank to use the project name. Custom addresses use 3–40 letters, numbers and dashes.'),
+        field('summary', 'Summary', 'text', 'One clear sentence shown in search results. 10–140 characters.'), field('description', 'Description', 'textarea', 'Markdown headings, lists, bold text, code and HTTPS links are supported. HTML stays plain text.'));
+      const select = h('select', { id: 'draft-category', onchange: event => { draft.category = event.target.value; clearEditorError('category'); preview.querySelector('.mod-icon').replaceWith(modIcon({ category: draft.category, icon: draft.parsed?.icon })); } },
+        h('option', { value: '' }, 'No category'), C.CATEGORIES.map(name => h('option', { value: name }, name)));
       select.value = draft.category;
-      panel.append(h('div', { class: 'two gap' }, h('label', { class: 'field', for: 'draft-category' }, 'Category', select), field('license', 'License', 'text', 'For example MIT or All rights reserved.')),
-        field('source', 'Source repository', 'url', 'A GitHub repository is required for gameplay and packet permissions.'));
-    } else if (step === 'media') {
-      panel.append(h('h2', {}, 'Show it in action.'), h('p', { class: 'small muted', style: 'margin-bottom:20px' }, 'Upload screenshots with captions and alt text. Preview images are resized and stripped of metadata.'));
-      const input = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: true, 'aria-label': 'Choose project images', disabled: mediaPending,
-        onchange: async event => {
-          const owner = draftOwner;
-          const current = draft;
-          const files = Array.from(event.target.files || []);
-          mediaPending = true;
-          input.disabled = true;
-          try {
-            const max = liveMode ? 4 : 12;
-            if (current.gallery.length + files.length > max) throw new Error('A release can have at most ' + max + ' images.');
-            const images = [];
-            for (const file of files) images.push(await readImage(file));
-            if (owner !== draftOwner || current !== draft) return;
-            if (JSON.stringify(current.gallery.concat(images)).length > 2000000) throw new Error('The preview gallery is limited to 2 MiB. Remove an image and retry.');
-            current.gallery.push(...images); announce('Images added to your draft in this browser.');
-          } catch (error) { if (owner === draftOwner) announce(error.message, true); }
-          finally { if (owner === draftOwner && current === draft) { mediaPending = false; render(); } }
-        } });
-      panel.append(h('div', { class: 'upload-zone' }, icon('upload'), h('b', {}, mediaPending ? 'Preparing images…' : 'Choose project images'),
-        h('span', { class: 'small muted' }, 'PNG, JPEG or WebP · up to 8 MiB and 24 megapixels each'), input),
-        h('p', { class: 'hint' }, liveMode ? 'Up to four prepared images are uploaded as files. Captions and alt text are saved with this release.' : 'Up to twelve images in the local preview.'));
-      const media = h('div', { class: 'media-strip' }, draft.gallery.map((image, index) => {
-        const caption = h('input', { value: image.caption, maxlength: 140, 'aria-label': 'Caption for image ' + (index + 1), oninput: event => { image.caption = event.target.value; } });
-        const alt = h('input', { value: image.alt, maxlength: 300, 'aria-label': 'Alt text for image ' + (index + 1), oninput: event => { image.alt = event.target.value; } });
-        return h('div', { class: 'media-item' }, h('div', { class: 'media-tile' }, h('img', { src: C.imageUrl(image.url), alt: image.alt || 'Draft image ' + (index + 1) }),
-          button('Remove', () => { draft.gallery.splice(index, 1); render(); }, 'quiet', 'image:remove:' + index)),
-        h('label', { class: 'field' }, 'Caption', caption), h('label', { class: 'field' }, 'Alt text', alt));
-      })); panel.append(media);
+      panel.append(h('div', { class: 'two gap' }, h('label', { class: 'field', for: 'draft-category' }, h('span', { class: 'field-label' }, 'Category', requirement('category')), select, fieldFeedback('category', select)), field('license', 'License', 'text', 'For example MIT or All rights reserved.')),
+        field('source', 'Source repository', 'text', 'Optional. Link a GitHub repository if you want players to see the code.'));
     } else if (step === 'release') {
-      panel.append(h('h2', {}, 'Add a release.'), h('div', { class: 'upload-zone' }, icon('upload'), h('b', {}, validationPending ? 'Checking component…' : 'Choose your Wasm component'),
-        h('span', { class: 'small muted' }, 'Portable .wasm component · up to 16 MiB'), h('input', { type: 'file', accept: '.wasm', 'aria-label': 'Choose mod component',
-          onchange: event => { const file = event.target.files?.[0]; if (file) takeFile(file); } })),
+      const fileInput = h('input', { type: 'file', accept: '.wasm', 'aria-label': 'Choose mod component',
+        onchange: event => { clearEditorError('file'); const file = event.target.files?.[0]; if (file) takeFile(file); } });
+      panel.append(h('h2', {}, 'Add a release.'), h('div', { class: 'upload-zone' }, icon('upload'), h('label', { class: 'field-label', for: 'draft-file' }, validationPending ? 'Checking component…' : 'Choose your Wasm component', requirement('file')),
+        h('span', { class: 'small muted' }, 'Portable .wasm component · up to 16 MiB'), fileInput, fieldFeedback('file', fileInput)),
       draft.file ? h('p', { class: 'small good gap' }, draft.file.name + ' · syntax checked') : h('p', { class: 'small muted gap' }, 'Select a file for this session. No uploaded code is executed.'),
       field('version', 'Version', 'text', 'Use SemVer, for example 1.2.0.'), field('notes', 'Release notes', 'textarea'));
+      panel.append(h('p', { class: 'hint', id: 'component-icon-status' }, draft.parsed
+        ? (draft.parsed.icon ? 'Icon: from your mod file. ' : 'No icon in your mod file; the category icon is used. ')
+        : 'Your mod file can include its own icon. ',
+        h('a', { href: '/docs/modding/appendix/personal-mods.html#single-file-resources' }, 'How to add an icon')));
       if (draft.parsed) panel.append(permissions({ capabilities: M.requestedCapabilities(draft.parsed.grants) }, draft.parsed.grants));
     } else {
       const checked = Boolean(draft.file && draft.parsed && draft.check);
-      panel.append(h('h2', {}, 'Ready when the checks are.'), h('p', { class: 'small muted' }, 'Established creators can publish automatically only when the service confirms eligibility and completes the required checks.'),
-        h('div', { class: 'scan-status' }, h('div', {}, h('span', {}, 'Browser component syntax'), h('span', { class: checked ? 'good' : 'warning' }, checked ? 'Passed' : validationPending ? 'Checking…' : 'Choose a release file')),
-          h('div', {}, h('span', {}, 'Server validation & AI triage'), h('span', { class: 'muted' }, liveMode ? 'Queued after upload' : 'Not connected')),
-          h('div', {}, h('span', {}, 'Automatic publication'), h('span', { class: 'muted' }, liveMode ? 'Evaluated after server checks' : 'Unavailable')),
-          h('div', {}, h('span', {}, 'Publication route'), h('span', {}, liveMode ? 'Checks → publication or review' : 'Submit for review'))),
-        h('div', { class: 'notice gap' }, previewMode ? 'Preview submissions stay in this browser. Staff decisions simulate publication; they do not distribute code.' : 'The service must independently validate and review the artifact. A browser check cannot authorize publication.'),
-        h('label', { class: 'row gap small' }, h('input', { type: 'checkbox', id: 'distribution-rights' }), 'I have permission to distribute this code and these images.'));
+      const rights = h('input', { type: 'checkbox', id: 'distribution-rights', checked: distributionRights,
+        onchange: event => { distributionRights = event.target.checked; clearEditorError('rights'); } });
+      panel.append(h('h2', {}, 'Ready to submit'), h('p', { class: 'small muted' }, 'After you upload, we check your mod. A reviewer approves it before it goes live, and you can follow its status in Your projects.'),
+        h('div', { class: 'scan-status' },
+          h('div', {}, h('span', {}, 'Your mod file'), h('span', { class: checked ? 'good' : 'warning' }, checked ? '✓ Looks good' : validationPending ? 'Checking…' : 'Choose a file')),
+          h('div', {}, h('span', {}, 'Review'), h('span', { class: 'muted' }, 'After upload'))),
+        previewMode ? h('p', { class: 'notice gap' }, 'This is a preview. Your submission stays in this browser and will not go live.') : null,
+        h('label', { class: 'row gap small', for: 'distribution-rights' }, rights,
+          h('span', {}, 'I have permission to share this mod. ', requirement('rights'))), ...fieldFeedback('rights', rights).filter(Boolean));
     }
     const submitLabel = liveMode ? 'Upload release' : 'Submit for review';
     form.append(panel, h('div', { class: 'editor-actions' }, button('Save draft', saveDraft, 'btn quiet', 'draft:save'),
-      h('button', { type: 'submit', class: 'btn primary', 'data-focus-key': 'draft:continue', disabled: validationPending || mediaPending || submitting },
-        submitting ? 'Uploading…' : step === 'checks' ? submitLabel : ['Continue to images', 'Continue to release', 'Review checks'][steps.indexOf(step)])));
+      h('button', { type: 'submit', class: 'btn primary', 'data-focus-key': 'draft:continue', disabled: validationPending || submitting },
+        submitting ? 'Uploading…' : step === 'checks' ? submitLabel : ['Continue to release', 'Review checks'][steps.indexOf(step)])));
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (!requireUsername()) return;
-      if (validationPending || mediaPending || submitting) return announce('Wait for the current upload or file check to finish.', true);
-      if (step !== 'checks') { step = steps[steps.indexOf(step) + 1]; render(); return; }
-      if (!draft.file || !draft.parsed || !draft.check) { step = 'release'; await render(); return announce('Choose a valid component file first.', true); }
-      if (!document.getElementById('distribution-rights').checked) return announce('Confirm your distribution rights before submitting.', true);
-      const fields = { name: draft.name.trim(), slug: draft.slug.trim(), summary: draft.summary.trim(), description: draft.description,
+      if (validationPending || submitting) return announce('Wait for the current upload or file check to finish.', true);
+      const fields = { name: draft.name.trim(), slug: M.listingSlug(draft), summary: draft.summary.trim(), description: draft.description,
         version: draft.version.trim(), source: draft.source.trim(), category: draft.category, license: draft.license, notes: draft.notes,
-        reach: M.reachOf(draft.parsed.grants) };
-      const errors = M.validateListing(fields);
-      if (Object.keys(errors).length) { step = 'project'; await render(); announce(Object.values(errors).join(' '), true); return; }
+        reach: M.reachOf(draft.parsed?.grants) };
+      // Validate the blank address before resolving it so a failed derivation has actionable copy.
+      const errors = M.validateListing({ ...fields, slug: draft.slug });
+      if (!draft.file || !draft.parsed || !draft.check) errors.file = 'Choose a valid component file first.';
+      if (step === 'checks') {
+        distributionRights = document.getElementById('distribution-rights').checked;
+        if (!distributionRights) errors.rights = 'Confirm your distribution rights before submitting.';
+      }
+      const currentErrors = Object.fromEntries(Object.entries(errors).filter(([key]) => step === 'checks' || fieldStep(key) === step));
+      if (Object.keys(currentErrors).length) return showEditorErrors(currentErrors);
+      if (step !== 'checks') { step = steps[steps.indexOf(step) + 1]; await render(); announce(''); return; }
+      editorErrors = {};
       const submit = form.querySelector('[type=submit]'); submit.disabled = true;
       submitting = true; submit.textContent = 'Uploading…';
       const upload = ++uploadGeneration;
@@ -872,8 +930,8 @@
       const owner = draftOwner;
       let result;
       try {
-        result = backend.submit ? await backend.submit(fields, draft.file, draft.gallery) : await call('POST', '/submissions', {
-          ...fields, gallery: draft.gallery, grants: draft.parsed.grants || {}, sha256: draft.parsed.sha256, bytes: draft.file.size,
+        result = backend.submit ? await backend.submit(fields, draft.file) : await call('POST', '/submissions', {
+          ...fields, grants: draft.parsed.grants || {}, sha256: draft.parsed.sha256, bytes: draft.file.size,
         });
       } catch (_) { result = { status: 0, body: { error: 'Upload failed. Your draft is still here; retry when connected.' } }; }
       if (upload !== uploadGeneration || owner !== draftOwner) return;
@@ -881,12 +939,15 @@
       controls.forEach(([control, disabled]) => { control.disabled = disabled; });
       submit.disabled = false; submit.textContent = submitLabel;
       if (result.status !== 200) {
+        if (M.parseRoute(location.hash).view === 'submit' && result.body.fields && Object.keys(result.body.fields).length) {
+          return showEditorErrors(result.body.fields);
+        }
         if (M.parseRoute(location.hash).view === 'submit') await render();
         return announce(result.body.error, true);
       }
       announce(previewMode ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded. Follow its checks and publication status in Your projects.');
       storage.removeItem(draftKey(owner));
-      draft = null; step = 'project'; location.hash = '#/mine';
+      draft = null; editorErrors = {}; distributionRights = false; step = 'project'; location.hash = '#/mine';
     });
     mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Give your mod a home.'), h('p', { class: 'muted' }, 'Publishing as ' + session.account.username))),
       h('div', { class: 'editor-layout' }, h('aside', {}, h('ol', { class: 'steps' }, stepButtons)), form, preview)));
@@ -1025,7 +1086,7 @@
       h('p', { class: 'small muted gap' }, 'No self-review. Every decision is tied to this version.'))));
     body.append(h('div', { class: 'review-layout' }, h('aside', { class: 'queue' }, queue.map(entry => h('a', {
       href: '#/staff/queue/' + entry.id, class: entry.id === id ? 'active' : '', 'data-focus-key': 'queue:' + entry.id,
-    }, h('strong', {}, entry.name + ' ' + entry.version), h('span', { class: 'tag' }, M.RUNGS[entry.reach] || 'Unknown'),
+    }, modIcon(entry), h('strong', {}, entry.name + ' ' + entry.version), h('span', { class: 'tag' }, M.RUNGS[entry.reach] || 'Unknown'),
     h('p', { class: 'small muted' }, entry.creator_name), h('p', { class: 'small' }, C.releaseState(entry).label)))), review));
   }
 

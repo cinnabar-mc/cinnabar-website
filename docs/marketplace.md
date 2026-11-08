@@ -8,6 +8,21 @@ No SPA fallback or dynamic Worker is required.
 
 ## Website behavior
 
+- The project editor labels every field Required or Optional. Name, summary,
+  version and a valid release component are required; distribution rights must be
+  confirmed before submission. Description, category, license, source repository,
+  release notes are optional. A source repository
+  is optional at every permission level; when supplied it must be a GitHub URL.
+  Source uses a text input with a URL keyboard hint; all editor validation is inline.
+  Publishing identity is always the website username.
+- Project address is optional. Blank addresses use the name lowercased, with runs
+  outside ASCII letters/digits replaced by one dash, trimmed and limited to 40
+  characters (trailing dashes are removed again after truncation). If fewer than
+  three characters remain, choose an address. Reserved addresses are rejected.
+  The preview shows the listing's `/mods/#/mod/<address>` route. Continuing a step
+  validates that step; submission validates all steps. Client and API field
+  errors appear beside the controls and focus the first invalid field.
+
 - Live sign-in uses a Cinnabar account through Google. The provider is named on the
   sign-in control; additional providers can be added alongside it later. Signed-in
   controls show the username, quieter email, staff role when applicable, Sign
@@ -41,14 +56,21 @@ No SPA fallback or dynamic Worker is required.
   Opening the library refreshes its account and selections. Pending removals cannot
   replace a later route or account. Installed mods are managed in Cinnabar.
 - Descriptions support Markdown headings, lists, emphasis, code and HTTPS links,
-  rendered as DOM nodes. Creator HTML is plain text. Images accept raster data
-  in local drafts or API-derived HTTPS URLs; captions and alt text are plain text.
-- Project → Images → Release → Checks & publish keeps a browser-local draft per
-  Cinnabar account ID, independent of Xbox linking or gamertag changes. Older
-  Xbox-keyed local drafts are not reassigned to a new account. Image inputs are
-  limited to 8 MiB and 24 megapixels, resized to at most 1600 pixels and re-encoded as WebP. Live uploads allow four prepared images, each
-  below the API's 1 MiB limit; the local preview allows twelve. Draft image data is
-  capped at 2 MiB. Component bytes are never saved in browser storage.
+  rendered as DOM nodes. Creator HTML is plain text. The editor keeps a Markdown
+  hint below Description without a separate preview button.
+- Project → Release → Checks & publish keeps a browser-local draft per Cinnabar
+  account ID, independent of Xbox linking or gamertag changes. Old draft galleries
+  are ignored and dropped on save. The editor has no screenshot uploads; existing
+  API galleries still display on mod pages. Component bytes are never saved in
+  browser storage.
+- Listing icons come from a single top-level `cinnabar:extension/icon@1` section.
+  A PNG must decode completely, fit within 256 KiB and have nonzero dimensions no
+  larger than 256 px on either side. Missing, duplicate or invalid icons leave the
+  category placeholder. The release preview uses the extracted icon; catalog,
+  library, detail and staff rows use safe API `icon` URLs. Icons fit within a square
+  with their aspect ratio preserved and nearest-neighbour scaling.
+- Checks & publish explains upload and review in plain language, requires permission
+  to share the mod, and shows a local-preview notice only in mock mode.
 - Strict metadata checks enforce the whole component header, known section IDs,
   section-local bounds, bounded u32 lengths, UTF-8 and unique declarations/grants.
   The pinned Jco parser checks component structure/types and guest bytecode in a
@@ -100,11 +122,13 @@ provider flow. `POST /v1/mods/:slug/send` returns 409 with
 `{error: "Link your Xbox account in Cinnabar first."}` if Xbox is not linked.
 The website does not persist link codes in browser storage.
 
-Multipart submissions contain `listing`, one component `file`, repeated `images`
-file parts, and ordered `image_metadata` JSON entries `{caption, alt}`. The adapter
-decodes only locally prepared PNG/JPEG/WebP data; it never fetches arbitrary image
-URLs for upload. Descriptions allow 40,000 characters; category, license and release
-notes are saved with the release. Failed uploads retain the complete draft.
+Multipart submissions contain only `listing` and one component `file`. The icon
+travels inside the component; no images or image metadata are sent. Descriptions
+allow 40,000 characters; category, license and release notes are saved with the
+release. Failed uploads retain the draft and selected component for retry.
+API `icon: string | null` is accepted on listing summaries, details and version
+views; relative URLs resolve against the API base and use the same HTTPS and
+credential-free URL policy as other API media. Private views load with credentials.
 
 Public gallery URLs derive from `/mods/media/<sha256>`. Pending images use
 `/me/mods/<id>/media/<sha256>` with credentials and exact origin CORS; only the

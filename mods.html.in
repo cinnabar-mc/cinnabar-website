@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Explore free Cinnabar community mods and inspect their requested permissions.">
+  <meta name="description" content="Explore Cinnabar community mods and inspect their requested permissions.">
   <title>Marketplace · Cinnabar</title>
   <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
   <meta name="theme-color" content="#141312">
@@ -16,7 +16,7 @@
   @@SITE_HEADER@@
   <div class="shell">
     <div class="market-heading">
-      <div><h1>Mods</h1><p>Free mods for Cinnabar.</p></div>
+      <div><h1>Mods</h1><p>Mods for Cinnabar.</p></div>
       <div class="account" id="account"></div>
     </div>
     <div class="preview-note" id="preview-note" hidden><p><strong>Design preview</strong> · Sample mods and accounts. Nothing is installed.</p><button type="button" id="reset-preview" class="quiet">Reset</button></div>
