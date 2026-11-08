@@ -4,12 +4,12 @@ const test = require('node:test');
 const M = require('../marketplace-core.js');
 const { createMockApi, PERSONAS } = require('../marketplace-mock.js');
 
-const player = { xuid: '1', gamertag: 'Player', role: 'player' };
-const creator = { xuid: '2', gamertag: 'Creator', role: 'player' };
-const mod1 = { xuid: '3', gamertag: 'ModOne', role: 'moderator' };
-const mod2 = { xuid: '4', gamertag: 'ModTwo', role: 'moderator' };
-const admin = { xuid: '5', gamertag: 'Admin', role: 'admin' };
-const owner = { xuid: '6', gamertag: 'Owner', role: 'owner' };
+const player = { id: '1', display_name: 'Player', role: 'player' };
+const creator = { id: '2', display_name: 'Creator', role: 'player' };
+const mod1 = { id: '3', display_name: 'ModOne', role: 'moderator' };
+const mod2 = { id: '4', display_name: 'ModTwo', role: 'moderator' };
+const admin = { id: '5', display_name: 'Admin', role: 'admin' };
+const owner = { id: '6', display_name: 'Owner', role: 'owner' };
 
 test('current clock and sound permissions retain their observation and presentation review groups', () => {
   assert.equal(M.reachOf({ clock: true }), 1);
@@ -20,7 +20,7 @@ test('current clock and sound permissions retain their observation and presentat
 
 /** A submitted version with the given grants. */
 function version(grants, approvals = []) {
-  return { creator: creator.xuid, status: 'submitted', approvals, reach: M.reachOf(grants), grants };
+  return { creator: creator.id, status: 'submitted', approvals, reach: M.reachOf(grants), grants };
 }
 
 /** A mock API over in-memory storage, signed in as a sample persona. */
@@ -30,11 +30,11 @@ async function api(gamertag) {
     () => Date.UTC(2026, 9, 23, 12));
   if (gamertag) {
     const persona = PERSONAS.find(p => p.gamertag === gamertag);
-    assert.equal((await client.request('POST', '/auth/preview', { xuid: persona.xuid })).status, 200);
+    assert.equal((await client.request('POST', '/auth/preview', { id: persona.id })).status, 200);
   }
   client.as = async tag => {
     const persona = PERSONAS.find(p => p.gamertag === tag);
-    await client.request('POST', '/auth/preview', { xuid: persona.xuid });
+    await client.request('POST', '/auth/preview', { id: persona.id });
   };
   return client;
 }
@@ -95,7 +95,7 @@ test('reach decides how many staff approve and whether one is an admin', () => {
 });
 
 test('staff cannot review their own mods, and rejections explain themselves', () => {
-  const own = Object.assign(version({ hud: true }), { creator: admin.xuid });
+  const own = Object.assign(version({ hud: true }), { creator: admin.id });
   assert.match(M.can(admin, 'approve', { version: own }).reason, /your own/);
   assert.equal(M.can(player, 'review', { version: version({}) }).ok, false);
   assert.equal(M.can(null, 'send').ok, false);
@@ -110,7 +110,7 @@ test('only admins add moderators and only owners add admins', () => {
   assert.ok(M.can(admin, 'set-role', { target: player, role: 'moderator' }).ok);
   assert.ok(M.can(admin, 'set-role', { target: mod1, role: 'player' }).ok);
   assert.equal(M.can(admin, 'set-role', { target: player, role: 'admin' }).ok, false);
-  assert.equal(M.can(admin, 'set-role', { target: { ...admin, xuid: '9' }, role: 'player' }).ok, false);
+  assert.equal(M.can(admin, 'set-role', { target: { ...admin, id: '9' }, role: 'player' }).ok, false);
   assert.ok(M.can(owner, 'set-role', { target: mod1, role: 'admin' }).ok);
   assert.equal(M.can(owner, 'set-role', { target: player, role: 'owner' }).ok, false);
   assert.equal(M.can(owner, 'set-role', { target: owner, role: 'player' }).ok, false);
@@ -226,10 +226,10 @@ test('pulling a version removes it from the catalogue and the audit log records 
 
 test('role changes follow the account and need a reason', async () => {
   const client = await api('RedstoneRook');
-  assert.equal((await client.request('POST', '/staff/people/role', { gamertag: 'MossyCobble', role: 'admin', reason: 'x' })).status, 403);
-  assert.equal((await client.request('POST', '/staff/people/role', { gamertag: 'MossyCobble', role: 'moderator', reason: '' })).status, 400);
-  assert.equal((await client.request('POST', '/staff/people/role', { gamertag: 'nobody', role: 'moderator', reason: 'x' })).status, 404);
-  const promoted = await client.request('POST', '/staff/people/role', { gamertag: 'mossycobble', role: 'moderator', reason: 'Helps in Discord' });
+  assert.equal((await client.request('POST', '/staff/people/role', { display_name: 'MossyCobble', role: 'admin', reason: 'x' })).status, 403);
+  assert.equal((await client.request('POST', '/staff/people/role', { display_name: 'MossyCobble', role: 'moderator', reason: '' })).status, 400);
+  assert.equal((await client.request('POST', '/staff/people/role', { display_name: 'nobody', role: 'moderator', reason: 'x' })).status, 404);
+  const promoted = await client.request('POST', '/staff/people/role', { display_name: 'mossycobble', role: 'moderator', reason: 'Helps in Discord' });
   assert.equal(promoted.body.role, 'moderator');
   await client.as('MossyCobble');
   assert.equal((await client.request('GET', '/staff/queue')).status, 200);
@@ -253,7 +253,7 @@ test('reports need a signed-in player, a reason and details', async () => {
 test('the live client sends the session cookie, repeats the CSRF token and uploads components as forms', async () => {
   const { createHttpApi } = require('../marketplace-http.js');
   const calls = [];
-  const replies = [{ account: { gamertag: 'Steve' }, csrf: 'token-1' }, { id: '12', status: 'submitted' }];
+  const replies = [{ account: { id: 'google-steve', display_name: 'Steve', email: 'steve@example.test', role: 'player', suspended: false, xbox: null }, library: [], csrf: 'token-1', game_online: false }, { id: '12', status: 'submitted' }];
   const location = { href: 'https://site.test/mods/#/submit', assign: url => calls.push({ assigned: url }) };
   const client = createHttpApi('https://api.test/v1', async (url, init) => {
     calls.push({ url, init });
@@ -272,7 +272,7 @@ test('the live client sends the session cookie, repeats the CSRF token and uploa
   assert.deepEqual(JSON.parse(calls[1].init.body.get('listing')), { slug: 'compass', version: '0.1.0' });
   assert.equal(calls[1].init.body.get('file').name, 'compass.wasm');
   client.signIn();
-  assert.equal(calls[2].assigned, 'https://api.test/v1/auth/microsoft/start?return_to=' + encodeURIComponent(location.href));
+  assert.equal(calls[2].assigned, 'https://api.test/v1/auth/google/start?return_to=' + encodeURIComponent(location.href));
 });
 
 test('the live adapter refuses oversized descriptions while retaining the draft', async () => {
@@ -323,4 +323,36 @@ test('the HTTP adapter derives public and private media routes from digests and 
   assert.equal(calls[3].headers['X-Cinnabar-CSRF'], 'token');
   assert.equal(calls[4].headers['X-Cinnabar-CSRF'], '');
   assert.equal(client.fileUrl('../auth'), null);
+});
+
+test('Google sign-in preserves the entire current marketplace URL in return_to', () => {
+  const { createHttpApi } = require('../marketplace-http.js');
+  let assigned;
+  const location = { href: 'https://site.test/marketplace/?from=library&sort=name#/mod/time-changer', assign: value => { assigned = value; } };
+  createHttpApi('https://api.test/v1/', () => { throw new Error('Navigation must not fetch.'); }, location).signIn();
+  const url = new URL(assigned);
+  assert.equal(url.origin + url.pathname, 'https://api.test/v1/auth/google/start');
+  assert.equal(url.searchParams.get('return_to'), location.href);
+});
+
+test('Xbox link-code and unlink use credentials and CSRF and accept an empty 204 response', async () => {
+  const { createHttpApi } = require('../marketplace-http.js');
+  const calls = [];
+  const client = createHttpApi('https://api.test/v1', async (url, init) => {
+    calls.push({ url, init });
+    if (url.endsWith('/me')) return { status: 200, json: async () => ({ csrf: 'account-csrf', account: { id: 'google-1', xbox: null }, library: [] }) };
+    if (url.endsWith('/link-code')) return { status: 200, json: async () => ({ code: 'CODE1234', expires_in: 600 }) };
+    return { status: 204, json: () => { throw new Error('204 must not be decoded.'); } };
+  }, {});
+  await client.request('GET', '/me');
+  assert.equal((await client.request('POST', '/me/xbox/link-code')).body.code, 'CODE1234');
+  assert.deepEqual(await client.request('POST', '/me/xbox/unlink'), { status: 204, body: null });
+  for (const call of calls.slice(1)) {
+    assert.equal(call.init.credentials, 'include');
+    assert.equal(call.init.headers['X-Cinnabar-CSRF'], 'account-csrf');
+    assert.equal(call.init.method, 'POST');
+  }
+  await client.request('POST', '/auth/signout');
+  await client.request('POST', '/me/xbox/link-code');
+  assert.equal(calls.at(-1).init.headers['X-Cinnabar-CSRF'], '');
 });

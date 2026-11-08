@@ -52,7 +52,7 @@ test('tracks command value expansion, replacements, removal and set-equivalent r
   assert.deepEqual(M.grantDiff({ commands: ['op', 'say'] }, { commands: ['say', 'op', 'say'] }).changed, []);
   assert.equal(M.grantDiff({}, { commands: ['say'] }).expanded, true);
   assert.throws(() => M.requestedCapabilities({ commands: new Array(2) }), /names/);
-  assert.equal(M.can({ xuid: 'a', role: 'owner' }, 'set-role', { target: { xuid: 'b', role: 'player' }, role: '__proto__' }).ok, false);
+  assert.equal(M.can({ id: 'a', role: 'owner' }, 'set-role', { target: { id: 'b', role: 'player' }, role: '__proto__' }).ok, false);
 });
 
 test('renders creator Markdown and links as inert DOM and rejects executable image URLs', () => {
@@ -82,24 +82,24 @@ test('full validator rejects invalid component types and nested guest bytecode w
 test('pending listing edits stay private, approved metadata follows its version, and unavailable library entries remain removable', async () => {
   const memory = new Map();
   const api = createMockApi({ getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) }, () => 1234567890000);
-  await api.request('POST', '/auth/preview', { xuid: '2535400000000102' });
+  await api.request('POST', '/auth/preview', { id: '2535400000000102' });
   const before = (await api.request('GET', '/mods/time-changer')).body;
   const submitted = await api.request('POST', '/submissions', { slug: 'time-changer', name: 'Changed private title', summary: 'A different private summary.',
     description: 'This is a private draft.', notes: 'Added clearer controls.', version: '1.3.0', grants: { environment: true }, sha256: 'a'.repeat(64), bytes: 100 });
   assert.equal(submitted.status, 200);
   assert.equal((await api.request('GET', '/mods/time-changer')).body.name, before.name);
-  await api.request('POST', '/auth/preview', { xuid: '2535400000000201' });
+  await api.request('POST', '/auth/preview', { id: '2535400000000201' });
   const view = (await api.request('GET', '/staff/versions/' + submitted.body.id)).body;
   assert.equal(view.name, 'Changed private title');
   assert.deepEqual(view.previous.grants, { environment: true });
   await api.request('POST', '/staff/versions/' + submitted.body.id + '/decision', { decision: 'approve' });
   assert.equal((await api.request('GET', '/mods/time-changer')).body.name, 'Changed private title');
   assert.equal((await api.request('GET', '/mods/time-changer')).body.history[0].notes, 'Added clearer controls.');
-  await api.request('POST', '/auth/preview', { xuid: '2535400000000101' });
+  await api.request('POST', '/auth/preview', { id: '2535400000000101' });
   await api.request('POST', '/mods/time-changer/send');
-  await api.request('POST', '/auth/preview', { xuid: '2535400000000301' });
+  await api.request('POST', '/auth/preview', { id: '2535400000000301' });
   await api.request('POST', '/staff/mods/time-changer/hide', { hidden: true });
-  await api.request('POST', '/auth/preview', { xuid: '2535400000000101' });
+  await api.request('POST', '/auth/preview', { id: '2535400000000101' });
   assert.equal((await api.request('GET', '/me')).body.library.length, 1);
   const selected = (await api.request('GET', '/me')).body.library[0];
   assert.equal((await api.request('POST', '/mods/time-changer/remove', selected)).status, 200);
@@ -108,7 +108,7 @@ test('pending listing edits stay private, approved metadata follows its version,
 
 test('preview resends at the same clock value cannot be erased by an older removal', async () => {
   const api = createMockApi({ getItem: () => null, setItem: () => {} }, () => 1234567890000);
-  await api.request('POST', '/auth/preview', { xuid: '2535400000000101' });
+  await api.request('POST', '/auth/preview', { id: '2535400000000101' });
   await api.request('POST', '/mods/time-changer/send');
   const old = (await api.request('GET', '/me')).body.library[0];
   await api.request('POST', '/mods/time-changer/send');
@@ -123,7 +123,7 @@ test('preview resends at the same clock value cannot be erased by an older remov
 
 test('rejects executable gallery data without creating any submission', async () => {
   const api = createMockApi({ getItem: () => null, setItem: () => {} });
-  await api.request('POST', '/auth/preview', { xuid: '2535400000000102' });
+  await api.request('POST', '/auth/preview', { id: '2535400000000102' });
   const response = await api.request('POST', '/submissions', { slug: 'unsafe-media', name: 'Media', summary: 'A gallery validation example.', version: '1.0.0',
     grants: {}, sha256: 'a'.repeat(64), bytes: 8, gallery: [{ url: 'data:image/svg+xml,<svg/>', caption: '', alt: '' }] });
   assert.equal(response.status, 422);
