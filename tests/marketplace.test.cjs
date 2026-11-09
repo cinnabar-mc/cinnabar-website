@@ -94,9 +94,10 @@ test('reach decides how many staff approve and whether one is an admin', () => {
   assert.equal(M.decide(adminFirst, mod1, 'approve', '', 2).status, 'approved');
 });
 
-test('staff cannot review their own mods, and rejections explain themselves', () => {
+test('staff other than owners cannot review their own mods, and rejections explain themselves', () => {
   const own = Object.assign(version({ hud: true }), { creator: admin.id });
   assert.match(M.can(admin, 'approve', { version: own }).reason, /your own/);
+  assert.ok(M.can(owner, 'approve', { version: Object.assign(version({ packets: true }), { creator: owner.id }) }).ok);
   assert.equal(M.can(player, 'review', { version: version({}) }).ok, false);
   assert.equal(M.can(null, 'send').ok, false);
   assert.throws(() => M.decide(version({ hud: true }), mod1, 'reject', ' ', 1), /why/);
