@@ -70,6 +70,7 @@
   /** Describe the server's release state without treating scan completion as publication or a safety guarantee. */
   function releaseState(version) {
     if (version.pulled) return { label: 'Pulled', tone: 'error' };
+    if (version.hidden) return { label: 'Hidden', tone: 'warning' };
     if (version.status === 'approved') return { label: version.publication === 'automatic' ? 'Published automatically' : 'Published after review', tone: 'good' };
     if (version.status === 'rejected') return { label: 'Rejected', tone: 'error' };
     if (version.status === 'changes') return { label: 'Changes requested', tone: 'warning' };
@@ -96,7 +97,24 @@
     return { ok: true };
   }
 
-  const api = { CATEGORIES, externalUrl, imageUrl, markdown, category, releaseState, scanApproval };
+  /** A compact timeline follows server state; completed scanning never implies publication. */
+  function releaseTimeline(version) {
+    const published = version.status === 'approved';
+    const decided = ['rejected', 'changes'].includes(version.status);
+    const publishing = !published && Boolean(version.publication);
+    const scanned = version.scan?.state === 'complete' && version.scan?.report?.deterministic === 'pass'
+      && ['clear', 'flag'].includes(version.scan?.report?.ai?.verdict) && version.scan?.review_ready === true;
+    const held = version.scan?.state === 'failed' || version.scan?.report?.deterministic === 'block'
+      || version.scan?.report?.ai?.verdict === 'error';
+    return [
+      { label: 'Uploaded', state: 'complete' },
+      { label: 'Scanning', state: published || scanned || publishing ? 'complete' : held ? 'error' : decided || !version.scan ? 'pending' : 'current' },
+      { label: 'Review', state: published || publishing ? 'complete' : decided ? 'error' : scanned ? 'current' : 'pending' },
+      { label: 'Published', state: published ? (version.pulled || version.hidden ? 'error' : 'complete') : publishing ? 'current' : 'pending' },
+    ];
+  }
+
+  const api = { CATEGORIES, externalUrl, imageUrl, markdown, category, releaseState, releaseTimeline, scanApproval };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CinnabarContent = api;
 })(typeof window !== 'undefined' ? window : globalThis);

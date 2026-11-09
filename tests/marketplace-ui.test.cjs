@@ -7,6 +7,8 @@ const { webcrypto } = require('node:crypto');
 const { parseHTML } = require('linkedom');
 const M = require('../marketplace-core.js');
 const C = require('../marketplace-content.js');
+const D = require('../marketplace-discovery.js');
+const U = require('../marketplace-upload.js');
 const Mock = require('../marketplace-mock.js');
 const root = path.join(__dirname, '..');
 
@@ -38,7 +40,9 @@ async function page(hash = '#/', stored, http, options = {}) {
   const timers = new Map(); let timerId = 0; let clock = Date.now();
   class ClockDate extends Date { static now() { return clock; } }
   const copied = [];
-  const win = { CinnabarMarket: M, CinnabarContent: C, CinnabarMarketMock: Mock,
+  const win = { CinnabarMarket: M, CinnabarContent: C, CinnabarDiscovery: D, CinnabarMarketMock: Mock,
+    CinnabarUpload: { ...U, prepareImage: options.prepareImage || (async file => ({ file, name: file.name,
+      sha256: file.sha256 || 'b'.repeat(64), caption: '', alt: '', url: 'data:image/png;base64,AQID' })) },
     CinnabarMarketHttp: { createHttpApi: () => http },
     CINNABAR_DOWNLOADS: { marketplace: { backend: http ? 'http' : 'mock', api_url: 'https://api.invalid/v1' } }, localStorage: storage, sessionStorage,
     CinnabarValidation: { iconUrl: async bytes => bytes ? "data:image/png;base64,AQID" : null, validate: async () => ({ imports: [], exports: [] }) },
@@ -46,7 +50,10 @@ async function page(hash = '#/', stored, http, options = {}) {
     navigator: { clipboard: { writeText: async code => { copied.push(code); } } },
     setTimeout: (fn, delay) => { timers.set(++timerId, { fn, at: clock + delay }); return timerId; }, clearTimeout: id => timers.delete(id) };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'marketplace.js'), 'utf8'), {
-    window: win, document, location, history: { replaceState() {} }, URLSearchParams, URL,
+    window: win, document, location, history: { replaceState(_state, _title, value) {
+      const updated = new URL(value, location.href);
+      Object.assign(location, { href: updated.href, hash: updated.hash, search: updated.search, pathname: updated.pathname });
+    } }, URLSearchParams, URL,
     Date: ClockDate, crypto: webcrypto, AbortController, TextDecoder, TextEncoder, Uint8Array, ArrayBuffer,
   });
   await settle();
@@ -81,6 +88,27 @@ async function editorFile(p, bytes = Uint8Array.from([0,97,115,109,13,0,1,0])) {
   input.dispatchEvent(new p.window.Event('change'));
   for (let i = 0; i < 30 && input.isConnected; i++) { await new Promise(resolve => setTimeout(resolve, 5)); await settle(); }
   assert.match(p.text(), /syntax checked/);
+}
+
+/** Choose screenshot fixtures through the editor's real selection and ordering controls. */
+async function editorImages(p, files) {
+  const input = p.document.getElementById('draft-images');
+  Object.defineProperty(input, 'files', { value: files });
+  input.dispatchEvent(new p.window.Event('change')); await settle();
+}
+
+/** A complete local draft, ready to select and validate a component. */
+function uploadDraft() {
+  return new Map([['cinnabar.marketplace.draft.creator', JSON.stringify({ name: 'Upload polish', slug: 'upload-polish',
+    summary: 'A complete upload recovery example.', description: 'Example description', version: '1.0.0',
+    category: 'Interface', license: 'MIT', source: '', notes: 'Initial release' })]]);
+}
+
+/** Reach the upload action while retaining explicit distribution consent. */
+async function readyUpload(p) {
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]')); await editorFile(p);
+  await p.click(p.document.querySelector('[data-focus-key="step:checks"]'));
+  p.document.getElementById('distribution-rights').checked = true;
 }
 
 test('project errors are inline, described, focused and scrolled; continuing validates only the current step', async () => {
@@ -200,7 +228,7 @@ test('search retains input focus, category state survives a detail round trip, a
   assert.equal(p.document.activeElement.id, 'mod-search');
   await p.route('#/mod/coords-hud');
   assert.match(p.text(), /No screenshots uploaded/);
-  await p.route('#/');
+  await p.route(p.document.querySelector('.back').getAttribute('href'));
   assert.equal(p.document.querySelector('#mod-search').value, 'coords');
   assert.equal(p.document.querySelectorAll('.mod-card').length, 1);
 });
@@ -440,7 +468,7 @@ function liveApi(version, role = 'moderator') {
     fileUrl: id => 'https://api.invalid/v1/staff/versions/' + id + '/file',
     request: async (method, path, body) => {
       calls.push({ method, path, body });
-      if (path === '/me') return { status: 200, body: { account: api.account, library: [] } };
+      if (path === '/me') return { status: 200, body: { account: api.account, library: [], upload_limits: Mock.UPLOAD_LIMITS } };
       if (path === '/mods') return { status: 200, body: [] };
       if (path === '/me/mods') return { status: 200, body: [structuredClone(version)] };
       if (path === '/staff/queue') return { status: 200, body: version.status === 'submitted' ? [structuredClone(version)] : [] };
@@ -517,7 +545,7 @@ test('failed real uploads retain description and component, dropping old gallery
   p.document.querySelector('form').dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true })); await settle();
   assert.match(p.document.querySelector('#feedback').textContent, /Resize and retry/);
   assert.equal(uploaded.fields.license, 'MIT'); assert.equal(uploaded.fields.notes, 'Initial release');
-  assert.equal(uploaded.gallery, undefined); assert.equal(uploaded.fields.gallery, undefined);
+  assert.equal(uploaded.gallery.images.length, 0); assert.equal(uploaded.fields.gallery, undefined);
   await p.click(p.document.querySelector('[data-focus-key="step:project"]'));
   assert.equal(p.document.querySelector('#draft-description').value, 'Long description retained');
   await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
@@ -917,8 +945,9 @@ test('editor has three steps, ignores old gallery drafts and saves only current 
   assert.match(p.document.getElementById('hint-description').textContent, /Markdown/);
   for (const step of ['project', 'release', 'checks']) {
     await p.click(p.document.querySelector('[data-focus-key="step:' + step + '"]'));
-    assert.doesNotMatch(p.text(), /Images|screenshots|captions|alt text|Preview description/i);
-    assert.equal(p.document.querySelector('input[accept*="image"]'), null);
+    assert.equal(Boolean(p.document.querySelector('input[accept*="image"]')), step === 'release');
+    assert.equal(p.document.querySelectorAll('.gallery-editor-item').length, 0);
+    assert.doesNotMatch(p.text(), /Old image|Old alt|Preview description/);
   }
   await p.click(p.document.querySelector('[data-focus-key="draft:save"]'));
   const saved = JSON.parse(memory.get('cinnabar.marketplace.draft.creator'));
@@ -1000,4 +1029,161 @@ test('listing, detail, library and staff rows use API artwork with safe and fail
       assert.ok(tile.querySelector('svg')); assert.equal(tile.querySelector('img'), null);
     }
   }
+});
+
+test('catalogue filters are shareable, restore on reload and keep result counts and focus in sync', async () => {
+  const p = await page('#/?q=coords&category=Interface&sort=updated');
+  assert.equal(p.document.querySelectorAll('.mod-card').length, 1);
+  assert.match(p.document.querySelector('[data-focus-key="category:Interface"]').getAttribute('aria-label'), /1 mod$/);
+  await p.input('#mod-search', 'time');
+  assert.match(p.win.location.hash, /q=time/);
+  assert.equal(p.document.activeElement.id, 'mod-search');
+  const same = await page(p.win.location.hash, p.memory);
+  assert.equal(same.document.getElementById('mod-search').value, 'time');
+  assert.equal(same.document.querySelectorAll('.mod-card').length, 0);
+  await same.click(same.document.querySelector('[data-focus-key="catalog:clear"]'));
+  assert.equal(same.win.location.hash, '#/');
+  assert.equal(same.document.querySelectorAll('.mod-card').length, 8);
+});
+
+test('screenshots reorder accessibly, save descriptors only and reselect into their saved positions', async () => {
+  const api = liveApi(liveRelease(), 'player');
+  const p = await page('#/submit', uploadDraft(), api);
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  const files = ['b', 'c'].map((value, index) => ({ name: `Screenshot${index}.png`, size: 4, sha256: value.repeat(64) }));
+  await editorImages(p, files);
+  assert.equal(p.document.querySelectorAll('.gallery-editor-item').length, 2);
+  await p.input('[data-image-caption="' + files[1].sha256 + '"]', 'Second screenshot');
+  await p.click(p.document.querySelector('[data-focus-key="image:' + files[1].sha256 + ':earlier"]'));
+  assert.equal(p.document.querySelector('[data-image-caption]').getAttribute('data-image-caption'), files[1].sha256);
+  assert.equal(p.document.activeElement.getAttribute('data-image-caption'), files[1].sha256);
+  await p.click(p.document.querySelector('[data-focus-key="draft:save"]'));
+  const saved = JSON.parse(p.memory.get('cinnabar.marketplace.draft.creator'));
+  assert.deepEqual(saved.images.map(item => item.sha256), [files[1].sha256, files[0].sha256]);
+  assert.equal(saved.images[0].url, undefined); assert.equal(saved.images[0].file, undefined);
+  const reloaded = await page('#/submit', p.memory, api);
+  await reloaded.click(reloaded.document.querySelector('[data-focus-key="step:release"]'));
+  assert.match(reloaded.text(), /Reselect Screenshot/);
+  await editorImages(reloaded, [files[1]]);
+  assert.equal(reloaded.document.querySelectorAll('.gallery-editor-preview img').length, 0);
+  assert.equal(reloaded.document.querySelectorAll('img.gallery-editor-preview').length, 1);
+  assert.equal(reloaded.document.querySelector('[data-image-caption]').value, 'Second screenshot');
+});
+
+test('caption and image-description edits survive another screenshot preparing', async () => {
+  let finish;
+  const api = liveApi(liveRelease(), 'player');
+  const p = await page('#/submit', uploadDraft(), api, { prepareImage: async file => {
+    if (file.name === 'extra.png') await new Promise(resolve => { finish = resolve; });
+    return { file, name: file.name, sha256: file.sha256, caption: '', alt: '', url: 'data:image/png;base64,AQID' };
+  } });
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  const hash = 'b'.repeat(64);
+  await editorImages(p, [{ name: 'first.png', size: 4, sha256: hash }]);
+  await editorImages(p, [{ name: 'extra.png', size: 4, sha256: 'c'.repeat(64) }]);
+  assert.match(p.text(), /Preparing screenshots/);
+  await p.input('[data-image-caption="' + hash + '"]', 'Edited during preparation');
+  await p.input('[data-focus-key="image:' + hash + ':alt"]', 'An updated image description');
+  finish(); await settle();
+  assert.equal(p.document.querySelectorAll('.gallery-editor-item').length, 2);
+  assert.equal(p.document.querySelector('[data-image-caption="' + hash + '"]').value, 'Edited during preparation');
+  assert.equal(p.document.querySelector('[data-focus-key="image:' + hash + ':alt"]').value, 'An updated image description');
+});
+
+test('a lost upload response recovers its exact receipt without submitting a duplicate release', async () => {
+  const api = liveApi(liveRelease(), 'player');
+  const artifactHash = Buffer.from(await webcrypto.subtle.digest('SHA-256', Uint8Array.from([0,97,115,109,13,0,1,0]))).toString('hex');
+  let received = []; let posts = 0;
+  const request = api.request;
+  api.request = async (method, path, body) => path === '/me/mods' ? { status: 200, body: received } : request(method, path, body);
+  api.submit = async fields => {
+    posts++;
+    received = [{ ...liveRelease(), ...fields, id: '55', creator: 'creator', gallery: [],
+      sha256: artifactHash }];
+    throw new Error('Response lost after commit');
+  };
+  const p = await page('#/submit', uploadDraft(), api); await readyUpload(p);
+  await continueEditor(p);
+  assert.match(p.text(), /Connection lost/);
+  assert.equal(JSON.parse(p.memory.get('cinnabar.marketplace.draft.creator')).pending_upload, true);
+  await continueEditor(p);
+  assert.equal(posts, 1);
+  assert.equal(p.win.location.hash, '#/mine/55');
+  assert.equal(p.memory.has('cinnabar.marketplace.draft.creator'), false);
+});
+
+test('upload progress and Stop preserve the selected files for a checked retry', async () => {
+  const api = liveApi(liveRelease(), 'player'); let options;
+  api.submit = (_fields, _file, upload) => {
+    options = upload;
+    return new Promise((resolve, reject) => upload.signal.addEventListener('abort', () => reject(new Error('Aborted')), { once: true }));
+  };
+  const p = await page('#/submit', uploadDraft(), api); await readyUpload(p);
+  await continueEditor(p);
+  options.onProgress({ loaded: 25, total: 100 });
+  assert.match(p.text(), /25% uploaded/);
+  options.onProgress({ loaded: 100, total: 100 });
+  assert.match(p.text(), /Waiting for server confirmation/);
+  await p.click(p.document.querySelector('[data-focus-key="upload:stop"]'));
+  assert.equal(options.signal.aborted, true);
+  assert.match(p.text(), /Upload stopped/);
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  assert.match(p.text(), /test.wasm.*syntax checked/);
+});
+
+test('late upload responses and progress cannot replace a newer account or route', async () => {
+  const api = liveApi(liveRelease(), 'player'); let finish; let options;
+  api.submit = (_fields, _file, upload) => { options = upload; return new Promise(resolve => { finish = resolve; }); };
+  const p = await page('#/submit', uploadDraft(), api); await readyUpload(p); await continueEditor(p);
+  api.account = { ...api.account, id: 'another-account', username: 'AnotherCreator' };
+  await p.route('#/library');
+  assert.equal(options.signal.aborted, true);
+  options.onProgress({ loaded: 100, total: 100 }); finish({ status: 200, body: { id: '55' } }); await settle();
+  assert.equal(p.win.location.hash, '#/library');
+  await p.route('#/submit');
+  assert.ok(p.document.getElementById('draft-name'), p.text());
+  assert.equal(p.document.getElementById('draft-name').value, '');
+});
+
+test('creator timeline keeps full scan evidence in an expandable section', async () => {
+  const version = liveRelease('running'); const p = await page('#/mine/42', undefined, liveApi(version, 'player'));
+  assert.deepEqual([...p.document.querySelectorAll('.release-progress li span:last-child')].map(item => item.textContent), ['Uploaded', 'Scanning', 'Review', 'Published']);
+  assert.equal(p.document.querySelector('.release-check-details').hasAttribute('open'), false);
+  assert.match(p.document.querySelector('.release-progress .state-current').textContent, /Scanning/);
+  const details = p.document.querySelector('.release-check-details');
+  details.open = true;
+  details.dispatchEvent(new p.window.Event('toggle'));
+  version.status = 'approved'; version.publication = 'automatic'; await p.tick();
+  assert.equal(p.document.querySelector('.release-check-details').hasAttribute('open'), true);
+  assert.equal(p.document.querySelectorAll('.release-progress .state-complete').length, 4);
+  assert.match(p.text(), /Published automatically/);
+});
+
+test('a normal preview upload keeps ordered screenshot metadata and reaches its own release', async () => {
+  const memory = new Map();
+  const api = Mock.createMockApi({ getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) });
+  const original = api.submit; let submitted;
+  api.submit = (...args) => (submitted = original.apply(api, args));
+  const p = await page('#/submit', memory, api); await p.signIn('BlockSmith42');
+  await p.input('#draft-name', 'Gallery upload'); await p.input('#draft-summary', 'A gallery upload example.');
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  await p.input('#draft-version', '1.0.0'); await editorFile(p);
+  await editorImages(p, [{ name: 'screen.png', size: 4, sha256: 'b'.repeat(64) }]);
+  await p.click(p.document.querySelector('[data-focus-key="step:checks"]'));
+  p.document.getElementById('distribution-rights').checked = true;
+  await continueEditor(p);
+  await submitted; await settle();
+  assert.match(p.win.location.hash, /^#\/mine\//, p.text());
+  await p.route(p.win.location.hash);
+  assert.ok(p.document.querySelector('.gallery-picture'));
+  assert.match(p.text(), /Awaiting review/);
+});
+
+for (const body of [{}, null]) test('an unconfirmed successful response retains the draft and selected component: ' + JSON.stringify(body), async () => {
+  const api = liveApi(liveRelease(), 'player'); api.submit = async () => ({ status: 200, body });
+  const p = await page('#/submit', uploadDraft(), api); await readyUpload(p); await continueEditor(p);
+  assert.equal(p.win.location.hash, '#/submit'); assert.match(p.text(), /not confirmed/);
+  assert.equal(JSON.parse(p.memory.get('cinnabar.marketplace.draft.creator')).pending_upload, true);
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  assert.match(p.text(), /test.wasm.*syntax checked/);
 });

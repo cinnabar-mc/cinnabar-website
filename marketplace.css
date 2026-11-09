@@ -116,6 +116,10 @@ label { cursor: pointer; }
 .filters button { justify-content: space-between; width: 100%; padding: 0 12px; border-color: transparent; color: var(--soft); text-align: left; }
 .filters button:hover { background: var(--raise); border-color: transparent; }
 .filters button.active { background: var(--raise-2); color: var(--ink); }
+.filters button { gap: 12px; }
+.filter-count { color: var(--quiet); font: 400 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.catalog-clear { min-height: 32px; padding: 2px 8px; font: 400 13px/1.4 var(--sans); }
+.catalog-clear[hidden] { display: none; }
 .filter-section label { min-height: 44px; color: var(--soft); font-size: 15px; }
 .search-tools { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 12px; margin-bottom: 16px; }
 .search-wrap { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raise); color: var(--quiet); cursor: text; transition: border-color .15s ease-out; }
@@ -232,6 +236,27 @@ label { cursor: pointer; }
 .scan-status { display: grid; margin-top: 16px; }
 .scan-status div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
 .scan-evidence { margin-block: 24px; }
+.upload-status { max-width: 640px; margin: 48px auto; padding: 32px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); }
+.upload-status h2 { margin-bottom: 12px; }
+.upload-status progress { width: 100%; height: 10px; margin: 24px 0 8px; accent-color: var(--red); }
+.upload-status .btn { margin-top: 24px; }
+.upload-status p, .gallery-editor-item p, .release-detail h2 { overflow-wrap: anywhere; }
+.upload-recovery { margin-bottom: 24px; }
+.gallery-editor-list { display: grid; gap: 16px; list-style: none; padding: 0; }
+.gallery-editor-item { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-top: 1px solid var(--line); }
+.gallery-editor-preview { width: 112px; aspect-ratio: 16/9; object-fit: contain; border-radius: 6px; background: var(--raise); overflow-wrap: anywhere; }
+.gallery-editor-item .field { margin-block: 12px; }
+.gallery-edit-actions { flex-wrap: wrap; gap: 8px; }
+.gallery-edit-actions button { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+.release-progress-wrap { margin-block: 24px; }
+.release-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 0; margin: 16px 0; list-style: none; }
+.release-progress li { display: flex; flex-direction: column; align-items: start; gap: 8px; padding-top: 12px; border-top: 2px solid var(--line); color: var(--quiet); font-size: 14px; }
+.progress-dot { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid currentColor; border-radius: 50%; font: 400 12px/1 var(--mono); }
+.release-progress .state-complete { color: var(--soft); border-top-color: var(--soft); }
+.release-progress .state-current { color: var(--ink); border-top-color: var(--red-line); }
+.release-progress .state-error { color: var(--red-text); border-top-color: var(--red-line); }
+.release-check-details { margin-block: 24px; border-block: 1px solid var(--line); padding-block: 16px; }
+.release-check-details summary { cursor: pointer; color: var(--soft); font-size: 14px; }
 .scan-findings { padding-inline-start: 22px; color: var(--soft); overflow-wrap: anywhere; }
 .code-block { padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--raise); color: #e6e1da; font: 400 13.5px/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 
@@ -323,6 +348,10 @@ dialog p.error { color: var(--red-text); }
   .detail-layout { display: flex; flex-direction: column; gap: 32px; }
   .detail-layout > aside { order: -1; }
   .editor-heading { display: block; }
+  .gallery-editor-item { grid-template-columns: minmax(0, 1fr); }
+  .gallery-editor-preview { width: min(100%, 240px); }
+  .release-progress { gap: 8px; }
+  .release-progress li { font-size: 12px; overflow-wrap: anywhere; }
   .editor-heading .btn { margin-top: 16px; }
   .editor-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .editor-layout > aside:first-child { overflow-x: auto; }

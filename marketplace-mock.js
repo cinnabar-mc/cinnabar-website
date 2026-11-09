@@ -7,6 +7,9 @@
   const STORAGE_KEY = "cinnabar.marketplace.preview.v4";
   const HOUR = 3600000;
   const DAY = 24 * HOUR;
+  // Fixture policy for the explicit local preview; HTTP mode receives its limits from the API.
+  const UPLOAD_LIMITS = { component_bytes: 16 * 1024 * 1024, images: 4, image_bytes: 1024 * 1024,
+    image_dimension: 4096, image_pixels: 4096 * 4096, caption_chars: 160, alt_chars: 300 };
 
   /** Sample accounts for the preview's sign-in step. None of these are real players. */
   const PERSONAS = [
@@ -135,7 +138,7 @@
     /** Return the same account envelope from GET /me and successful username writes. */
     const sessionBody = function () {
       const account = me();
-      return { account, library: account ? state.library[account.id] || [] : [], csrf: 'preview-csrf', game_online: Boolean(account?.xbox) };
+      return { account, library: account ? state.library[account.id] || [] : [], csrf: 'preview-csrf', game_online: Boolean(account?.xbox), upload_limits: UPLOAD_LIMITS };
     };
     const log = function (action, target, note) {
       state.audit.unshift({ at: now(), actor: state.session, action: action, target: target, note: note || "" });
@@ -167,6 +170,7 @@
         .sort(function (a, b) { return b.submitted_at - a.submitted_at; })[0];
       const submitted = v.listing || listing;
       return Object.assign({}, v, { name: submitted.name, creator_name: name(v.creator), source: submitted.source,
+        description: submitted.description, license: submitted.license, gallery: submitted.gallery || [],
         icon: submitted.icon || null, category: submitted.category, summary: submitted.summary, capabilities: core.requestedCapabilities(v.grants),
         approvals: v.approvals.map(function (a) { return Object.assign({ username: name(a.id) }, a); }),
         previous: previous ? { version: previous.version, grants: previous.grants, diff: core.grantDiff(previous.grants, v.grants) } : null });
@@ -293,8 +297,14 @@
           return { status: 409, body: { error: "That version exists.", fields: { version: "Bump the version to submit again." } } };
         }
         if (!/^[0-9a-f]{64}$/.test(String(body.sha256 || ""))) return fail(400, "Upload the component file.");
+        const gallery = (Array.isArray(body.gallery) ? body.gallery : []).filter(image => image && typeof image.sha256 === 'string'
+          && /^[a-f0-9]{64}$/.test(image.sha256) && typeof image.url === 'string'
+          && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(image.url) && image.url.length <= 360000
+          && typeof image.caption === 'string' && image.caption.length <= UPLOAD_LIMITS.caption_chars
+          && typeof image.alt === 'string' && image.alt.length <= UPLOAD_LIMITS.alt_chars).slice(0, UPLOAD_LIMITS.images);
         const metadata = { name: body.name, summary: body.summary, description: String(body.description || '').slice(0, 40000),
           source: body.source || '', category: body.category || '', license: String(body.license || '').slice(0, 128),
+          ...(gallery.length ? { gallery } : {}),
           icon: typeof body.icon === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(body.icon) && body.icon.length <= 360000 ? body.icon : null };
         if (!existing) state.listings[body.slug] = Object.assign({ created_at: now(), hidden: false, creator: state.session, slug: body.slug }, metadata);
         state.counter += 1;
@@ -400,22 +410,24 @@
         return Promise.resolve(fail(404, "Not found."));
       },
       /** Read the uploaded component for preview metadata just as the service reads live uploads. */
-      submit: async function (fields, file) {
+      submit: async function (fields, file, options = {}) {
         const owner = state.session;
         const bytes = await file.arrayBuffer();
         const parsed = core.readComponent(bytes);
         const icon = await validation.iconUrl(parsed.icon);
         const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))).map(byte => byte.toString(16).padStart(2, '0')).join('');
+        if (options.signal?.aborted) return fail(0, 'Upload stopped. Retry checks whether the release was received.');
         if (owner !== state.session) return fail(409, 'Your account changed. Select the file and retry.');
         const listing = { ...fields }; delete listing.gallery; delete listing.images;
-        return this.request('POST', '/submissions', { ...listing, icon, grants: parsed.grants || {}, sha256, bytes: file.size });
+        const gallery = (options.images || []).map(image => ({ sha256: image.sha256, url: image.url, caption: image.caption, alt: image.alt }));
+        return this.request('POST', '/submissions', { ...listing, icon, gallery, grants: parsed.grants || {}, sha256, bytes: file.size });
       },
       /** Restores the sample data. */
       reset: function () { state = seed(now()); save(); },
     };
   }
 
-  const exported = { createMockApi: createMockApi, PERSONAS: PERSONAS, STORAGE_KEY: STORAGE_KEY };
+  const exported = { createMockApi: createMockApi, PERSONAS: PERSONAS, STORAGE_KEY: STORAGE_KEY, UPLOAD_LIMITS };
   if (typeof module !== "undefined") module.exports = exported;
   if (typeof window !== "undefined") window.CinnabarMarketMock = exported;
 })();

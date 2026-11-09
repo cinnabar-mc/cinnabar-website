@@ -128,7 +128,7 @@ test('legacy gallery data is ignored rather than saved with a submission', async
     grants: {}, sha256: 'a'.repeat(64), bytes: 8, gallery: [{ url: 'data:image/svg+xml,<svg/>', caption: '', alt: '' }] });
   assert.equal(response.status, 200);
   assert.equal(response.body.listing.gallery, undefined);
-  assert.equal(response.body.gallery, undefined);
+  assert.deepEqual(response.body.gallery, []);
   assert.equal(response.body.listing.icon, null);
 });
 

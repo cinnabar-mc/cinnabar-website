@@ -152,9 +152,10 @@ fall back to fictional data. For a labelled local preview, run
 The HTTP adapter uses Cinnabar accounts with Google sign-in, credentials, CSRF and
 multipart component uploads. Descriptions, category, license and release notes
 are versioned by the API. The component can embed its listing icon as a bounded
-PNG; existing listing galleries still display. Drafts stay local,
-keyed by Cinnabar account ID, and do not retain component bytes:
-reselect the file after reloading. Link Xbox from the account controls to send mods
+PNG. Drafts stay local, keyed by Cinnabar account ID, and do not retain file bytes:
+reselect files after reloading. Optional screenshots have bounded previews,
+captions, image descriptions and keyboard-accessible ordering. Their limits come
+from the API; the component still supplies the listing icon. Link Xbox from the account controls to send mods
 to your game; enter the website link code in Cinnabar under Settings → Account →
 Link website account.
 
@@ -165,6 +166,10 @@ Staff can request rescans and administrators can manage project-specific creator
 trust. The server authorizes every action and publishes eligible established updates.
 Library removal works for public and unavailable selections, matching the exact
 saved hash and send timestamp. Installed mods are managed in Cinnabar.
+Search, category, gameplay and sort filters live in shareable hash URLs. Category
+counts use the current search and gameplay filter; Recently updated uses the
+published-release date. Upload retries first reconcile an interrupted request
+against the creator's exact release, retaining selected files until confirmed.
 See [docs/marketplace.md](docs/marketplace.md)
 for integration, local verification and rollout requirements.
 
