@@ -209,7 +209,7 @@
 
   /** Reads the marketplace route from a location hash such as `#/mod/zoom` or `#/staff/queue`. */
   function parseRoute(hash) {
-    const [view, first, second] = String(hash || "").replace(/^#\/?/, "").split("/").filter(Boolean).map(function (part) { try { return decodeURIComponent(part); } catch (_) { return ""; } });
+    const [view, first, second] = String(hash || "").split('?')[0].replace(/^#\/?/, "").split("/").filter(Boolean).map(function (part) { try { return decodeURIComponent(part); } catch (_) { return ""; } });
     if (view === "mod" && first) return { view: view, slug: first };
     if (view === "staff") {
       const tab = ["queue", "reports", "people", "audit"].includes(first) ? first : "queue";

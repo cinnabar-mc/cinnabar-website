@@ -133,7 +133,7 @@ class RenderTests(unittest.TestCase):
             "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod", "assets",
             "mods", "marketplace", "marketplace.css", "marketplace-capabilities.js",
             "marketplace-core.js", "marketplace-mock.js", "marketplace-http.js", "marketplace-content.js",
-            "marketplace-validation.js", "marketplace.js", "validator",
+            "marketplace-discovery.js", "marketplace-upload.js", "marketplace-validation.js", "marketplace.js", "validator",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
 

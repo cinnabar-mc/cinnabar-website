@@ -52,6 +52,8 @@
   <script src="/marketplace-capabilities.js" defer></script>
   <script src="/marketplace-core.js" defer></script>
   <script src="/marketplace-content.js" defer></script>
+  <script src="/marketplace-discovery.js" defer></script>
+  <script src="/marketplace-upload.js" defer></script>
   <script src="/marketplace-mock.js" defer></script>
   <script src="/marketplace-http.js" defer></script>
   <script src="/marketplace-validation.js" defer></script>

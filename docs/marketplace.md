@@ -48,7 +48,12 @@ No SPA fallback or dynamic Worker is required.
 - Compact catalogue rows show each mod's creator, summary, category and version.
   Project pages keep the install action prominent, with expandable permissions
   and dedicated overview, version and permission tabs.
-- Search/filter state survives a project visit. The library belongs to the chosen
+- Search, category, gameplay and sort state is encoded after the hash route with
+  `q`, `category`, `limited=1` and `sort`. Typing replaces the current history entry;
+  Back to mods restores the filtered URL. Unknown options use defaults. Category
+  counts reflect search/gameplay filters before the selected category. Recently
+  updated uses the API's publication date, leaving undated entries last.
+  The library belongs to the chosen
   account; unavailable selections remain visible and removable in both backends.
   Adding a mod never grants runtime permissions or installs code.
 - Library removal sends the displayed selection's hash and send timestamp. A stale
@@ -59,10 +64,21 @@ No SPA fallback or dynamic Worker is required.
   rendered as DOM nodes. Creator HTML is plain text. The editor keeps a Markdown
   hint below Description without a separate preview button.
 - Project → Release → Checks & publish keeps a browser-local draft per Cinnabar
-  account ID, independent of Xbox linking or gamertag changes. Old draft galleries
-  are ignored and dropped on save. The editor has no screenshot uploads; existing
-  API galleries still display on mod pages. Component bytes are never saved in
-  browser storage.
+  account ID, independent of Xbox linking or gamertag changes. Legacy draft image
+  URLs are ignored. Optional screenshots support previews, captions, image
+  descriptions, removal and keyboard-accessible ordering. The API's `upload_limits`
+  governs selection; bounded raster headers are checked before browser decoding.
+  Drafts save only text, file names and screenshot hashes/order, never component
+  or screenshot bytes/previews. Reselecting a screenshot restores its saved slot.
+  The API update must precede this UI; absent limits disable screenshot selection.
+- Uploads show actual byte progress when available and distinguish sending bytes
+  from server confirmation. Stop and page exit cancel the request; cancellation
+  cannot withdraw a release the service already received. Failed requests keep
+  selected files. Before upload, the browser saves recovery metadata. A retry
+  checks `/me/mods` for the same owner, component hash, version, listing text and
+  ordered screenshots. Conflicting snapshots cannot consume the draft. An
+  unconfirmed response remains retryable, and stale account/route responses cannot
+  replace the current screen.
 - Listing icons come from a single top-level `cinnabar:extension/icon@1` section.
   A PNG must decode completely, fit within 256 KiB and have nonzero dimensions no
   larger than 256 px on either side. Missing, duplicate or invalid icons leave the
@@ -104,7 +120,10 @@ including the current hash route. The API returns to that URL and may add
 `signin_error=<code>`. The website selects messages with `Object.hasOwn`; unknown
 codes (including `__proto__`) use inert generic error text.
 
-`GET /v1/me` returns `{account, library, csrf, game_online}`. `account` is null or
+`GET /v1/me` returns `{account, library, csrf, game_online, upload_limits}`. The
+limits describe the component and image byte ceilings, image count and dimensions,
+and caption/description lengths. The editor disables image selection if these
+limits are unavailable. `account` is null or
 `{id, username, email, role, suspended, xbox}`, where `xbox` is null or
 `{xuid, gamertag}`. Draft keys, ownership checks, review-note keys, approval
 identities and stale-response guards use the Cinnabar `id`, never the Xbox XUID.
@@ -122,10 +141,13 @@ provider flow. `POST /v1/mods/:slug/send` returns 409 with
 `{error: "Link your Xbox account in Cinnabar first."}` if Xbox is not linked.
 The website does not persist link codes in browser storage.
 
-Multipart submissions contain only `listing` and one component `file`. The icon
-travels inside the component; no images or image metadata are sent. Descriptions
+Multipart submissions contain `listing`, one component `file`, and optional ordered
+`images` with matching `image_metadata` captions/descriptions. The icon
+travels inside the component. Descriptions
 allow 40,000 characters; category, license and release notes are saved with the
 release. Failed uploads retain the draft and selected component for retry.
+Your projects shows Uploaded, Scanning, Review and Published from server state;
+scanner findings remain available under Check details.
 API `icon: string | null` is accepted on listing summaries, details and version
 views; relative URLs resolve against the API base and use the same HTTPS and
 credential-free URL policy as other API media. Private views load with credentials.

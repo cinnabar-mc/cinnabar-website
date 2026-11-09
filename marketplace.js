@@ -2,6 +2,8 @@
   'use strict';
   const M = window.CinnabarMarket;
   const C = window.CinnabarContent;
+  const D = window.CinnabarDiscovery;
+  const U = window.CinnabarUpload;
   const config = (window.CINNABAR_DOWNLOADS || {}).marketplace || {};
   const app = document.getElementById('app');
   const feedback = document.getElementById('feedback');
@@ -17,10 +19,7 @@
   let sessionEpoch = 0;
   let removingLibrary = false;
   let generation = 0;
-  let query = '';
-  let selectedCategory = 'all';
-  let limited = false;
-  let order = 'recommended';
+  let filters = D.read(location.hash);
   let draft = null;
   let draftOwner = null;
   let step = 'project';
@@ -31,6 +30,11 @@
   let validationController = null;
   let submitting = false;
   let uploadGeneration = 0;
+  let uploadController = null;
+  let uploadStatus = null;
+  let imageGeneration = 0;
+  let imagesPending = false;
+  const expandedChecks = new Set();
   let refreshTimer = null;
   let refreshing = false;
   let writes = 0;
@@ -123,9 +127,9 @@
   }
 
   /** Keep transport failures distinct from empty successful responses. */
-  async function call(method, path, body) {
+  async function call(method, path, body, options) {
     if (method !== 'GET') writes++;
-    try { return await backend.request(method, path, body); }
+    try { return await backend.request(method, path, body, options); }
     catch (_) { return { status: 0, body: { error: 'Cannot reach the marketplace. Check your connection and retry.' } }; }
     finally { if (method !== 'GET') writes--; }
   }
@@ -152,8 +156,10 @@
   /** Cancel file work and forget the in-memory draft. */
   function discardDraft() {
     validationController?.abort(); validationPending = false;
+    uploadController?.abort(); uploadStatus = null;
+    imageGeneration++; imagesPending = false; expandedChecks.clear();
     fileToken++; draft = null; draftOwner = null;
-    editorErrors = {}; distributionRights = false;
+    editorErrors = {}; distributionRights = false; step = 'project';
   }
 
   /** Reflect server identity; preview account choices never appear in HTTP mode. */
@@ -259,13 +265,13 @@
         button(account.xbox ? 'Xbox linked' : 'Link Xbox', openXbox, 'btn quiet', 'account:xbox'),
         button(previewMode ? 'Switch account' : 'Sign out', previewMode ? signIn : signOut, 'btn quiet', 'account')))
       : button(previewMode ? 'Preview account' : 'Sign in with Google', signIn, 'btn quiet auth-provider', 'account'));
-    const links = [['catalogue', '#/', 'Explore'], ['library', '#/library', 'My library (' + session.library.length + ')']];
+    const links = [['catalogue', D.url('catalogue', filters), 'Explore'], ['library', D.url('library', filters), 'My library (' + session.library.length + ')']];
     if (account) links.push(['mine', '#/mine', 'Your projects']);
     if (M.atLeast(account, 'moderator')) links.push(['staff', '#/staff/queue', 'Review']);
     links.push(['submit', '#/submit', 'Publish a mod']);
     document.getElementById('navigation').replaceChildren(...links.map(([view, href, label]) => h('a', {
       href, 'aria-current': route.view === view ? 'page' : null, class: view === 'submit' ? 'publish-link' : '',
-      'data-focus-key': 'nav:' + view,
+      'data-focus-key': 'nav:' + view, 'data-filter-route': ['catalogue', 'library'].includes(view) ? view : null,
     }, label)));
   }
 
@@ -587,29 +593,44 @@
     if (response.status !== 200) return mount(token, failure(response.body.error));
     const mods = response.body;
     const saved = new Set(session.library.filter(item => !item.pulled).map(item => item.slug));
+    const entries = libraryOnly ? mods.filter(mod => saved.has(mod.slug)).concat(
+      session.library.filter(item => item.pulled || !mods.some(mod => mod.slug === item.slug)).map(selection => ({
+        slug: selection.slug, name: selection.slug, capabilities: [], unavailable: true, selection,
+      }))) : mods;
     const rail = h('aside', { 'aria-label': 'Filter mods' });
     const grid = h('div', { class: 'catalog-grid', 'aria-label': libraryOnly ? 'Saved mods' : 'Mod results' });
     const count = h('span', { class: 'small muted', role: 'status' });
-    const search = h('input', { id: 'mod-search', type: 'search', placeholder: 'Search mods', value: query,
-      'aria-label': 'Search mods', 'data-focus-key': 'catalog:search', oninput: event => { query = event.target.value; results(); } });
-    const sort = h('select', { 'aria-label': 'Sort mods', onchange: event => { order = event.target.value; results(); } },
-      h('option', { value: 'recommended' }, 'Recommended'), h('option', { value: 'name' }, 'Name: A–Z'));
-    sort.value = order;
+    const search = h('input', { id: 'mod-search', type: 'search', placeholder: 'Search mods', value: filters.query,
+      'aria-label': 'Search mods', 'data-focus-key': 'catalog:search', oninput: event => { filters.query = event.target.value; results(true); } });
+    const sort = h('select', { 'aria-label': 'Sort mods', onchange: event => { filters.order = event.target.value; results(true); } },
+      D.SORTS.map(item => h('option', { value: item.value }, item.label)));
+    sort.value = filters.order;
     const categoryButtons = ['all', ...C.CATEGORIES].map(category =>
-      [category, button(category === 'all' ? 'All mods' : category, () => { selectedCategory = category; results(); }, '', 'category:' + category)]);
+      [category, button('', () => { filters.category = category; results(true); }, '', 'category:' + category)]);
     rail.append(h('div', { class: 'filter-section' }, h('p', { class: 'filter-title' }, 'Categories'),
       h('div', { class: 'filters' }, categoryButtons.map(([, control]) => control))),
     h('div', { class: 'filter-section' },
-      h('label', { class: 'row small' }, h('input', { type: 'checkbox', checked: limited, onchange: event => { limited = event.target.checked; results(); } }), 'No gameplay changes')));
+      h('label', { class: 'row small' }, h('input', { type: 'checkbox', checked: filters.limited, onchange: event => { filters.limited = event.target.checked; results(true); } }), 'No gameplay changes')));
+    const clear = button('Clear filters', () => {
+      filters = D.read('#/'); search.value = ''; sort.value = filters.order;
+      rail.querySelector('input[type="checkbox"]').checked = false; results(true);
+    }, 'quiet catalog-clear', 'catalog:clear');
 
     /** Update just the results, keeping search, filter focus and selection intact. */
-    function results() {
-      let visible = M.filterMods(mods, query).filter(mod => (!libraryOnly || saved.has(mod.slug)) &&
-        (selectedCategory === 'all' || C.category(mod) === selectedCategory) &&
-        (!limited || !mod.capabilities.some(name => M.capability(name)?.sensitive)));
-      if (order === 'name') visible = visible.slice().sort((a, b) => a.name.localeCompare(b.name));
-      categoryButtons.forEach(([category, control]) => { control.className = category === selectedCategory ? 'active' : ''; control.setAttribute('aria-pressed', String(category === selectedCategory)); });
-      grid.replaceChildren(...visible.map(mod => h('article', { class: 'mod-card' },
+    function results(persist = false) {
+      if (persist) history.replaceState(null, '', D.url(libraryOnly ? 'library' : 'catalogue', filters));
+      document.querySelectorAll('[data-filter-route]').forEach(link => { link.setAttribute('href', D.url(link.getAttribute('data-filter-route'), filters)); });
+      const visible = D.select(entries, filters);
+      const counts = D.counts(entries, filters);
+      categoryButtons.forEach(([category, control]) => {
+        const label = category === 'all' ? 'All mods' : category;
+        control.replaceChildren(h('span', {}, label), h('span', { class: 'filter-count', 'aria-hidden': 'true' }, counts[category]));
+        control.setAttribute('aria-label', label + ', ' + counts[category] + (counts[category] === 1 ? ' mod' : ' mods'));
+        control.className = category === filters.category ? 'active' : ''; control.setAttribute('aria-pressed', String(category === filters.category));
+      });
+      clear.hidden = !filters.query && filters.category === 'all' && !filters.limited && filters.order === 'recommended';
+      grid.replaceChildren(...visible.map(mod => mod.unavailable ? h('article', { class: 'mod-card' }, h('h3', {}, mod.slug),
+        h('p', {}, 'This release is unavailable. It may have been hidden or revoked.'), removalControl(mod.selection)) : h('article', { class: 'mod-card' },
         h('div', { class: 'mod-result' }, modIcon(mod),
           h('div', { class: 'mod-card-title' }, h('h3', {}, h('a', { href: '#/mod/' + mod.slug, 'data-focus-key': 'mod:' + mod.slug }, mod.name)),
             h('span', { class: 'small muted' }, 'by ' + mod.creator_name)),
@@ -617,21 +638,14 @@
           h('span', { class: 'mod-category' }, C.category(mod)),
           h('span', { class: 'release-version', 'aria-label': 'Version ' + mod.version }, mod.version)),
         libraryOnly ? removalControl(session.library.find(item => item.slug === mod.slug), 'btn quiet library-remove') : null)));
-      if (libraryOnly) {
-        for (const selection of session.library.filter(item => item.pulled || !mods.some(mod => mod.slug === item.slug))) {
-          grid.append(h('article', { class: 'mod-card' }, h('h3', {}, selection.slug),
-            h('p', {}, 'This release is unavailable. It may have been hidden or revoked.'),
-            removalControl(selection)));
-        }
-      }
       const total = grid.querySelectorAll('.mod-card').length;
       count.textContent = total + ' mod' + (total === 1 ? '' : 's');
       if (!grid.childNodes.length) grid.append(h('div', { class: 'empty' }, h('h2', {}, libraryOnly ? 'Your library is empty.' : 'No mods match.'),
         h('p', {}, libraryOnly ? 'Explore the catalogue and inspect a mod before adding it.' : 'Try another search or category.'),
-        button('Clear filters', () => { query = ''; selectedCategory = 'all'; limited = false; search.value = ''; render(); }, 'btn quiet', 'catalog:recovery')));
+        button('Clear filters', () => clear.click(), 'btn quiet', 'catalog:recovery')));
     }
     const content = h('div', { class: 'catalog-results' }, h('div', { class: 'search-tools' }, h('label', { class: 'search-wrap' }, icon('search'), search), sort),
-      h('div', { class: 'catalog-count' }, libraryOnly ? h('h2', {}, 'Your library') : null, count),
+      h('div', { class: 'catalog-count' }, libraryOnly ? h('h2', {}, 'Your library') : null, count, clear),
       libraryOnly ? h('p', { class: 'small muted' }, 'Removing a library selection stops queued delivery. Manage installed mods in Cinnabar.') : null, grid);
     mount(token, h('section', { class: 'catalog-layout' }, rail, content)); results();
     if (libraryOnly && !session.account) announce('Choose an account to keep a library. Browsing is public.');
@@ -684,7 +698,7 @@
       .map(([name, label]) => [name, button(label, () => select(name), '', 'detail:' + name)]);
     tabs.append(...buttons.map(([, control]) => control));
     select('description');
-    mount(token, h('section', {}, h('a', { class: 'back', href: '#/' }, 'Back to mods'),
+    mount(token, h('section', {}, h('a', { class: 'back', href: D.url('catalogue', filters) }, 'Back to mods'),
       h('div', { class: 'project-heading' }, modIcon(mod), h('div', {}, h('h1', {}, mod.name), h('p', {}, mod.summary),
         h('div', { class: 'tags' }, h('span', { class: 'small muted' }, 'by ' + mod.creator_name), h('span', { class: 'tag' }, C.category(mod))))), tabs, h('div', { class: 'detail-layout' }, content, sidebar)));
     document.title = mod.name + ' · Cinnabar';
@@ -716,15 +730,117 @@
     let saved;
     try { saved = JSON.parse(storage.getItem(draftKey(owner))); } catch (_) { saved = null; }
     const initial = { name: '', slug: '', summary: '', description: '', category: '', license: '', version: '', source: '', notes: '' };
-    draft = Object.assign(initial, saved && typeof saved === 'object' ? Object.fromEntries(Object.keys(initial).map(key => [key, saved[key] ?? initial[key]])) : {});
+    draft = Object.assign(initial, saved && typeof saved === 'object' ? Object.fromEntries(Object.keys(initial).map(key => [key, typeof saved[key] === 'string' ? saved[key] : initial[key]])) : {});
     draft.file = null; draft.parsed = null; draft.check = null;
+    draft.images = U.restoreImages(saved?.images);
+    draft.pending_upload = Boolean(saved?.pending_upload);
+    if (draft.pending_upload) uploadStatus = { error: 'Your previous upload may have been received. Reselect your files; retry checks Your projects first.' };
   }
 
   /** Save this account's editable draft; quota failure leaves the current form intact. */
-  function saveDraft() {
+  function saveDraft(quiet = false) {
     const data = { ...draft }; delete data.file; delete data.parsed; delete data.check;
-    try { storage.setItem(draftKey(draftOwner), JSON.stringify(data)); announce('Draft saved in this browser. Reselect the release file after reloading.'); }
+    data.images = draft.images.map(({ sha256, name, caption, alt }) => ({ sha256, name, caption, alt }));
+    try { storage.setItem(draftKey(draftOwner), JSON.stringify(data)); if (quiet !== true) announce('Draft saved in this browser. Reselect files after reloading.'); }
     catch (_) { announce('Browser storage is unavailable or full. Your current draft remains open; enable storage and retry.', true); }
+  }
+
+  /** Decode screenshots before previewing, and restore a reselected file to its saved gallery position. */
+  async function takeImages(files) {
+    if (imagesPending || submitting || !U.validLimits(session.upload_limits)) return;
+    const owner = draftOwner, token = ++imageGeneration;
+    const limits = session.upload_limits;
+    imagesPending = true;
+    const selected = draft.images.map(image => ({ ...image }));
+    await render();
+    let error;
+    try {
+      for (const file of files) {
+        const image = await U.prepareImage(file, limits);
+        if (owner !== draftOwner || token !== imageGeneration) return;
+        const existing = selected.find(item => item.sha256 === image.sha256);
+        if (existing) Object.assign(existing, image, { caption: existing.caption, alt: existing.alt });
+        else {
+          if (selected.length >= limits.images) throw new Error('Choose at most ' + limits.images + ' screenshots.');
+          selected.push(image);
+        }
+      }
+      draft.images = selected; clearEditorError('images');
+    } catch (failure) { error = failure.message || 'The screenshots could not be read.'; }
+    finally {
+      if (owner === draftOwner && token === imageGeneration) {
+        imagesPending = false;
+        if (error) await showEditorErrors({ ...editorErrors, images: error }); else await render();
+      }
+    }
+  }
+
+  /** Keep screenshot order, captions and accessible descriptions editable without changing the component icon. */
+  function galleryEditor() {
+    const limits = session.upload_limits;
+    const available = U.validLimits(limits);
+    const input = h('input', { type: 'file', multiple: true, accept: 'image/png,image/jpeg,image/webp', disabled: !available || imagesPending,
+      onchange: event => takeImages(Array.from(event.target.files || [])) });
+    const section = h('section', { class: 'gallery-editor gap' }, h('label', { class: 'field', for: 'draft-images' },
+      h('span', { class: 'field-label' }, 'Screenshots', requirement('images')), input,
+      fieldFeedback('images', input, available ? 'Up to ' + limits.images + ' still images · ' + Math.floor(limits.image_bytes / 1024) + ' KiB each · PNG, JPEG or WebP.'
+        : 'Reload after the API update to enable screenshot uploads.')));
+    if (imagesPending) section.append(h('p', { role: 'status', class: 'small muted' }, 'Preparing screenshots…'));
+    /** Return keyboard focus to the moved image or the file chooser after gallery changes. */
+    async function focusImage(hash) {
+      await render();
+      const control = [...app.querySelectorAll('[data-image-caption]')].find(item => item.getAttribute('data-image-caption') === hash);
+      (control || document.getElementById('draft-images'))?.focus();
+    }
+    section.append(h('ol', { class: 'gallery-editor-list' }, draft.images.map((image, index) => {
+      const row = h('li', { class: 'gallery-editor-item' }, image.url ? h('img', { src: image.url, alt: '', class: 'gallery-editor-preview' })
+        : h('p', { class: 'small muted gallery-editor-preview' }, 'Reselect ' + image.name), h('div', {}, h('p', { class: 'small' }, (index + 1) + '. ' + image.name)));
+      const body = row.lastChild;
+      for (const [key, label, max] of [['caption', 'Caption', limits?.caption_chars], ['alt', 'Image description', limits?.alt_chars]]) {
+        const control = h('input', { type: 'text', value: image[key], maxlength: max,
+          'data-image-caption': key === 'caption' ? image.sha256 : null, 'data-focus-key': 'image:' + image.sha256 + ':' + key,
+          oninput: event => { image[key] = event.target.value; clearEditorError('images'); } });
+        body.append(h('label', { class: 'field small' }, h('span', { class: 'field-label' }, label, requirement(key)), control));
+      }
+      const earlier = button('Move earlier', () => {
+        draft.images.splice(index - 1, 0, draft.images.splice(index, 1)[0]); focusImage(image.sha256);
+      }, 'quiet', 'image:' + image.sha256 + ':earlier'); earlier.disabled = index === 0 || imagesPending;
+      const later = button('Move later', () => {
+        draft.images.splice(index + 1, 0, draft.images.splice(index, 1)[0]); focusImage(image.sha256);
+      }, 'quiet', 'image:' + image.sha256 + ':later'); later.disabled = index === draft.images.length - 1 || imagesPending;
+      const remove = button('Remove', () => {
+        draft.images.splice(index, 1); clearEditorError('images'); focusImage(draft.images[index]?.sha256 || draft.images[index - 1]?.sha256);
+      }, 'quiet', 'image:' + image.sha256 + ':remove'); remove.disabled = imagesPending;
+      for (const control of [earlier, later, remove]) control.setAttribute('aria-label', control.textContent + ' screenshot ' + (index + 1));
+      body.append(h('div', { class: 'row gallery-edit-actions' }, earlier, later, remove));
+      return row;
+    })));
+    return section;
+  }
+
+  /** Show byte progress separately from server confirmation; a completed transfer is not a published release. */
+  function uploadView() {
+    const progress = h('progress', { id: 'upload-progress', max: 1, 'aria-label': 'Release upload' });
+    const label = h('p', { id: 'upload-progress-label', role: 'status', class: 'small muted' });
+    const view = h('section', { class: 'upload-status' }, h('h2', {}, uploadStatus?.recovering ? 'Checking your previous upload…' : 'Uploading your release…'),
+      h('p', {}, draft?.file?.name || 'Release component'), progress, label,
+      h('p', { class: 'small muted' }, 'Keep this tab open. Your draft and selected files stay available if the upload is interrupted.'),
+      button('Stop upload', () => uploadController?.abort(), 'btn quiet', 'upload:stop'));
+    updateUploadProgress(view);
+    return view;
+  }
+
+  /** Progress events update only the connected status display for this upload. */
+  function updateUploadProgress(container = app) {
+    const progress = container.querySelector('#upload-progress'), label = container.querySelector('#upload-progress-label');
+    if (!progress || !label) return;
+    if (uploadStatus?.total > 0) {
+      const ratio = Math.max(0, Math.min(1, uploadStatus.loaded / uploadStatus.total));
+      progress.value = ratio;
+      label.textContent = ratio === 1 ? 'Upload sent. Waiting for server confirmation…' : Math.floor(ratio * 100) + '% uploaded';
+    } else {
+      progress.removeAttribute('value'); label.textContent = uploadStatus?.recovering ? 'Checking whether the release was received.' : 'Sending your files…';
+    }
   }
 
   /** Check both declarations and the complete component before accepting a release file. */
@@ -819,10 +935,12 @@
         h('p', {}, 'Your username appears on your projects.'), button('Choose a username', openUsername, 'btn primary', 'editor:username')));
       return;
     }
-    if (submitting) return mount(token, h('section', { class: 'empty', role: 'status' }, h('h2', {}, 'Uploading your release…'), h('p', {}, 'Keep this tab open. Your draft will stay available if the upload fails.')));
+    if (submitting) return mount(token, uploadView());
     loadDraft();
     const form = h('form', { class: 'editor', novalidate: true });
     const panel = h('div');
+    if (uploadStatus?.error) form.append(h('p', { class: 'notice upload-recovery', role: 'status' }, uploadStatus.error,
+      ' ', h('a', { href: '#/mine' }, 'Your projects')));
     const previewName = h('h3', {}, draft.name || 'Your mod');
     const previewSummary = h('p', {}, draft.summary || 'Your summary appears here.');
     const preview = h('aside', { class: 'editor-aside' }, h('p', { class: 'small muted', style: 'margin-bottom:12px' }, 'Listing preview'),
@@ -888,6 +1006,7 @@
         : 'Your mod file can include its own icon. ',
         h('a', { href: '/docs/modding/appendix/personal-mods.html#single-file-resources' }, 'How to add an icon')));
       if (draft.parsed) panel.append(permissions({ capabilities: M.requestedCapabilities(draft.parsed.grants) }, draft.parsed.grants));
+      panel.append(galleryEditor());
     } else {
       const checked = Boolean(draft.file && draft.parsed && draft.check);
       const rights = h('input', { type: 'checkbox', id: 'distribution-rights', checked: distributionRights,
@@ -895,25 +1014,33 @@
       panel.append(h('h2', {}, 'Ready to submit'), h('p', { class: 'small muted' }, 'After you upload, we check your mod. A reviewer approves it before it goes live, and you can follow its status in Your projects.'),
         h('div', { class: 'scan-status' },
           h('div', {}, h('span', {}, 'Your mod file'), h('span', { class: checked ? 'good' : 'warning' }, checked ? '✓ Looks good' : validationPending ? 'Checking…' : 'Choose a file')),
-          h('div', {}, h('span', {}, 'Review'), h('span', { class: 'muted' }, 'After upload'))),
-        previewMode ? h('p', { class: 'notice gap' }, 'This is a preview. Your submission stays in this browser and will not go live.') : null,
-        h('label', { class: 'row gap small', for: 'distribution-rights' }, rights,
+          h('div', {}, h('span', {}, 'Review'), h('span', { class: 'muted' }, 'After upload'))));
+      if (previewMode) panel.append(h('p', { class: 'notice gap' }, 'This is a preview. Your submission stays in this browser and will not go live.'));
+      panel.append(h('label', { class: 'row gap small', for: 'distribution-rights' }, rights,
           h('span', {}, 'I have permission to share this mod. ', requirement('rights'))), ...fieldFeedback('rights', rights).filter(Boolean));
     }
     const submitLabel = liveMode ? 'Upload release' : 'Submit for review';
     form.append(panel, h('div', { class: 'editor-actions' }, button('Save draft', saveDraft, 'btn quiet', 'draft:save'),
-      h('button', { type: 'submit', class: 'btn primary', 'data-focus-key': 'draft:continue', disabled: validationPending || submitting },
-        submitting ? 'Uploading…' : step === 'checks' ? submitLabel : ['Continue to release', 'Review checks'][steps.indexOf(step)])));
+      h('button', { type: 'submit', class: 'btn primary', 'data-focus-key': 'draft:continue', disabled: validationPending || imagesPending || submitting },
+        submitting ? 'Uploading…' : step === 'checks' ? (uploadStatus?.error ? 'Retry upload' : submitLabel) : ['Continue to release', 'Review checks'][steps.indexOf(step)])));
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (!requireUsername()) return;
-      if (validationPending || submitting) return announce('Wait for the current upload or file check to finish.', true);
-      const fields = { name: draft.name.trim(), slug: M.listingSlug(draft), summary: draft.summary.trim(), description: draft.description,
-        version: draft.version.trim(), source: draft.source.trim(), category: draft.category, license: draft.license, notes: draft.notes,
+      if (validationPending || imagesPending || submitting) return announce('Wait for the current upload or file check to finish.', true);
+      const fields = { name: draft.name.trim(), slug: M.listingSlug(draft), summary: draft.summary.trim(), description: draft.description.trim(),
+        version: draft.version.trim(), source: draft.source.trim().replace(/\/$/, ''), category: draft.category.trim(), license: draft.license.trim(), notes: draft.notes.trim(),
         reach: M.reachOf(draft.parsed?.grants) };
       // Validate the blank address before resolving it so a failed derivation has actionable copy.
       const errors = M.validateListing({ ...fields, slug: draft.slug });
       if (!draft.file || !draft.parsed || !draft.check) errors.file = 'Choose a valid component file first.';
+      if (draft.images.length) {
+        const limits = session.upload_limits;
+        if (!U.validLimits(limits)) errors.images = 'Reload to retrieve screenshot upload limits.';
+        else if (draft.images.length > limits.images || draft.images.some(image => !image.file || image.file.size > limits.image_bytes
+          || image.caption.length > limits.caption_chars || image.alt.length > limits.alt_chars)) {
+          errors.images = 'Reselect missing screenshots and check their caption and image-description lengths.';
+        }
+      }
       if (step === 'checks') {
         distributionRights = document.getElementById('distribution-rights').checked;
         if (!distributionRights) errors.rights = 'Confirm your distribution rights before submitting.';
@@ -922,32 +1049,62 @@
       if (Object.keys(currentErrors).length) return showEditorErrors(currentErrors);
       if (step !== 'checks') { step = steps[steps.indexOf(step) + 1]; await render(); announce(''); return; }
       editorErrors = {};
-      const submit = form.querySelector('[type=submit]'); submit.disabled = true;
-      submitting = true; submit.textContent = 'Uploading…';
+      const recovering = draft.pending_upload;
+      const attempt = { owner: draftOwner, fields, sha256: draft.parsed.sha256, images: draft.images.map(image => ({ ...image })) };
+      const file = draft.file;
+      draft.pending_upload = true; saveDraft(true);
+      submitting = true; uploadStatus = { recovering, loaded: 0, total: null };
+      uploadController = new AbortController();
+      const controller = uploadController;
       const upload = ++uploadGeneration;
-      const controls = [...form.querySelectorAll('input, textarea, select, button')].map(control => [control, control.disabled]);
-      controls.forEach(([control]) => { control.disabled = true; });
       const owner = draftOwner;
+      const startedAt = location.hash;
+      await render();
+      const current = () => upload === uploadGeneration && owner === draftOwner;
+      /** A lost response can be recovered only from this creator's matching immutable release. */
+      async function recover() {
+        const known = await call('GET', '/me/mods', undefined, { signal: controller.signal });
+        if (!current() || controller.signal.aborted) return { status: 0, body: { error: 'Upload stopped. Your files are still selected; retry to check whether it was received.' } };
+        if (known.status !== 200) return { ...known, uncertain: true };
+        const received = U.receipt(known.body, attempt);
+        return received ? { status: 200, body: received } : null;
+      }
       let result;
       try {
-        result = backend.submit ? await backend.submit(fields, draft.file) : await call('POST', '/submissions', {
-          ...fields, grants: draft.parsed.grants || {}, sha256: draft.parsed.sha256, bytes: draft.file.size,
-        });
-      } catch (_) { result = { status: 0, body: { error: 'Upload failed. Your draft is still here; retry when connected.' } }; }
-      if (upload !== uploadGeneration || owner !== draftOwner) return;
+        if (recovering) result = await recover();
+        if (!current()) return;
+        if (!result && !controller.signal.aborted) {
+          uploadStatus.recovering = false; updateUploadProgress();
+          result = backend.submit ? await backend.submit(fields, file, { images: attempt.images, signal: controller.signal,
+            onProgress: progress => { if (current()) { Object.assign(uploadStatus, progress); updateUploadProgress(); } } }) : await call('POST', '/submissions', {
+            ...fields, grants: draft.parsed.grants || {}, sha256: draft.parsed.sha256, bytes: file.size,
+          });
+          if (result.status === 409) result = await recover() || result;
+        }
+      } catch (_) { result = { status: 0, body: { error: controller.signal.aborted
+        ? 'Upload stopped. Retry checks whether the release was received.' : 'Connection lost. Your files are still selected. Retry checks whether the release was received.' } }; }
+      if (!current()) return;
       submitting = false;
-      controls.forEach(([control, disabled]) => { control.disabled = disabled; });
-      submit.disabled = false; submit.textContent = submitLabel;
+      uploadController = null;
+      result ||= { status: 0, body: { error: 'Upload stopped. Retry checks whether the release was received.' } };
+      if (result.status === 200 && !U.receipt([result.body], attempt)) {
+        result = { status: 502, body: { error: 'The upload was not confirmed. Your files are still selected; retry checks Your projects first.' } };
+      }
       if (result.status !== 200) {
+        draft.pending_upload = Boolean(result.uncertain) || result.status === 0 || result.status === 408 || result.status >= 500;
+        saveDraft(true);
+        uploadStatus = { error: result.body.error || 'Upload failed. Retry with the selected files.' };
         if (M.parseRoute(location.hash).view === 'submit' && result.body.fields && Object.keys(result.body.fields).length) {
           return showEditorErrors(result.body.fields);
         }
         if (M.parseRoute(location.hash).view === 'submit') await render();
         return announce(result.body.error, true);
       }
+      uploadStatus = null;
       announce(previewMode ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded. Follow its checks and publication status in Your projects.');
-      storage.removeItem(draftKey(owner));
-      draft = null; editorErrors = {}; distributionRights = false; step = 'project'; location.hash = '#/mine';
+      try { storage.removeItem(draftKey(owner)); } catch (_) { /* A completed upload still succeeds if browser storage is unavailable. */ }
+      draft = null; editorErrors = {}; distributionRights = false; step = 'project';
+      if (location.hash === startedAt) location.hash = '#/mine' + (result.body?.id ? '/' + encodeURIComponent(result.body.id) : '');
     });
     mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Give your mod a home.'), h('p', { class: 'muted' }, 'Publishing as ' + session.account.username))),
       h('div', { class: 'editor-layout' }, h('aside', {}, h('ol', { class: 'steps' }, stepButtons)), form, preview)));
@@ -959,8 +1116,13 @@
     const result = await call('GET', '/me/mods');
     if (result.status !== 200) return mount(token, failure(result.body.error));
     const selected = result.body.find(version => String(version.id) === route.id) || result.body[0];
+    const details = selected ? h('details', { class: 'release-check-details', open: expandedChecks.has(String(selected.id)) },
+      h('summary', { 'data-focus-key': 'checks:' + selected.id }, 'Check details'), scanEvidence(selected)) : null;
+    if (details) details.addEventListener('toggle', () => {
+      if (details.isConnected) { if (details.open) expandedChecks.add(String(selected.id)); else expandedChecks.delete(String(selected.id)); }
+    });
     const detail = selected ? h('section', { class: 'release-detail gap' }, h('h2', {}, selected.name + ' ' + selected.version),
-      scanEvidence(selected), selected.note ? h('p', { class: 'notice gap' }, 'Staff note: ' + selected.note) : null,
+      releaseProgress(selected), details, selected.note ? h('p', { class: 'notice gap' }, 'Staff note: ' + selected.note) : null,
       h('div', { class: 'detail-layout gap' }, h('div', {}, galleryView(selected), C.markdown(document, selected.description)),
         h('div', {}, h('h3', {}, 'Requested permissions'), permissions(selected, selected.grants),
           h('dl', { class: 'facts' }, h('dt', {}, 'SHA-256'), h('dd', {}, selected.sha256))))) : null;
@@ -971,6 +1133,18 @@
           return h('tr', {}, h('td', {}, h('a', { href: '#/mine/' + version.id }, version.name)), h('td', {}, version.version),
             h('td', { class: state.tone }, state.label), h('td', {}, version.note || '—'));
         })))) : h('p', { class: 'empty' }, 'No submitted releases yet. Your draft is available in Publish a mod.'), detail));
+  }
+
+  /** Report upload, scan, review and publication independently, using only confirmed server states. */
+  function releaseProgress(version) {
+    const state = C.releaseState(version);
+    return h('div', { class: 'release-progress-wrap' }, h('p', { class: state.tone, role: 'status' }, state.label),
+      h('ol', { class: 'release-progress', 'aria-label': 'Release progress' }, C.releaseTimeline(version).map((item, index) => {
+        const description = { complete: 'complete', current: 'in progress', pending: 'not started', error: 'held' }[item.state];
+        return h('li', { class: 'state-' + item.state, 'aria-current': item.state === 'current' ? 'step' : null,
+          'aria-label': item.label + ': ' + description }, h('span', { class: 'progress-dot', 'aria-hidden': 'true' }, item.state === 'complete' ? '✓' : index + 1),
+        h('span', {}, item.label));
+      })));
   }
 
   /** Require staff identity and preserve each failed workspace request as an error state. */
@@ -1173,6 +1347,7 @@
     window.clearTimeout(refreshTimer);
     const token = ++generation;
     const route = M.parseRoute(location.hash);
+    if (route.view === 'catalogue' || route.view === 'library') filters = D.read(location.hash);
     chrome(route);
     document.title = 'Marketplace · Cinnabar';
     try {
@@ -1208,7 +1383,7 @@
       updateXboxClock(); scheduleXboxPoll();
     }
   });
-  window.addEventListener('pagehide', () => { window.clearTimeout(refreshTimer); closeUsername(); closeXbox(); });
+  window.addEventListener('pagehide', () => { window.clearTimeout(refreshTimer); uploadController?.abort(); closeUsername(); closeXbox(); });
   document.getElementById('preview-note').hidden = !previewMode;
   document.getElementById('reset-preview').addEventListener('click', async () => {
     backend.reset(); discardDraft(); await loadSession(); await render(); announce('Sample data restored.');

@@ -152,7 +152,7 @@ def build(repository, output, marketplace_backend="http"):
     (output / "marketplace").mkdir(exist_ok=True)
     shutil.copyfile(output / "mods/index.html", output / "marketplace/index.html")
     for script in ("marketplace-core.js", "marketplace-mock.js", "marketplace-http.js",
-                   "marketplace-content.js", "marketplace-validation.js", "marketplace.js"):
+                   "marketplace-content.js", "marketplace-discovery.js", "marketplace-validation.js", "marketplace-upload.js", "marketplace.js"):
         shutil.copyfile(HERE / script, output / script)
     subprocess.run(["node", str(HERE / "build-validator.mjs"), str(output / "validator")], check=True)
     (output / "downloads.js").write_text("window.CINNABAR_DOWNLOADS = " + json.dumps(config) + ";\n")
