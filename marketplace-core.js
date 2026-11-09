@@ -97,7 +97,8 @@
       case "review": {
         if (!atLeast(actor, "moderator")) return deny("Only staff review mods.");
         const version = ctx.version;
-        if (version.creator === actor.id) return deny("You can't review your own mod.");
+        // Owners may approve their own mods; every other staff member reviews only other people's.
+        if (version.creator === actor.id && actor.role !== "owner") return deny("You can't review your own mod.");
         if (version.status !== "submitted") return deny("This version isn't waiting for review.");
         if (version.approvals.some(function (a) { return a.id === actor.id; })) {
           return deny("You've already approved this version.");
