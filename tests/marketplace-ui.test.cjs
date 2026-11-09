@@ -1070,6 +1070,26 @@ test('screenshots reorder accessibly, save descriptors only and reselect into th
   assert.equal(reloaded.document.querySelector('[data-image-caption]').value, 'Second screenshot');
 });
 
+test('caption and image-description edits survive another screenshot preparing', async () => {
+  let finish;
+  const api = liveApi(liveRelease(), 'player');
+  const p = await page('#/submit', uploadDraft(), api, { prepareImage: async file => {
+    if (file.name === 'extra.png') await new Promise(resolve => { finish = resolve; });
+    return { file, name: file.name, sha256: file.sha256, caption: '', alt: '', url: 'data:image/png;base64,AQID' };
+  } });
+  await p.click(p.document.querySelector('[data-focus-key="step:release"]'));
+  const hash = 'b'.repeat(64);
+  await editorImages(p, [{ name: 'first.png', size: 4, sha256: hash }]);
+  await editorImages(p, [{ name: 'extra.png', size: 4, sha256: 'c'.repeat(64) }]);
+  assert.match(p.text(), /Preparing screenshots/);
+  await p.input('[data-image-caption="' + hash + '"]', 'Edited during preparation');
+  await p.input('[data-focus-key="image:' + hash + ':alt"]', 'An updated image description');
+  finish(); await settle();
+  assert.equal(p.document.querySelectorAll('.gallery-editor-item').length, 2);
+  assert.equal(p.document.querySelector('[data-image-caption="' + hash + '"]').value, 'Edited during preparation');
+  assert.equal(p.document.querySelector('[data-focus-key="image:' + hash + ':alt"]').value, 'An updated image description');
+});
+
 test('a lost upload response recovers its exact receipt without submitting a duplicate release', async () => {
   const api = liveApi(liveRelease(), 'player');
   const artifactHash = Buffer.from(await webcrypto.subtle.digest('SHA-256', Uint8Array.from([0,97,115,109,13,0,1,0]))).toString('hex');
@@ -1159,8 +1179,8 @@ test('a normal preview upload keeps ordered screenshot metadata and reaches its 
   assert.match(p.text(), /Awaiting review/);
 });
 
-test('an unconfirmed successful response retains the draft and selected component', async () => {
-  const api = liveApi(liveRelease(), 'player'); api.submit = async () => ({ status: 200, body: {} });
+for (const body of [{}, null]) test('an unconfirmed successful response retains the draft and selected component: ' + JSON.stringify(body), async () => {
+  const api = liveApi(liveRelease(), 'player'); api.submit = async () => ({ status: 200, body });
   const p = await page('#/submit', uploadDraft(), api); await readyUpload(p); await continueEditor(p);
   assert.equal(p.win.location.hash, '#/submit'); assert.match(p.text(), /not confirmed/);
   assert.equal(JSON.parse(p.memory.get('cinnabar.marketplace.draft.creator')).pending_upload, true);

@@ -31,7 +31,8 @@ test('lost-response recovery requires exact owner, component, text and ordered i
     images: [{ sha256: 'b'.repeat(64), caption: 'One', alt: 'First' }, { sha256: 'c'.repeat(64), caption: 'Two', alt: 'Second' }] };
   const received = { ...attempt.fields, creator: attempt.owner, sha256: attempt.sha256, gallery: structuredClone(attempt.images), id: '12' };
   assert.equal(U.receipt([received], attempt), received);
-  for (const changed of [{ ...received, creator: 'other' }, { ...received, sha256: 'f'.repeat(64) }, { ...received, name: 'Renamed' },
+  assert.equal(U.receipt([null, received], attempt), received);
+  for (const changed of [null, { ...received, creator: 'other' }, { ...received, sha256: 'f'.repeat(64) }, { ...received, name: 'Renamed' },
     { ...received, gallery: [...received.gallery].reverse() }, { ...received, gallery: received.gallery.map(item => ({ ...item, alt: 'Changed' })) }]) {
     assert.equal(U.receipt([changed], attempt), undefined);
   }

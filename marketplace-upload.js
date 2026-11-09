@@ -83,13 +83,13 @@
 
   /** Recover only the same account's exact immutable upload, including ordered images and listing text. */
   function receipt(versions, attempt) {
-    return (Array.isArray(versions) ? versions : []).find(version => version.creator === attempt.owner
+    return (Array.isArray(versions) ? versions : []).find(version => version && typeof version === 'object' && version.creator === attempt.owner
       && version.slug === attempt.fields.slug && version.version === attempt.fields.version && version.sha256 === attempt.sha256
       && ['name', 'summary', 'description', 'source', 'category', 'license', 'notes'].every(key => String(version[key] ?? '') === String(attempt.fields[key] ?? ''))
       && (version.gallery || []).length === attempt.images.length
       && attempt.images.every((image, index) => {
         const stored = version.gallery[index];
-        return stored.sha256 === image.sha256 && stored.caption === image.caption && (stored.alt || '') === image.alt;
+        return stored && stored.sha256 === image.sha256 && stored.caption === image.caption && (stored.alt || '') === image.alt;
       }));
   }
 

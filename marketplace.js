@@ -765,6 +765,10 @@
           selected.push(image);
         }
       }
+      for (const image of selected) {
+        const currentImage = draft.images.find(item => item.sha256 === image.sha256);
+        if (currentImage) Object.assign(image, { caption: currentImage.caption, alt: currentImage.alt });
+      }
       draft.images = selected; clearEditorError('images');
     } catch (failure) { error = failure.message || 'The screenshots could not be read.'; }
     finally {
