@@ -151,7 +151,9 @@
       next.approvals.push({ id: actor.id, admin: atLeast(actor, "admin"), at: at });
       const rule = approvalRule(version.reach);
       const hasAdmin = next.approvals.some(function (a) { return a.admin; });
-      if (next.approvals.length >= rule.count && (!rule.admin || hasAdmin)) {
+      // An owner approving their own mod publishes it alone.
+      const ownerSelf = actor.role === "owner" && actor.id === version.creator;
+      if (ownerSelf || (next.approvals.length >= rule.count && (!rule.admin || hasAdmin))) {
         next.status = "approved";
         next.decided_at = at;
       }
