@@ -95,8 +95,11 @@ list in `mod.html.in`, when the mod's catalog or menu changes.
 `/assets/gameplay/`. They are cropped to remove window title bars, `pvp.webp` also to
 remove player chat and a debug overlay, and `forest.webp` also to remove a server
 scoreboard. Other players' names are retouched out of `pvp.webp`, and the crosshair out of
-`sunset.webp` because it opens the home page. Self-hosted fonts (Schibsted Grotesk and
-JetBrains Mono, both OFL) live in `assets/fonts/` beside their licenses and publish at `/assets/fonts/`.
+`sunset.webp` because it opens the home page. Self-hosted fonts (Archivo, Silkscreen and
+JetBrains Mono, all OFL) live in `assets/fonts/` beside their licenses and publish at `/assets/fonts/`.
+The pixel scenes on the home and mod pages are drawn at runtime by `arcade-scene.js`; no
+raster ships for them. `arcade-ui.js` runs the score line and effects switch, and
+`arcade-chart.js` redraws the player chart on a pixel grid from `history.js`'s output.
 
 ## Player presence
 

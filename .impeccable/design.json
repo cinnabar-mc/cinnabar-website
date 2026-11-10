@@ -1,0 +1,889 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T19:20:18+00:00",
+  "title": "Design System: Cinnabar",
+  "extensions": {
+    "colorMeta": {
+      "cinnabar-red": {
+        "role": "primary",
+        "displayName": "Cinnabar Red (read from the icon)",
+        "canonical": "var(--cinnabar-red), filled from packaging/icons/cinnabar.svg at build time",
+        "tonalRamp": [
+          "#1a0402",
+          "#450f0a",
+          "#761e17",
+          "#aa2e24",
+          "#d25446",
+          "#e88678",
+          "#fbb5aa",
+          "#ffe4de"
+        ],
+        "note": "Derived from the icon red at build time; the hex is the current icon reading and must never be typed into code."
+      },
+      "red-hover": {
+        "role": "primary",
+        "displayName": "Red Hover",
+        "canonical": "color-mix(in oklab, #B8281E 86%, #ff8a6e)",
+        "tonalRamp": [
+          "#1a0402",
+          "#45100b",
+          "#752017",
+          "#a83124",
+          "#d05646",
+          "#e68778",
+          "#fab6aa",
+          "#ffe4de"
+        ],
+        "note": "Derived from the icon red at build time; resolves to about #c2382a (oklch(54.6% 0.177 29.7)) for the current icon."
+      },
+      "red-press": {
+        "role": "primary",
+        "displayName": "Red Press",
+        "canonical": "color-mix(in oklab, #B8281E 74%, #000)",
+        "tonalRamp": [
+          "#170604",
+          "#3e1713",
+          "#6a2c24",
+          "#9a4237",
+          "#c06457",
+          "#d88f84",
+          "#efbbb2",
+          "#ffe7e2"
+        ],
+        "note": "Derived from the icon red at build time; resolves to about #7a1710 (oklch(37.9% 0.135 29.2)) for the current icon."
+      },
+      "red-deep": {
+        "role": "primary",
+        "displayName": "Red Deep",
+        "canonical": "color-mix(in oklab, #B8281E 38%, #000)",
+        "tonalRamp": [
+          "#120907",
+          "#331f1c",
+          "#583933",
+          "#81544c",
+          "#a4756d",
+          "#c19b94",
+          "#ddc2bd",
+          "#faebe8"
+        ],
+        "note": "Derived from the icon red at build time; resolves to about #2d0402 (oklch(19.5% 0.069 30.0)) for the current icon."
+      },
+      "red-line": {
+        "role": "primary",
+        "displayName": "Red Line",
+        "canonical": "color-mix(in oklab, #B8281E 70%, #ffb199)",
+        "tonalRamp": [
+          "#180503",
+          "#41140e",
+          "#6f271c",
+          "#a13b2c",
+          "#c85e4d",
+          "#df8b7d",
+          "#f4b8ad",
+          "#ffe6df"
+        ],
+        "note": "Derived from the icon red at build time; resolves to about #cf5745 (oklch(60.7% 0.156 30.7)) for the current icon."
+      },
+      "red-text": {
+        "role": "primary",
+        "displayName": "Red Text",
+        "canonical": "color-mix(in oklab, #B8281E 44%, #ffb199)",
+        "tonalRamp": [
+          "#170604",
+          "#3e1810",
+          "#6a2c21",
+          "#994332",
+          "#bf6552",
+          "#d89081",
+          "#efbbb0",
+          "#ffe7e1"
+        ],
+        "note": "Derived from the icon red at build time; resolves to about #e27964 (oklch(69.0% 0.135 32.5)) for the current icon."
+      },
+      "on-red": {
+        "role": "primary",
+        "displayName": "On Red",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "gold": {
+        "role": "primary",
+        "displayName": "Gold Pixel",
+        "canonical": "#f2c35c",
+        "tonalRamp": [
+          "#110a00",
+          "#332200",
+          "#583d00",
+          "#805a00",
+          "#a37c18",
+          "#bfa162",
+          "#dcc79d",
+          "#f9edd7"
+        ]
+      },
+      "rim": {
+        "role": "primary",
+        "displayName": "Key Rim",
+        "canonical": "#140405",
+        "tonalRamp": [
+          "#0e0a0a",
+          "#2c2222",
+          "#4d3d3e",
+          "#715b5b",
+          "#937c7c",
+          "#b3a0a0",
+          "#d3c5c6",
+          "#f4ecec"
+        ]
+      },
+      "warning-face": {
+        "role": "primary",
+        "displayName": "Warning Face",
+        "canonical": "#120b0b",
+        "tonalRamp": [
+          "#0c0b0b",
+          "#282424",
+          "#464040",
+          "#675f5f",
+          "#898080",
+          "#aaa3a3",
+          "#cdc8c8",
+          "#f0eeee"
+        ]
+      },
+      "night-1": {
+        "role": "secondary",
+        "displayName": "Night 1",
+        "canonical": "#0e1322",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#22252c",
+          "#3d424e",
+          "#5b6172",
+          "#7b8294",
+          "#9fa5b3",
+          "#c5c9d3",
+          "#eceef4"
+        ]
+      },
+      "night-2": {
+        "role": "secondary",
+        "displayName": "Night 2",
+        "canonical": "#151d33",
+        "tonalRamp": [
+          "#090b10",
+          "#21252f",
+          "#3b4252",
+          "#576178",
+          "#78829b",
+          "#9da5b8",
+          "#c3c9d7",
+          "#ebeef6"
+        ]
+      },
+      "night-3": {
+        "role": "secondary",
+        "displayName": "Night 3",
+        "canonical": "#1f2b47",
+        "tonalRamp": [
+          "#090b11",
+          "#1f2531",
+          "#394256",
+          "#54617d",
+          "#7582a0",
+          "#9aa5bd",
+          "#c1c9da",
+          "#eaeff8"
+        ]
+      },
+      "night-4": {
+        "role": "secondary",
+        "displayName": "Night 4",
+        "canonical": "#304262",
+        "tonalRamp": [
+          "#080b11",
+          "#1e2533",
+          "#364258",
+          "#506280",
+          "#7183a3",
+          "#97a6bf",
+          "#bfcadc",
+          "#e9eff9"
+        ]
+      },
+      "night-5": {
+        "role": "secondary",
+        "displayName": "Night 5",
+        "canonical": "#52698d",
+        "tonalRamp": [
+          "#070b12",
+          "#1c2533",
+          "#344359",
+          "#4e6282",
+          "#6e83a5",
+          "#95a6c1",
+          "#becadd",
+          "#e8eff9"
+        ]
+      },
+      "star": {
+        "role": "secondary",
+        "displayName": "Star",
+        "canonical": "#dbe4f2",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#22252a",
+          "#3d424a",
+          "#5b626c",
+          "#7c838e",
+          "#a0a5ae",
+          "#c5c9d0",
+          "#eceff2"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Phosphor Black",
+        "canonical": "#0b0708",
+        "tonalRamp": [
+          "#0c0b0b",
+          "#272425",
+          "#454142",
+          "#656061",
+          "#868182",
+          "#a8a4a5",
+          "#cbc8c9",
+          "#f0eeee"
+        ]
+      },
+      "raise": {
+        "role": "neutral",
+        "displayName": "Cabinet Raise",
+        "canonical": "#151011",
+        "tonalRamp": [
+          "#0c0b0b",
+          "#272425",
+          "#454141",
+          "#655f61",
+          "#878082",
+          "#a8a3a4",
+          "#cbc8c9",
+          "#f0eeee"
+        ]
+      },
+      "raise-2": {
+        "role": "neutral",
+        "displayName": "Cabinet Raise 2",
+        "canonical": "#211919",
+        "tonalRamp": [
+          "#0c0b0b",
+          "#282424",
+          "#464040",
+          "#685f5f",
+          "#898080",
+          "#aaa3a3",
+          "#cdc8c8",
+          "#f0eeee"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "canonical": "#2e2423",
+        "tonalRamp": [
+          "#0d0b0a",
+          "#282423",
+          "#47403f",
+          "#695e5d",
+          "#8a7f7e",
+          "#aba3a2",
+          "#cec7c7",
+          "#f1eded"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Line Strong",
+        "canonical": "#4c3c39",
+        "tonalRamp": [
+          "#0d0a0a",
+          "#2a2322",
+          "#4a3f3d",
+          "#6d5d5a",
+          "#8e7e7b",
+          "#afa29f",
+          "#d0c7c5",
+          "#f2edec"
+        ]
+      },
+      "frame-channel": {
+        "role": "neutral",
+        "displayName": "Frame Channel",
+        "canonical": "#3a2d2b",
+        "tonalRamp": [
+          "#0d0a0a",
+          "#292323",
+          "#493f3e",
+          "#6b5e5c",
+          "#8d7f7c",
+          "#ada2a0",
+          "#cfc7c6",
+          "#f2eded"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#f6eee7",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#272422",
+          "#45413d",
+          "#66605b",
+          "#87817b",
+          "#a9a4a0",
+          "#ccc8c5",
+          "#f0eeec"
+        ]
+      },
+      "soft": {
+        "role": "neutral",
+        "displayName": "Soft",
+        "canonical": "#d8ccc3",
+        "tonalRamp": [
+          "#0d0b09",
+          "#282421",
+          "#47413c",
+          "#695f58",
+          "#8a8079",
+          "#aba39e",
+          "#cdc8c4",
+          "#f1eeeb"
+        ]
+      },
+      "quiet": {
+        "role": "neutral",
+        "displayName": "Quiet",
+        "canonical": "#ab9d93",
+        "tonalRamp": [
+          "#0d0b09",
+          "#292420",
+          "#48403a",
+          "#6a5f57",
+          "#8c8077",
+          "#ada39c",
+          "#cec8c3",
+          "#f1eeeb"
+        ]
+      },
+      "hover-wash": {
+        "role": "neutral",
+        "displayName": "Hover Wash",
+        "canonical": "#ffffff14",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ],
+        "note": "Alpha colour; ramp is of the opaque base."
+      },
+      "backdrop": {
+        "role": "neutral",
+        "displayName": "Backdrop",
+        "canonical": "#0b0708d9",
+        "tonalRamp": [
+          "#0c0b0b",
+          "#272425",
+          "#454142",
+          "#656061",
+          "#868182",
+          "#a8a4a5",
+          "#cbc8c9",
+          "#f0eeee"
+        ],
+        "note": "Alpha colour; ramp is of the opaque base."
+      },
+      "scanline": {
+        "role": "neutral",
+        "displayName": "Scanline Gap",
+        "canonical": "#00000052",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ],
+        "note": "Alpha colour; ramp is of the opaque base."
+      },
+      "code-ink": {
+        "role": "neutral",
+        "displayName": "Code Ink",
+        "canonical": "#e6e1da",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#262522",
+          "#44423e",
+          "#64615b",
+          "#86827c",
+          "#a8a4a0",
+          "#cbc9c6",
+          "#efeeec"
+        ]
+      },
+      "syntax-comment": {
+        "role": "neutral",
+        "displayName": "Syntax Comment",
+        "canonical": "#a39d96",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#272522",
+          "#45413d",
+          "#65605b",
+          "#87817b",
+          "#a8a49f",
+          "#cbc9c5",
+          "#f0eeec"
+        ]
+      },
+      "syntax-string": {
+        "role": "neutral",
+        "displayName": "Syntax String",
+        "canonical": "#dcc9a3",
+        "tonalRamp": [
+          "#0e0b05",
+          "#2b2417",
+          "#4b412b",
+          "#6e5f41",
+          "#908061",
+          "#b0a48b",
+          "#d1c8b7",
+          "#f3eee5"
+        ]
+      },
+      "syntax-number": {
+        "role": "neutral",
+        "displayName": "Syntax Number",
+        "canonical": "#efb7a4",
+        "tonalRamp": [
+          "#120906",
+          "#332019",
+          "#58392f",
+          "#805546",
+          "#a47666",
+          "#c09c8f",
+          "#ddc3ba",
+          "#faebe6"
+        ]
+      },
+      "syntax-type": {
+        "role": "neutral",
+        "displayName": "Syntax Type",
+        "canonical": "#c9c3bb",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#272522",
+          "#45413d",
+          "#65605a",
+          "#86817b",
+          "#a8a49f",
+          "#cbc9c5",
+          "#f0eeec"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display-tagline": {
+        "displayName": "Tagline",
+        "purpose": "The line under the logotype; the logotype image itself is the display."
+      },
+      "headline-pixel": {
+        "displayName": "Section Title",
+        "purpose": "Cabinet and section titles in pixel caps, 32px at 900px and below, with the title rule and phosphor glow."
+      },
+      "numeral-pixel": {
+        "displayName": "Stage Numeral",
+        "purpose": "Oversized install-stage numerals in Red Text."
+      },
+      "title-pixel": {
+        "displayName": "Pixel Title",
+        "purpose": "Warning title, module groups, stage names, panel and dialog headings."
+      },
+      "score-pixel": {
+        "displayName": "Score",
+        "purpose": "Live numbers in the score line, tabular."
+      },
+      "label-pixel": {
+        "displayName": "Pixel Label",
+        "purpose": "Nav, key labels, score labels, tabs, axes, table headers. Always uppercase, smoothing off."
+      },
+      "headline-reading": {
+        "displayName": "Reading Headline",
+        "purpose": "Chapter titles in the book."
+      },
+      "title-reading": {
+        "displayName": "Reading Title",
+        "purpose": "Chapter h2 in the book."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Lead prose and stats."
+      },
+      "body-compact": {
+        "displayName": "Body Compact",
+        "purpose": "Warning prose, stage text, /mod/ body, inputs."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Download notes, captions, secondary lines."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Platform keys and download options in the grotesk."
+      },
+      "control-operate": {
+        "displayName": "Operate Control",
+        "purpose": "Marketplace buttons."
+      },
+      "tag": {
+        "displayName": "Tag",
+        "purpose": "Marketplace tags and categories."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Commands, code, versions and counts."
+      }
+    },
+    "shadows": [
+      {
+        "name": "pixel-text-drop",
+        "value": "0 2px var(--ground)",
+        "purpose": "Text-shadow for pixel labels and the tagline over the scene; key labels use 0 2px var(--red-deep)."
+      },
+      {
+        "name": "key-bevel",
+        "value": "inset 0 2px var(--gold), inset 0 4px color-mix(in oklab, var(--cinnabar-red) 70%, var(--gold)), inset 0 -4px var(--red-press)",
+        "purpose": "Lit top edge and pressed-in base of the red power-up key."
+      },
+      {
+        "name": "key-bevel-active",
+        "value": "inset 0 2px var(--red-press)",
+        "purpose": "The pressed key: face inset 2px 2px 4px, key moved down 2px."
+      },
+      {
+        "name": "logotype-drop",
+        "value": "drop-shadow(0 12px 18px #000000b3)",
+        "purpose": "Filter that lifts /title.png off the scene."
+      },
+      {
+        "name": "floating-menu",
+        "value": "drop-shadow(0 18px 24px #000c)",
+        "purpose": "Filter under the mode-select menu."
+      },
+      {
+        "name": "floating-dialog",
+        "value": "drop-shadow(0 24px 32px #000c)",
+        "purpose": "Filter under marketplace dialogs."
+      },
+      {
+        "name": "phosphor-glow",
+        "value": "0 0 1px color-mix(in oklab, var(--ink) 55%, transparent), 0 0 10px color-mix(in oklab, var(--cinnabar-red) 60%, transparent), 0 0 26px color-mix(in oklab, var(--cinnabar-red) 28%, transparent)",
+        "purpose": "Text-shadow on .glow pixel section titles only, only while effects are on."
+      },
+      {
+        "name": "scene-bloom",
+        "value": "mix-blend-mode: screen; filter: contrast(2.4) brightness(.85) blur(10px); opacity: .6",
+        "purpose": "Second canvas over the scene; part of the effects layer."
+      },
+      {
+        "name": "scanlines",
+        "value": "repeating-linear-gradient(to bottom, #0000 0 calc(var(--px) - 1px), #00000052 calc(var(--px) - 1px) var(--px))",
+        "purpose": "One dark row per native scene pixel; effects layer, never over prose."
+      }
+    ],
+    "motion": [
+      {
+        "name": "scene-tick",
+        "value": "1000 / 12 ms",
+        "purpose": "The attract loop: star twinkle, clouds stepping one native pixel, embers, glint sweep every 54 ticks."
+      },
+      {
+        "name": "ui-step",
+        "value": ".12s steps(2, end)",
+        "purpose": "Header link and chevron state changes."
+      },
+      {
+        "name": "dialog-reveal",
+        "value": ".24s steps(4, end); clip-path inset(50% 0) to inset(0 0)",
+        "purpose": "Dialogs open like a CRT line expanding."
+      },
+      {
+        "name": "press-start-blink",
+        "value": "1s steps(1, end) 3 .6s",
+        "purpose": "PRESS START blinks three times then holds; effects on and no reduced motion only."
+      },
+      {
+        "name": "key-press",
+        "value": "translateY(2px)",
+        "purpose": "Every pressable key moves down one art pixel on :active."
+      },
+      {
+        "name": "parallax",
+        "value": "scroll offset × 0.5 / 0.45 / 0.38 / 0.26 / 0.14 / 0.06, rounded to native pixels",
+        "purpose": "Sky, clouds, far, mid and near layers on the surface scene; off when effects are off or motion is reduced."
+      },
+      {
+        "name": "operate-fade",
+        "value": ".15s ease-out",
+        "purpose": "Background and border colour fades on marketplace and book controls only."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "still frame",
+        "purpose": "prefers-reduced-motion or Effects off: tick 0, no embers, no sweep, no parallax, no blink."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1100px"
+      },
+      {
+        "name": "stack",
+        "value": "900px"
+      },
+      {
+        "name": "phone",
+        "value": "640px"
+      },
+      {
+        "name": "small-phone",
+        "value": "480px"
+      },
+      {
+        "name": "book-drawer",
+        "value": "1079px"
+      },
+      {
+        "name": "book-narrow",
+        "value": "700px"
+      },
+      {
+        "name": "scene-art-4x",
+        "value": "1200px"
+      },
+      {
+        "name": "scene-art-3x",
+        "value": "640px"
+      }
+    ],
+    "provenance": [
+      {
+        "asset": "Surface and deep scenes",
+        "source": "Drawn at runtime by arcade-scene.js from seed 0x51CB; no raster ships."
+      },
+      {
+        "asset": "assets/gameplay/*.webp, assets/mod/*.webp",
+        "source": "The owner's captures of Cinnabar."
+      },
+      {
+        "asset": "/title.png",
+        "source": "Client repository assets/branding/title.png via source.json."
+      },
+      {
+        "asset": "Header mark and favicon",
+        "source": "Client repository packaging/icons/cinnabar.svg, inlined."
+      },
+      {
+        "asset": "Fonts",
+        "source": "Silkscreen, Archivo, JetBrains Mono under OFL, self-hosted in assets/fonts/ with licences."
+      },
+      {
+        "asset": "Pixel icons and frames",
+        "source": "Hand-written SVG paths and data-URI nine-slice tiles in site-header.css and the templates."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Power-Up Key",
+      "kind": "button",
+      "refersTo": "button-power-up",
+      "description": "The one red action family: the download and its mode key, stepped corners, a dark rim, a gold top pixel and a pressed-in base. The #B8281E fallback exists only so the preview renders; site code always uses --cinnabar-red.",
+      "html": "<div class=\"ds-split\"><button class=\"ds-key\"><svg viewBox=\"0 0 12 12\" aria-hidden=\"true\" shape-rendering=\"crispEdges\"><path d=\"M4 0h4v4h2v2H8v2H6v2H4V8H2V6H0V4h4zM0 10h12v2H0z\"/></svg>Download for Linux</button><button class=\"ds-key ds-mode\">Beta<svg class=\"ds-chev\" viewBox=\"0 0 10 6\" aria-hidden=\"true\" shape-rendering=\"crispEdges\"><path d=\"M0 0h10v2H8v2H6v2H4V4H2V2H0z\"/></svg></button></div>",
+      "css": ".ds-split { display: inline-flex; gap: 4px; } .ds-key { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 56px; padding: 0 24px 4px; border: 0; border-radius: 0; background: none; color: #fff; font-size: 16px; line-height: 1; font-family: var(--pixel, Silkscreen, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; text-shadow: 0 2px color-mix(in oklab, var(--cinnabar-red, #B8281E) 38%, #000); cursor: pointer; } .ds-key svg { width: 16px; height: 16px; fill: currentColor; } .ds-key .ds-chev { width: 10px; height: 6px; } .ds-mode { gap: 8px; min-width: 56px; padding-inline: 16px; } .ds-key::before { content: ''; position: absolute; inset: 0; z-index: -1; background: #140405; clip-path: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px)); } .ds-key::after { content: ''; position: absolute; inset: 2px; z-index: -1; background: var(--cinnabar-red, #B8281E); box-shadow: inset 0 2px #f2c35c, inset 0 4px color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #f2c35c), inset 0 -4px color-mix(in oklab, var(--cinnabar-red, #B8281E) 74%, #000); clip-path: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px)); } .ds-key:hover::after { background: color-mix(in oklab, var(--cinnabar-red, #B8281E) 86%, #ff8a6e); } .ds-key:active { padding-bottom: 0; transform: translateY(2px); } .ds-key:active::after { inset: 2px 2px 4px; box-shadow: inset 0 2px color-mix(in oklab, var(--cinnabar-red, #B8281E) 74%, #000); } .ds-key:focus-visible { outline: 2px solid #f6eee7; outline-offset: 2px; }"
+    },
+    {
+      "name": "Pixel Box Key",
+      "kind": "button",
+      "refersTo": "button-pixel-box",
+      "description": "Neutral pixel-box keys used for chart ranges; hover lifts the frame, the pressed range inverts to ink.",
+      "html": "<div class=\"ds-ranges\"><button class=\"ds-box-key\" aria-pressed=\"true\">24h</button><button class=\"ds-box-key\" aria-pressed=\"false\">7d</button><button class=\"ds-box-key\" aria-pressed=\"false\">30d</button></div>",
+      "css": ".ds-ranges { display: flex; gap: 4px; } .ds-box-key { min-width: 64px; min-height: 48px; padding: 0 14px; border: 4px solid; border-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23151011' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%234c3c39' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E\") 4 fill / 4px stretch; background: none; color: #d8ccc3; font-size: 16px; line-height: 1; font-family: var(--pixel, Silkscreen, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; cursor: pointer; } .ds-box-key:hover { border-image-source: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23211919' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%23ab9d93' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E\"); color: #f6eee7; } .ds-box-key:active { transform: translateY(2px); } .ds-box-key[aria-pressed='true'] { border-image-source: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23f6eee7' d='M4 2h4v8H4zM2 4h8v4H2zM4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E\"); color: #0b0708; } .ds-box-key:focus-visible { outline: 2px solid color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ink Key (operate primary)",
+      "kind": "button",
+      "refersTo": "button-ink-operate",
+      "description": "The marketplace main step: an inverted ink key in the grotesk. Never red.",
+      "html": "<button class=\"ds-ink\">Confirm username</button>",
+      "css": ".ds-ink { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; border: 2px solid #f6eee7; border-radius: 0; background: #f6eee7; color: #0b0708; font: 700 15px/1.2 var(--sans, Archivo, system-ui, sans-serif); cursor: pointer; transition: background-color .15s ease-out, border-color .15s ease-out; } .ds-ink:hover { background: #fff; border-color: #fff; } .ds-ink:active { background: #d8ccc3; border-color: #d8ccc3; transform: translateY(2px); } .ds-ink:focus-visible { outline: 2px solid color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Square ground-faced field with a 2px line-strong border and red-line focus.",
+      "html": "<label class=\"ds-field\">Username<input class=\"ds-input\" type=\"text\" placeholder=\"3–16 letters\"></label>",
+      "css": ".ds-field { display: block; color: #f6eee7; font: 500 15px/1.3 var(--sans, Archivo, system-ui, sans-serif); } .ds-input { display: block; width: 100%; min-height: 48px; margin-top: 8px; padding: 12px 14px; border: 2px solid #4c3c39; border-radius: 0; background: #0b0708; color: #f6eee7; font: 400 16px/1.5 var(--sans, Archivo, system-ui, sans-serif); caret-color: color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); transition: border-color .15s ease-out; } .ds-input::placeholder { color: #ab9d93; } .ds-input:hover { border-color: #ab9d93; } .ds-input:focus-visible { outline: 2px solid color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); outline-offset: 2px; }"
+    },
+    {
+      "name": "Header Nav with Menu Cursor",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Pixel-caps nav; the current page carries the stepped red menu cursor.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\" aria-current=\"page\">Official Mod</a><a href=\"#\">Docs</a></nav>",
+      "css": ".ds-nav { display: flex; gap: 4px; background: #0b0708; padding: 10px; } .ds-nav a { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; color: #d8ccc3; font-size: 16px; line-height: 1; font-family: var(--pixel, Silkscreen, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; text-decoration: none; transition: color .12s steps(2, end), background-color .12s steps(2, end); } .ds-nav a:hover { background: #ffffff14; color: #f6eee7; } .ds-nav a[aria-current='page'] { padding-left: 24px; color: #f6eee7; } .ds-nav a[aria-current='page']::before { content: ''; position: absolute; left: 10px; top: 50%; width: 6px; height: 10px; margin-top: -5px; background: color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px); } .ds-nav a:focus-visible { outline: 2px solid color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); outline-offset: 2px; }"
+    },
+    {
+      "name": "State Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Square tag with a 2px border; state is a 6px square marker, not a colour fill.",
+      "html": "<span class=\"ds-tag\">Utility</span> <span class=\"ds-tag ds-warn\">Needs review</span>",
+      "css": ".ds-tag { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; border: 2px solid #4c3c39; border-radius: 0; color: #d8ccc3; font: 500 13px/1 var(--sans, Archivo, system-ui, sans-serif); white-space: nowrap; } .ds-warn { color: #f6eee7; } .ds-warn::before { content: ''; width: 6px; height: 6px; background: color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); }"
+    },
+    {
+      "name": "Cabinet Frame with Title Rule",
+      "kind": "card",
+      "refersTo": "cabinet",
+      "description": "Riveted nine-slice cabinet frame holding a pixel section title between red-tipped rules; the title glows only when effects are on.",
+      "html": "<section class=\"ds-cabinet\"><h2 class=\"ds-rule-title\">Players online</h2><p class=\"ds-cab-copy\">31 people online now.</p></section>",
+      "css": ".ds-cabinet { padding: 40px 48px 28px; border: 10px solid; border-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' shape-rendering='crispEdges'%3E%3Cpath fill='%230b0708' d='M4 2h16v20H4zM2 4h20v16H2z'/%3E%3Cpath fill='%23151011' d='M8 8h8v8H8z'/%3E%3Cpath fill='%234c3c39' d='M4 0h16v2H4zM4 22h16v2H4zM0 4h2v16H0zM22 4h2v16h-2zM2 2h2v2H2zM20 2h2v2h-2zM2 20h2v2H2zM20 20h2v2h-2z'/%3E%3Cpath fill='%233a2d2b' d='M6 6h12v2H6zM6 16h12v2H6zM6 8h2v8H6zM16 8h2v8h-2z'/%3E%3Cpath fill='%23ab9d93' d='M6 6h2v2H6zM16 6h2v2h-2zM6 16h2v2H6zM16 16h2v2h-2z'/%3E%3C/svg%3E\") 10 fill / 10px stretch; color: #f6eee7; } .ds-rule-title { display: flex; align-items: center; gap: 24px; margin: 0; font-size: 32px; font-weight: 700; line-height: 1; font-family: var(--pixel, Silkscreen, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; text-shadow: 0 0 1px color-mix(in oklab, #f6eee7 55%, transparent), 0 0 10px color-mix(in oklab, var(--cinnabar-red, #B8281E) 60%, transparent), 0 0 26px color-mix(in oklab, var(--cinnabar-red, #B8281E) 28%, transparent); } .ds-rule-title::before, .ds-rule-title::after { content: ''; flex: 1 1 0; min-width: 24px; height: 8px; background: linear-gradient(color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199) 0 0) right center / 8px 8px no-repeat, linear-gradient(#4c3c39 0 0) left center / calc(100% - 12px) 2px no-repeat; } .ds-rule-title::after { transform: scaleX(-1); } .ds-cab-copy { margin: 28px 0 0; font: 600 22px/1.3 var(--sans, Archivo, system-ui, sans-serif); }"
+    },
+    {
+      "name": "Warning Panel",
+      "kind": "custom",
+      "refersTo": "warning-panel",
+      "description": "The attract-mode WARNING screen: red-line stepped frame, pixel title, grotesk prose. Never blinks, never under effects.",
+      "html": "<div class=\"ds-warning\" role=\"note\"><p class=\"ds-warning-title\"><svg viewBox=\"0 0 20 18\" aria-hidden=\"true\"><path d=\"M8 0h4v2h2v4h2v4h2v4h2v4H0v-4h2v-4h2V6h2V2h2zM9 5v6h2V5zM9 13v2h2v-2z\" fill-rule=\"evenodd\"/></svg>Warning</p><p class=\"ds-warning-text\">Server anticheats may flag you and some servers may ban you. Play on servers at your own risk.</p></div>",
+      "css": ".ds-warning { position: relative; isolation: isolate; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px 28px; padding: 22px 28px 24px; } .ds-warning::before { content: ''; position: absolute; inset: 0; z-index: -1; background: color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); clip-path: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px)); } .ds-warning::after { content: ''; position: absolute; inset: 2px; z-index: -1; background: #120b0b; clip-path: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px)); } .ds-warning-title { display: flex; align-items: center; gap: 12px; margin: 0; padding-top: 4px; color: color-mix(in oklab, var(--cinnabar-red, #B8281E) 44%, #ffb199); font-size: 24px; font-weight: 700; line-height: 1; font-family: var(--pixel, Silkscreen, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; } .ds-warning-title svg { width: 20px; height: 18px; fill: currentColor; shape-rendering: crispEdges; } .ds-warning-text { margin: 0; color: #f6eee7; font: 400 16px/1.55 var(--sans, Archivo, system-ui, sans-serif); }"
+    },
+    {
+      "name": "Select Screen Slot",
+      "kind": "custom",
+      "refersTo": "module-slot",
+      "description": "/mod/ module catalog as a character-select board: the slot under the pointer takes an ink frame and a red cursor.",
+      "html": "<ul class=\"ds-tiles\"><li class=\"ds-on\">Keystrokes</li><li>FPS</li><li>CPS</li></ul>",
+      "css": ".ds-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; } .ds-tiles li { position: relative; display: grid; align-content: center; min-height: 60px; padding: 12px 34px 12px 14px; border: 4px solid; border-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23151011' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%234c3c39' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E\") 4 fill / 4px stretch; color: #f6eee7; font: 600 15px/1.25 var(--sans, Archivo, system-ui, sans-serif); } .ds-tiles li::after { content: ''; position: absolute; right: 12px; top: 50%; width: 6px; height: 10px; margin-top: -5px; background: color-mix(in oklab, var(--cinnabar-red, #B8281E) 70%, #ffb199); clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px); opacity: 0; transform: scaleX(-1); } .ds-tiles li:hover, .ds-tiles:not(:hover) li.ds-on { border-image-source: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23211919' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%23f6eee7' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E\"); } .ds-tiles li:hover::after, .ds-tiles:not(:hover) li.ds-on::after { opacity: 1; }"
+    },
+    {
+      "name": "Stage Card",
+      "kind": "card",
+      "refersTo": "stage-card",
+      "description": "Install step as a numbered stage: oversized pixel numeral, STAGE beneath, pixel step name, grotesk instructions.",
+      "html": "<ol class=\"ds-stages\"><li><h3>Download</h3><p>Get the WASM file for your platform.</p></li></ol>",
+      "css": ".ds-stages { margin: 0; padding: 0; list-style: none; counter-reset: stage; } .ds-stages li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 20px; padding: 24px 24px 28px; border: 10px solid; border-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' shape-rendering='crispEdges'%3E%3Cpath fill='%230b0708' d='M4 2h16v20H4zM2 4h20v16H2z'/%3E%3Cpath fill='%23151011' d='M8 8h8v8H8z'/%3E%3Cpath fill='%234c3c39' d='M4 0h16v2H4zM4 22h16v2H4zM0 4h2v16H0zM22 4h2v16h-2zM2 2h2v2H2zM20 2h2v2h-2zM2 20h2v2H2zM20 20h2v2h-2z'/%3E%3Cpath fill='%233a2d2b' d='M6 6h12v2H6zM6 16h12v2H6zM6 8h2v8H6zM16 8h2v8h-2z'/%3E%3Cpath fill='%23ab9d93' d='M6 6h2v2H6zM16 6h2v2h-2zM6 16h2v2H6zM16 16h2v2h-2z'/%3E%3C/svg%3E\") 10 fill / 10px stretch; counter-increment: stage; } .ds-stages li::before { content: counter(stage); grid-area: 1 / 1; justify-self: center; color: color-mix(in oklab, var(--cinnabar-red, #B8281E) 44%, #ffb199); font-size: 64px; font-weight: 700; line-height: .82; font-family: var(--pixel, Silkscreen, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; } .ds-stages li::after { content: 'Stage'; grid-area: 2 / 1 / span 2; justify-self: center; margin-top: 8px; color: #ab9d93; font-size: 16px; line-height: 1; font-family: var(--pixel, Silkscreen, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; } .ds-stages li > * { grid-column: 2; margin: 0; } .ds-stages h3 { color: #f6eee7; font-size: 24px; font-weight: 400; line-height: 1.1; font-family: var(--pixel, Silkscreen, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; } .ds-stages p { margin-top: 8px; color: #d8ccc3; font: 400 16px/1.55 var(--sans, Archivo, system-ui, sans-serif); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Attract-Mode Cabinet",
+    "overview": "Cinnabar's site is an arcade cabinet left running in a dark room. The home page is its attract-mode screen: an original pixel world drawn in code, a score line of real numbers along the top, and PRESS START as the download. The world is a warm phosphor-black night over blocky hills, lit from below by a glowing formation of cinnabar crystals, with a pixel moon, stars and block clouds overhead. Everything around it is built from the same materials: hard-edged pixel boxes with two-step corners, pixel caps for labels and titles, and one red key.\n\nThe cabinet has two registers. Persuade surfaces (home, `/mod/`) run the full world: the canvas scene, the riveted cabinet frames, the phosphor glow on pixel titles, the stepped high-score chart and the select screen. Operate and Read surfaces (`/mods/`, `/docs/modding/`) keep the world's ground, corners, pixel-caps labels and red focus, and leave standard controls, a crisp grotesk and calm reading columns alone. Density is moderate. The scene and the frames carry the character so the text can stay plain.\n\nThe world rejects two things by construction: the dimmed-screenshot hero, and the generic dark page with a neon accent. It is not a Minecraft imitation either. It draws its own world, never borrows the game's font or Mojang's UI textures, and shows the game only through the owner's own captures.",
+    "keyCharacteristics": [
+      "A seeded pixel world drawn on `<canvas>` at runtime, scaled by whole device pixels, never a shipped image.",
+      "One sixteen-colour sprite palette: cool night blues plus warm ramps hue-shifted from the icon red.",
+      "Pixel boxes everywhere: nine-slice SVG frames with 2px stepped corners, zero radius, no glass.",
+      "Silkscreen pixel caps only at multiples of its 8px grid. Prose is always Archivo.",
+      "One red action family, the power-up key, with a gold top edge and a pressed-in shade.",
+      "A capability layer of scanlines, bloom and phosphor glow behind a visible Effects switch. Reduced motion gives a still frame."
+    ],
+    "rules": [
+      {
+        "name": "The Icon Red Rule",
+        "body": "The red is read from the icon's fill at build time and enters the page only as `--cinnabar-red`. Every red step is a `color-mix` from it, and every warm scene colour is a hue shift of it. Never type a red hex into a stylesheet, template or script.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Power-Up Rule",
+        "body": "Red fills belong to one family: the stepped red key (the download, its mode key, the marketplace's \"Add to Cinnabar\") and the MOD cartridge tag that shares its material. Every other control is a neutral pixel box or an ink key. Elsewhere red appears only as small marks, such as a cursor, a lit pixel, a square bullet, the chart line, a frame edge or focus.",
+        "section": "colors"
+      },
+      {
+        "name": "The Gold Pixel Rule",
+        "body": "Gold is the top edge of a red key and nothing else.",
+        "section": "colors"
+      },
+      {
+        "name": "The Grid Multiple Rule",
+        "body": "Silkscreen is set only at 16, 24, 32, 48 or 64px, the multiples of its 8px grid. It is always uppercase, with letter-spacing 0 and font smoothing switched off. On phones the nav keeps 16px and swaps to short labels rather than shrinking.",
+        "section": "typography"
+      },
+      {
+        "name": "The Prose Is Never Pixel Rule",
+        "body": "Sentences, descriptions, the warning, hints, captions that explain things, and all marketplace and book content are set in Archivo. Pixel caps carry names, numbers and short commands only.",
+        "section": "typography"
+      },
+      {
+        "name": "The Logotype Is the Display Rule",
+        "body": "The largest name on a page is always `/title.png`. Never set \"Cinnabar\" as a type headline or redraw the logotype.",
+        "section": "typography"
+      },
+      {
+        "name": "The Effects Stop at Prose Rule",
+        "body": "Scanlines, bloom and glow apply to the canvas, the chart screen and pixel titles. They never cover the warning, the tagline, captions, the book or the marketplace, and the book and marketplace have no effects layer at all.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Still Frame Rule",
+        "body": "With effects off, or under `prefers-reduced-motion`, the world settles on one still frame: tick zero, no embers, no glint sweep and no parallax, with PRESS START not blinking. The Effects switch defaults to off when reduced motion is set, remembers the visitor's choice in `localStorage`, and switches scanlines, bloom and glow together. Reduced motion stops the scene even if a visitor has turned the effects back on.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Two-Step Corner Rule",
+        "body": "Corners are cut in whole 2px steps and never rounded. A `border-radius` above zero is outside the system.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** read the red from the icon through `@@RED@@` and `--cinnabar-red`, and derive every other red with `color-mix` from it.",
+      "**Do** use `/title.png` as the largest name on any Persuade surface.",
+      "**Do** draw new pixel art in code from the sixteen-colour palette, at whole-pixel scale with `image-rendering: pixelated`, and dither between palette steps rather than blending.",
+      "**Do** frame panels with the nine-slice pixel boxes and cut corners in 2px steps; keep `border-radius` at 0.",
+      "**Do** set Silkscreen only at 16, 24, 32, 48 or 64px, uppercase, with smoothing off.",
+      "**Do** put new red actions in the power-up key family, and use the Ink Key or Pixel Box Key for everything else.",
+      "**Do** mark current or selected items with the 6×10 Red Line menu cursor.",
+      "**Do** show live numbers only from the real API, and show `--` in Quiet when they are missing.",
+      "**Do** keep the Effects switch visible wherever a scene runs, and freeze to a still frame under reduced motion.",
+      "**Do** keep targets at 44px or more and focus rings at 2px Red Line, or Ink on red keys."
+    ],
+    "donts": [
+      "**Don't** hardcode a red hex anywhere in the site's code.",
+      "**Don't** set prose, descriptions, warnings, hints or book and marketplace content in pixel type.",
+      "**Don't** apply scanlines, bloom or glow over prose, or add an effects layer to the book or the marketplace.",
+      "**Don't** imitate the Minecraft font or Mojang UI textures, or ship Mojang assets. The game appears only in the owner's captures.",
+      "**Don't** filter, tint or crop captures into decoration. They sit unaltered in frames and bezels.",
+      "**Don't** ship generated or stock rasters for the world. The scenes are drawn at runtime.",
+      "**Don't** use frosted glass, `backdrop-filter`, rounded corners or soft elevation cards for interface boxes.",
+      "**Don't** make the WARNING panel blink or hide it below decorative content.",
+      "**Don't** use gold anywhere except the top edge of a red key.",
+      "**Don't** let world motion glide. The scene ticks at 12fps in whole pixels, Persuade-surface state changes and dialog reveals step (`steps()`), and only the marketplace's and book's standard controls keep their short 0.12–0.15s ease-out colour fades."
+    ]
+  }
+}

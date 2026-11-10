@@ -134,6 +134,7 @@ class RenderTests(unittest.TestCase):
             "mods", "marketplace", "marketplace.css", "marketplace-capabilities.js",
             "marketplace-core.js", "marketplace-mock.js", "marketplace-http.js", "marketplace-content.js",
             "marketplace-validation.js", "marketplace.js", "validator",
+            "arcade-scene.js", "arcade-ui.js", "arcade-chart.js",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
 
@@ -156,7 +157,9 @@ class RenderTests(unittest.TestCase):
                          [("beta", "true"), ("nightly", "false")])
         self.assertIn("Beta<span class=\"hint\">Recommended</span>", mod_html)
         self.assertIn("Nightly (Unstable)<span class=\"hint\">Built daily from dev and may break.</span>", mod_html)
-        self.assertEqual(mod_page.scripts, [{"src": "/app.js", "defer": None}])
+        self.assertEqual([script for script in mod_page.scripts if "src" in script],
+                         [{"src": "/app.js", "defer": None}, {"src": "/arcade-ui.js", "defer": None},
+                          {"src": "/arcade-scene.js", "defer": None}])
         self.assertEqual((self.output / "app.js").read_bytes(), (SITE / "app.js").read_bytes())
         self.assertIn("Right Shift", mod_html)
         for capture in RENDER.MOD_CAPTURES:
@@ -350,9 +353,13 @@ class RenderTests(unittest.TestCase):
         page.feed(html)
         config = self.config_from_output()
         self.assertEqual(page.repository + "/releases/latest", config["release_url"])
-        self.assertEqual([script["src"] for script in page.scripts],
-                         ["/downloads.js", "/app.js", "/activity.js", "/presence.js", "/download-count.js", "/history.js"])
-        for script in page.scripts:
+        external = [script for script in page.scripts if "src" in script]
+        self.assertEqual([script["src"] for script in external],
+                         ["/downloads.js", "/app.js", "/activity.js", "/presence.js", "/download-count.js", "/history.js",
+                          "/arcade-ui.js", "/arcade-chart.js", "/arcade-scene.js"])
+        for name in ("arcade-ui.js", "arcade-chart.js", "arcade-scene.js"):
+            self.assertEqual((self.output / name).read_bytes(), (SITE / name).read_bytes())
+        for script in external:
             self.assertIn("defer", script)
             self.assertTrue((self.output / script["src"].lstrip("/")).is_file())
         for selection in page.downloads:

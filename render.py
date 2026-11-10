@@ -18,7 +18,9 @@ from mdbook import binary
 
 
 HERE = Path(__file__).resolve().parent
-MARKETPLACE_LINK = '      <a class="marketplace-link" href="/mods/" aria-current="page">Marketplace</a>\n'
+# On a phone the label shortens to "Mods" so the pixel-caps nav fits at 16px; the visible text is always the link's name.
+MARKETPLACE_LINK = ('      <a class="marketplace-link" href="/mods/" aria-current="page">'
+                    '<span class="nav-long">Marketplace</span><span class="nav-short">Mods</span></a>\n')
 INPUTS = load_config()["inputs"]
 # In-game screenshots of the mod shown on /mod/.
 MOD_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")
@@ -161,6 +163,8 @@ def build(repository, output, marketplace_backend="http"):
     shutil.copyfile(HERE / "presence.js", output / "presence.js")
     shutil.copyfile(HERE / "download-count.js", output / "download-count.js")
     shutil.copyfile(HERE / "history.js", output / "history.js")
+    for script in ("arcade-scene.js", "arcade-ui.js", "arcade-chart.js"):
+        shutil.copyfile(HERE / script, output / script)
     shutil.copyfile(repository / INPUTS["title"], output / "title.png")
     for directory in PUBLIC_ASSETS:
         if (HERE / "assets" / directory).is_dir():
