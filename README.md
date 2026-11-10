@@ -58,6 +58,12 @@ with a dry run. Pushes to `main` deploy after verification; manual dispatch depl
 only when run on `main`. The workflow follows redirects and byte-compares every
 published file with the build. Other branches can validate without deploying.
 
+Every commit to a pull request from this repository also deploys a preview to
+<https://dev.cinnabar.gg/>, served by the separate `cinnabar-dev` Worker (`wrangler deploy --env dev`).
+The newest commit wins, across all open PRs, and fork PRs never deploy. The preview's marketplace
+uses the labelled mock backend, because the marketplace API only accepts the production origin.
+The Worker claims `dev.cinnabar.gg` as a custom domain on the Cloudflare zone, so it needs no Caddy route.
+
 The `website` GitHub environment supplies the `CLOUDFLARE_API_TOKEN` secret and
 `CLOUDFLARE_ACCOUNT_ID` variable. `wrangler.jsonc` identifies the existing Worker
 and account, serves `dist/` without a Worker script, and disables request logs.
