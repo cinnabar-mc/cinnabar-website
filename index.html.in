@@ -89,11 +89,11 @@
     .disclaimer { color: var(--ink); font: 400 16px/1.55 var(--sans); text-wrap: pretty; }
 
     /* ---------- High-score board ---------- */
-    .section-title { font: 700 48px/1 var(--pixel); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; text-wrap: balance; }
-    .board { padding-top: 136px; }
+    .section-title { font: 700 32px/1 var(--pixel); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; text-wrap: balance; }
+    .board { padding-top: 96px; }
     /* The board is a framed high-score screen: a riveted cabinet frame, a ruled title and a scanned inner screen. */
-    .cabinet { padding: 40px 48px 28px; border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch; }
-    .board-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "stats ranges"; gap: 24px 32px; align-items: end; margin-top: 36px; }
+    .cabinet { padding: 28px 32px 20px; border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch; }
+    .board-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "stats ranges"; gap: 24px 32px; align-items: end; margin-top: 24px; }
     .board-head .chart-ranges { grid-area: ranges; }
     .board-head .board-stats { grid-area: stats; margin-top: 0; }
     .chart-ranges { display: flex; gap: 4px; }
@@ -108,11 +108,11 @@
     .online-count:empty, .unique-count:empty { visibility: hidden; }
     .unique-count { grid-column: 1; min-height: 1.5em; color: var(--soft); font: 400 17px/1.5 var(--sans); }
     .chart-summary { grid-column: 2; grid-row: 1 / span 2; align-self: end; min-height: 1.5em; color: var(--soft); font: 400 17px/1.5 var(--sans); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .chart-screen { position: relative; margin-top: 28px; padding: 28px 28px 20px 56px; border: 4px solid; border-image: var(--box-quiet) 4 fill / 4px stretch; }
+    .chart-screen { position: relative; margin-top: 20px; padding: 20px 20px 12px 48px; border: 4px solid; border-image: var(--box-quiet) 4 fill / 4px stretch; }
     /* Faint scan gaps across the score screen only; they leave with the effects. */
     :root[data-fx="on"] .chart-screen::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: repeating-linear-gradient(to bottom, #0000 0 3px, #0000002e 3px 4px); }
-    .chart-body { position: relative; display: grid; align-items: center; min-height: 380px; }
-    #history-plot { display: block; width: 100%; height: 380px; overflow: visible; touch-action: pan-y; }
+    .chart-body { position: relative; display: grid; align-items: center; min-height: 260px; }
+    #history-plot { display: block; width: 100%; height: 260px; overflow: visible; touch-action: pan-y; }
     #history-plot[hidden] { display: none; }
     #history-plot:focus-visible { outline: 2px solid var(--focus); outline-offset: 12px; }
     #history-plot text { fill: var(--quiet); font: 400 16px var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
@@ -125,7 +125,7 @@
     #history-plot > circle.chart-point:last-of-type { opacity: 0; }
     .chart-square { fill: var(--ink); stroke: var(--ground); stroke-width: 2; shape-rendering: crispEdges; }
     .chart-cursor { stroke: var(--soft); stroke-width: 2; stroke-dasharray: 2 2; shape-rendering: crispEdges; }
-    .chart-body:has(#history-plot[hidden]) { min-height: 260px; }
+    .chart-body:has(#history-plot[hidden]) { min-height: 200px; }
     #history-message { color: var(--soft); text-align: center; font: 400 16px/1.6 var(--sans); }
     /* The inspected sample in a pixel box beside the cursor. */
     .chart-tip { position: absolute; z-index: 2; max-width: 280px; padding: 10px 14px; border: 4px solid; border-image: var(--box-ink) 4 fill / 4px stretch; color: var(--ground); font: 600 14px/1.35 var(--sans); white-space: nowrap; pointer-events: none; transform: translate(16px, -50%); font-variant-numeric: tabular-nums; }
@@ -136,17 +136,16 @@
     .chart-detail { min-height: 1.6em; margin-top: 16px; color: var(--quiet); font: 400 14px/1.6 var(--sans); font-variant-numeric: tabular-nums; }
 
     /* ---------- Gallery: the owner's captures in pixel frames ---------- */
-    .gallery { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 40px 32px; padding-top: 136px; }
+    .gallery { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 40px 32px; padding-top: 96px; }
     .gallery > h2 { grid-column: 1 / -1; grid-row: 1; margin-bottom: 8px; }
     .gallery figure { min-width: 0; }
     .frame { padding: 2px; border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch; }
     .frame img { width: 100%; background: var(--raise); }
-    .gallery figcaption { display: flex; align-items: center; gap: 12px; margin-top: 14px; color: var(--soft); font: 400 16px/1.3 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
-    .gallery figcaption::before { content: ""; flex: none; width: 8px; height: 8px; background: var(--red-line); }
+    .gallery-note { grid-column: 1 / -1; margin: -16px 0 0; color: var(--quiet); font: 400 14px/1.5 var(--sans); }
     /* The large sunset holds two rows while forest and PvP stack beside it, then cave and river share the last row.
        Each frame fills its grid area and its capture covers the frame, so no row leaves a dead block. */
     @media (min-width: 901px) {
-      .gallery > figure { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+      .gallery > figure { display: grid; grid-template-rows: minmax(0, 1fr); }
       .gallery .frame { display: grid; min-height: 0; }
       .gallery .frame img { height: 100%; object-fit: cover; }
     }
@@ -157,7 +156,7 @@
     .shot-river { grid-column: 7 / -1; grid-row: 4; }
 
     /* ---------- Continue: a chamber under the world, lit by its own ore ---------- */
-    .closing { position: relative; isolation: isolate; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 760px; margin-top: 136px; padding: 176px var(--gutter) 168px; overflow: clip; text-align: center; }
+    .closing { position: relative; isolation: isolate; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 760px; margin-top: 96px; padding: 176px var(--gutter) 168px; overflow: clip; text-align: center; }
     .closing-logo { width: min(100%, 400px); margin: -22px 0 -28px; filter: drop-shadow(0 10px 16px #000000b3); }
     .closing-line { font: 800 clamp(24px, 2.4vw, 34px)/1.12 var(--sans); font-stretch: 112%; letter-spacing: -.02em; text-wrap: balance; text-shadow: 0 2px var(--ground); }
     .closing-label { margin-top: 40px; color: var(--soft); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
@@ -217,18 +216,18 @@
       .score-average { display: none; }
     }
     @media (max-width: 900px) {
-      .section-title { font-size: 32px; }
-      .board, .gallery { padding-top: 96px; }
+      .section-title { font-size: 24px; }
+      .board, .gallery { padding-top: 64px; }
       .board-stats { grid-template-columns: minmax(0, 1fr); }
       .cabinet { padding: 28px 18px 20px; }
       .board-head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "ranges" "stats"; margin-top: 28px; }
       .chart-summary { grid-column: 1; grid-row: auto; margin-top: 4px; text-align: left; white-space: normal; }
       .chart-screen { padding: 20px 16px 12px 44px; }
-      .chart-body { min-height: 260px; }
-      #history-plot { height: 260px; }
+      .chart-body { min-height: 200px; }
+      #history-plot { height: 200px; }
       /* Narrow charts keep only the first and last time so the labels never touch. */
       #history-plot text[text-anchor="middle"] { display: none; }
-      .gallery { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+      .gallery { grid-template-columns: minmax(0, 1fr); gap: 24px; }
       .gallery > h2 { margin-bottom: 0; }
       .gallery > figure { grid-column: 1 / -1; grid-row: auto; margin-top: 0; }
       .closing { min-height: 680px; margin-top: 96px; padding-block: 136px; }
@@ -331,24 +330,20 @@
       <h2 class="section-title rule-title glow" id="gallery-title">Gallery</h2>
       <figure class="shot-sunset">
         <div class="frame"><img src="/assets/gameplay/sunset.webp" alt="In game at sunset: a crowned, winged player stands on a grassy hilltop beneath a huge overhanging tree, looking out over a misty valley." width="1920" height="1156" loading="lazy"></div>
-        <figcaption>Sunset with a shader pack</figcaption>
       </figure>
       <figure class="shot-forest">
         <div class="frame"><img src="/assets/gameplay/forest.webp" alt="A cobblestone path through a dark forest of giant mushrooms under a streaked evening sky." width="1025" height="720" loading="lazy"></div>
-        <figcaption>In game</figcaption>
       </figure>
       <figure class="shot-pvp">
         <div class="frame"><img src="/assets/gameplay/pvp.webp" alt="A first-person fight in a stone arena at dusk: a diamond sword in hand, an opponent in diamond armor ahead, and an iron statue on a dark platform in the distance." width="1920" height="994" loading="lazy"></div>
-        <figcaption>PvP</figcaption>
       </figure>
       <figure class="shot-cave">
         <div class="frame"><img src="/assets/gameplay/cave.webp" alt="Blue shafts of light falling through the opening of a dark cave, with ore glinting in the rock below." width="1920" height="1159" loading="lazy"></div>
-        <figcaption>Light shafts in a cave with a shader pack</figcaption>
       </figure>
       <figure class="shot-river">
         <div class="frame"><img src="/assets/gameplay/river.webp" alt="A moonlit river between pale sand banks under a starry sky, with a rock spire dark against the moon." width="2358" height="1414" loading="lazy"></div>
-        <figcaption>Moonlit river with a shader pack</figcaption>
       </figure>
+      <p class="gallery-note">The sunset, cave and river captures use a shader pack.</p>
     </section>
 
     <section class="closing" aria-labelledby="closing-title">

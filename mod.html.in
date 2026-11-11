@@ -66,8 +66,8 @@
     figcaption { margin-top: 14px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
     .showcase figcaption { text-align: center; }
 
-    section { padding-top: 128px; }
-    .section-title { font: 700 48px/1.05 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; text-wrap: balance; }
+    section { padding-top: 96px; }
+    .section-title { font: 700 32px/1.05 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; text-wrap: balance; }
     .lead { color: var(--soft); font: 400 17px/1.6 var(--sans); text-wrap: pretty; }
     .lead a { color: var(--ink); text-decoration-color: var(--red-line); }
     .lead a:hover { text-decoration-color: currentColor; }
@@ -121,7 +121,7 @@
       .hero { padding-bottom: 168px; }
       .hero-grid { grid-template-columns: minmax(0, 1fr); }
       section { padding-top: 96px; }
-      .section-title { font-size: 32px; }
+      .section-title { font-size: 24px; }
       .catalog { grid-template-columns: minmax(0, 1fr); }
       .pair, .facts, .stages { grid-template-columns: minmax(0, 1fr); }
       .showcase { margin-top: -112px; }

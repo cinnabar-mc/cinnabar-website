@@ -241,11 +241,12 @@ class RenderTests(unittest.TestCase):
         self.assertIn("readonly", fields[0][1])
 
     def test_each_capture_appears_once_on_the_home_page(self):
-        """Show the hero capture once and keep the caption its source gives it."""
+        """Show each capture once and say which ones use a shader pack."""
         RENDER.build(self.repository, self.output)
         html = (self.output / "index.html").read_text()
         self.assertEqual(html.count('src="/assets/gameplay/sunset.webp"'), 1)
-        self.assertIn("Sunset with a shader pack", html)
+        self.assertNotIn("<figcaption>", html)
+        self.assertIn("The sunset, cave and river captures use a shader pack.", html)
 
     def test_mod_page_title_leads_with_the_logotype(self):
         """Keep the accessible title reading Cinnabar Mod with the logotype as its first element."""
