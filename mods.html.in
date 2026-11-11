@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#0b0708">
   <link rel="preload" href="/assets/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/silkscreen-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script>try { var fx = localStorage.getItem('cinnabar-arcade-fx'); document.documentElement.dataset.fx = fx || (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on'); } catch (error) {}</script>
   <link rel="stylesheet" href="/marketplace.css">
   <style>@@SITE_HEADER_STYLES@@</style>
 </head>
@@ -17,7 +18,12 @@
   @@SITE_HEADER@@
   <div class="shell">
     <div class="market-heading">
-      <div><h1>Mods</h1><p>Mods for Cinnabar.</p></div>
+      <div class="scene market-scene" aria-hidden="true">
+        <canvas class="scene-canvas" data-scene="surface" data-ore="right" data-parallax="off" width="320" height="90"></canvas>
+        <canvas class="scene-bloom" width="320" height="90"></canvas>
+        <div class="scene-crt"></div>
+      </div>
+      <div><h1 class="glow">Mods</h1><p>Mods for Cinnabar.</p></div>
       <div class="account" id="account"></div>
     </div>
     <div class="preview-note" id="preview-note" hidden><p><strong>Design preview</strong> · Sample mods and accounts. Nothing is installed.</p><button type="button" id="reset-preview" class="quiet">Reset</button></div>
@@ -57,5 +63,6 @@
   <script src="/marketplace-http.js" defer></script>
   <script src="/marketplace-validation.js" defer></script>
   <script src="/marketplace.js" defer></script>
+  <script src="/arcade-scene.js" defer></script>
 </body>
 </html>

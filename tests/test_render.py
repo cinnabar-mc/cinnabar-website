@@ -402,7 +402,9 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(page, (self.output / "marketplace/index.html").read_text(encoding="utf-8"))
         parser = Page()
         parser.feed(page)
-        for script in parser.scripts:
+        external = [script for script in parser.scripts if "src" in script]
+        self.assertIn("/arcade-scene.js", [script["src"] for script in external])
+        for script in external:
             self.assertIn("defer", script)
             self.assertTrue((self.output / script["src"].lstrip("/")).is_file())
         for filename in ("marketplace-validator-worker.js", "js-component-bindgen-component.core.wasm", "JCO-LICENSE"):

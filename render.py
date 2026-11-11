@@ -20,7 +20,7 @@ from mdbook import binary
 HERE = Path(__file__).resolve().parent
 # On a phone the label shortens to "Mods" so the pixel-caps nav fits at 16px; the visible text is always the link's name.
 MARKETPLACE_LINK = ('      <a class="marketplace-link" href="/mods/" aria-current="page">'
-                    '<span class="nav-long">Marketplace</span><span class="nav-short">Mods</span></a>\n')
+                    '<span class="nav-long">Marketplace</span><span class="nav-short">Market</span></a>\n')
 INPUTS = load_config()["inputs"]
 # In-game screenshots of the mod shown on /mod/.
 MOD_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")

@@ -86,7 +86,7 @@ label { cursor: pointer; }
 .market-heading { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px 48px; align-items: end; padding: 48px 0 24px; }
 .market-heading p { margin-top: 8px; color: var(--soft); font: 400 17px/1.55 var(--sans); }
 .market-heading-compact { padding-block: 24px 16px; }
-.market-heading-compact > div:first-child { display: none; }
+.market-heading-compact > .scene + div { display: none; }
 .account { display: flex; align-items: center; justify-content: flex-end; gap: 16px; min-width: 0; grid-column: 2; }
 .account .who { min-width: 0; color: var(--ink); font: 500 15px/1.3 var(--sans); text-align: right; overflow-wrap: anywhere; }
 .account small { display: block; margin-top: 2px; color: var(--quiet); font: 400 13px/1.4 var(--sans); }
@@ -407,4 +407,48 @@ dialog::backdrop { background: #0b0708d9; }
 @media (max-width: 480px) {
   .market-heading h1 { font-size: 32px; }
   .editor h2, .review-top h2 { font-size: 24px; }
+}
+
+/* ---------- Arcade reach: the scene band, riveted panels and the select cursor ---------- */
+body { overflow-x: clip; }
+/* The night scene runs full-bleed behind the heading and fades into the ground before the tabs. */
+.market-heading { position: relative; isolation: isolate; min-height: 240px; padding-top: 72px; }
+.market-scene { position: absolute; inset: 0 calc(50% - 50vw); z-index: -1; overflow: hidden; background: var(--ground);
+  -webkit-mask: linear-gradient(#000 55%, transparent); mask: linear-gradient(#000 55%, transparent); }
+.market-scene canvas { position: absolute; left: 0; top: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
+.market-scene .scene-bloom { mix-blend-mode: screen; filter: contrast(2.4) brightness(.85) blur(10px); opacity: .6; }
+.market-scene .scene-crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, #0000 0 calc(var(--px, 4px) - 1px), #00000052 calc(var(--px, 4px) - 1px) var(--px, 4px)); }
+:root[data-fx="off"] .market-scene .scene-bloom, :root[data-fx="off"] .market-scene .scene-crt { display: none; }
+.market-heading p { text-shadow: 0 1px 2px var(--ground); }
+
+/* Riveted cabinet frames on the panels a visitor acts from. */
+.sidebox, .filter-section:first-child { border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch; }
+.filter-section:first-child { padding: 16px 14px 14px; }
+.sidebox { padding: 22px; }
+
+/* The select cursor: the hovered or focused mod row gets the ink frame and a stepped pointer in the gutter. */
+.mod-card { position: relative; }
+.mod-card::before { content: ""; position: absolute; left: -20px; top: 50%; width: 6px; height: 10px; margin-top: -5px; background: var(--red-line); opacity: 0;
+  clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px); }
+.mod-card:hover, .mod-card:focus-within { background: var(--raise); box-shadow: inset 0 0 0 2px var(--ink); }
+.mod-card:hover::before, .mod-card:focus-within::before { opacity: 1; }
+
+/* No screenshots: an unlit screen in a bezel instead of a line of text above empty space. */
+.gallery-empty { display: grid; place-items: center; aspect-ratio: 16 / 9; margin: 0 0 24px; border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch;
+  background: repeating-linear-gradient(to bottom, #0000 0 3px, #ffffff08 3px 4px), var(--ground); color: var(--quiet); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+
+/* A mod's own page keeps the heading compact, without the scene. */
+.market-heading-compact { min-height: 0; padding-top: 24px; }
+.market-heading-compact .market-scene { display: none; }
+
+@media (max-width: 900px) {
+  .mod-card::before { left: 2px; }
+  /* Categories become a scrolling chip row here, which a frame would cut off. */
+  .filter-section:first-child { padding: 0; border: 0; }
+}
+@media (max-width: 480px) {
+  .market-heading { min-height: 0; padding-top: 48px; }
+  /* The tabs wrap so Publish a mod drops to its own line instead of running off the screen. */
+  .tabs { flex-wrap: wrap; row-gap: 8px; }
+  .tabs .publish-link { flex-basis: 100%; justify-content: center; margin: 0 0 8px; }
 }
