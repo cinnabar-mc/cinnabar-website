@@ -103,10 +103,16 @@ jobs:
       - name: Check every published file
         run: |
           set -euo pipefail
+          # Cloudflare can serve the previous version for a few seconds after a deploy,
+          # so each file gets up to a minute to match before the check fails.
           while IFS= read -r -d '' file; do
-            curl --fail --location --retry 3 "$DEV_URL/${file#dist/}?release=$GITHUB_SHA" \
-              -o "$RUNNER_TEMP/served"
-            cmp "$file" "$RUNNER_TEMP/served"
+            for attempt in $(seq 12); do
+              curl --fail --silent --show-error --location --retry 3 \
+                "$DEV_URL/${file#dist/}?release=$GITHUB_SHA&attempt=$attempt" -o "$RUNNER_TEMP/served"
+              cmp --silent "$file" "$RUNNER_TEMP/served" && break
+              [ "$attempt" -lt 12 ] || { cmp "$file" "$RUNNER_TEMP/served"; exit 1; }
+              sleep 5
+            done
           done < <(find dist -type f -print0)
       - name: Summarize
         run: echo "Preview of ${{ github.event.pull_request.head.sha }} is live at https://dev.cinnabar.gg/" >> "$GITHUB_STEP_SUMMARY"
