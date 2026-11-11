@@ -134,6 +134,7 @@ class RenderTests(unittest.TestCase):
             "mods", "marketplace", "marketplace.css", "marketplace-capabilities.js",
             "marketplace-core.js", "marketplace-mock.js", "marketplace-http.js", "marketplace-content.js",
             "marketplace-validation.js", "marketplace.js", "validator",
+            "arcade-scene.js", "arcade-ui.js", "arcade-chart.js",
         })
         self.assertFalse((self.output / self.config["install_script"]).exists())
 
@@ -156,7 +157,9 @@ class RenderTests(unittest.TestCase):
                          [("beta", "true"), ("nightly", "false")])
         self.assertIn("Beta<span class=\"hint\">Recommended</span>", mod_html)
         self.assertIn("Nightly (Unstable)<span class=\"hint\">Built daily from dev and may break.</span>", mod_html)
-        self.assertEqual(mod_page.scripts, [{"src": "/app.js", "defer": None}])
+        self.assertEqual([script for script in mod_page.scripts if "src" in script],
+                         [{"src": "/app.js", "defer": None}, {"src": "/arcade-ui.js", "defer": None},
+                          {"src": "/arcade-scene.js", "defer": None}])
         self.assertEqual((self.output / "app.js").read_bytes(), (SITE / "app.js").read_bytes())
         self.assertIn("Right Shift", mod_html)
         for capture in RENDER.MOD_CAPTURES:
@@ -238,11 +241,24 @@ class RenderTests(unittest.TestCase):
         self.assertIn("readonly", fields[0][1])
 
     def test_each_capture_appears_once_on_the_home_page(self):
-        """Show the hero capture once and keep the caption its source gives it."""
+        """Show each capture once, without captions."""
         RENDER.build(self.repository, self.output)
         html = (self.output / "index.html").read_text()
         self.assertEqual(html.count('src="/assets/gameplay/sunset.webp"'), 1)
-        self.assertIn("Sunset with a shader pack", html)
+        self.assertNotIn("<figcaption>", html)
+
+    def test_channel_button_names_its_visible_channel_and_market_scene_is_still(self):
+        """Keep the channel button's accessible name starting with its visible label, and the marketplace scene still."""
+        RENDER.build(self.repository, self.output)
+        for page in ("index.html", "mod/index.html"):
+            html = (self.output / page).read_text()
+            toggle = html.split('id="channel-toggle"', 1)[1].split("</button>", 1)[0]
+            self.assertNotIn("aria-label", toggle.split(">", 1)[0])
+            self.assertIn('<span class="mode" id="channel-mode">Beta</span><span class="visually-hidden"> channel, change</span>', toggle)
+        market = (self.output / "mods/index.html").read_text()
+        self.assertIn("data-still", market)
+        self.assertNotIn("scene-bloom", market)
+        self.assertNotIn('class="glow"', market)
 
     def test_mod_page_title_leads_with_the_logotype(self):
         """Keep the accessible title reading Cinnabar Mod with the logotype as its first element."""
@@ -350,9 +366,13 @@ class RenderTests(unittest.TestCase):
         page.feed(html)
         config = self.config_from_output()
         self.assertEqual(page.repository + "/releases/latest", config["release_url"])
-        self.assertEqual([script["src"] for script in page.scripts],
-                         ["/downloads.js", "/app.js", "/activity.js", "/presence.js", "/download-count.js", "/history.js"])
-        for script in page.scripts:
+        external = [script for script in page.scripts if "src" in script]
+        self.assertEqual([script["src"] for script in external],
+                         ["/downloads.js", "/app.js", "/activity.js", "/presence.js", "/download-count.js", "/history.js",
+                          "/arcade-ui.js", "/arcade-chart.js", "/arcade-scene.js"])
+        for name in ("arcade-ui.js", "arcade-chart.js", "arcade-scene.js"):
+            self.assertEqual((self.output / name).read_bytes(), (SITE / name).read_bytes())
+        for script in external:
             self.assertIn("defer", script)
             self.assertTrue((self.output / script["src"].lstrip("/")).is_file())
         for selection in page.downloads:
@@ -394,7 +414,9 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(page, (self.output / "marketplace/index.html").read_text(encoding="utf-8"))
         parser = Page()
         parser.feed(page)
-        for script in parser.scripts:
+        external = [script for script in parser.scripts if "src" in script]
+        self.assertIn("/arcade-scene.js", [script["src"] for script in external])
+        for script in external:
             self.assertIn("defer", script)
             self.assertTrue((self.output / script["src"].lstrip("/")).is_file())
         for filename in ("marketplace-validator-worker.js", "js-component-bindgen-component.core.wasm", "JCO-LICENSE"):

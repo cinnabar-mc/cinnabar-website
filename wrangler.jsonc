@@ -9,5 +9,21 @@
   },
   "observability": {
     "enabled": false
+  },
+  "env": {
+    // Pull request previews. A separate Worker so a PR can never replace production.
+    "dev": {
+      "name": "cinnabar-dev",
+      "workers_dev": true,
+      "routes": [{ "pattern": "dev.cinnabar.gg", "custom_domain": true }],
+      "assets": {
+        "directory": "dist",
+        "html_handling": "auto-trailing-slash",
+        "not_found_handling": "404-page"
+      },
+      "observability": {
+        "enabled": false
+      }
+    }
   }
 }

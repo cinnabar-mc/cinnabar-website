@@ -3,155 +3,211 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#141312">
+  <meta name="theme-color" content="#0b0708">
   <meta name="description" content="Cinnabar Mod is the official HUD and module pack for Cinnabar: 39 modules, a drag-and-drop HUD editor, profiles and waypoints.">
   <title>Cinnabar Mod</title>
   <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
-  <link rel="preload" href="/assets/fonts/schibsted-grotesk-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/silkscreen-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script>try { var fx = localStorage.getItem('cinnabar-arcade-fx'); document.documentElement.dataset.fx = fx || (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on'); } catch (error) {}</script>
   <style>
     @@SITE_HEADER_STYLES@@
-    :root { --cinnabar-red: @@RED@@; --solid-at: 320px; color-scheme: dark; }
+    :root { --cinnabar-red: @@RED@@; --solid-at: 120px; color-scheme: dark; }
     * { box-sizing: border-box; }
     html { background: var(--ground); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body { margin: 0; overflow-x: clip; background: var(--ground); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
-    p, h1, h2, h3, figure { margin: 0; }
-    a { color: inherit; text-underline-offset: 4px; }
-    a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+    p, h1, h2, h3, figure, ul, ol { margin: 0; }
+    a { color: inherit; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+    a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+    button { font: inherit; color: inherit; cursor: pointer; }
     img { display: block; max-width: 100%; height: auto; }
     .wrap { width: min(100% - 2 * var(--gutter), var(--page)); margin-inline: auto; }
+    code { font: 400 .9em/1.5 var(--mono); }
 
-    .hero { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px 48px; align-items: center; padding-top: calc(var(--site-header-height) + 32px); }
-    h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; font: 700 clamp(40px, 4vw, 56px)/1 var(--sans); letter-spacing: -.035em; }
-    h1 img { width: min(100%, 400px); filter: drop-shadow(0 10px 18px #0009); }
+    /* The same world, seen from the other side of the ore. */
+    .scene { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: var(--ground); }
+    .scene canvas { position: absolute; left: 0; top: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
+    .scene-bloom { mix-blend-mode: screen; opacity: .6; }
+    .scene-crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, #0000 0 calc(var(--px, 4px) - 1px), #00000052 calc(var(--px, 4px) - 1px) var(--px, 4px)); }
+    :root[data-fx="off"] .scene-bloom, :root[data-fx="off"] .scene-crt { display: none; }
+
+    .hero { position: relative; isolation: isolate; min-height: min(760px, 100svh); padding: calc(var(--site-header-height) + 8px) var(--gutter) 200px; overflow: clip; }
+    .hero-bar { display: flex; justify-content: flex-end; width: min(100%, var(--page)); margin-inline: auto; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px 64px; align-items: center; width: min(100%, var(--page)); margin: 24px auto 0; }
+    h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 0 20px; }
+    h1 img { width: min(100%, 520px); margin-block: -30px -40px; filter: drop-shadow(0 10px 16px #000000b3); }
+    /* MOD sits on a cartridge label: a red pixel tag. */
+    .cart { position: relative; isolation: isolate; display: inline-block; padding: 12px 16px 14px; color: #fff; font: 700 32px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; text-shadow: 0 2px var(--red-deep); }
+    .cart::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--rim); clip-path: var(--step-2); }
+    .cart::after { content: ""; position: absolute; inset: 2px; z-index: -1; background: var(--cinnabar-red); box-shadow: inset 0 2px var(--gold), inset 0 -4px var(--red-press); clip-path: var(--step-1); }
     .hero-side { display: flex; flex-direction: column; align-items: flex-start; }
-    .description { font: 500 clamp(19px, 1.5vw, 21px)/1.32 var(--sans); letter-spacing: -.015em; text-wrap: pretty; }
-    .edition { margin-top: 12px; color: var(--soft); font: 400 16px/1.5 var(--sans); }
-    .split { margin-top: 20px; }
-    .download-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .4em; min-height: 44px; margin-top: 8px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
-    .download-note a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: #ffffff59; text-decoration-thickness: 1px; transition: text-decoration-color .15s ease-out; }
+    .description { font: 800 clamp(22px, 1.9vw, 28px)/1.18 var(--sans); font-stretch: 108%; letter-spacing: -.015em; text-wrap: pretty; text-shadow: 0 2px var(--ground), 0 0 18px var(--ground); }
+    .edition { margin-top: 16px; color: var(--soft); font: 400 16px/1.5 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; text-shadow: 0 2px var(--ground); }
+    .split { margin-top: 28px; }
+    .download-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .4em; min-height: 44px; margin-top: 10px; color: var(--soft); font: 400 15px/1.5 var(--sans); text-shadow: 0 1px 2px var(--ground); }
+    .download-note a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: var(--red-line); }
     .download-note a:hover { text-decoration-color: currentColor; }
-    code { font: 400 .92em/1.5 var(--mono); }
+    .fx-toggle { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--soft); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+    .fx-toggle:hover { background: #ffffff14; color: var(--ink); }
+    .fx-switch { position: relative; width: 28px; height: 16px; background: var(--line-strong); clip-path: var(--step-1); }
+    .fx-switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; background: var(--quiet); }
+    .fx-toggle[aria-pressed="true"] .fx-switch { background: var(--red-press); }
+    .fx-toggle[aria-pressed="true"] .fx-switch::after { left: 16px; background: var(--ink); }
+    .fx-state { min-width: 3ch; text-align: left; }
 
-    /* The menu capture stays within its source's 1920px and never fills a large display. */
-    .showcase { width: min(100% - 2 * var(--gutter), 1120px); margin: 40px auto 0; }
-    .showcase img { width: 100%; }
-    .showcase figcaption { margin-top: 12px; color: var(--soft); font: 400 15px/1.5 var(--sans); text-align: center; }
-    .shot { display: block; overflow: clip; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); cursor: zoom-in; transition: border-color .2s ease-out, transform .2s cubic-bezier(.16, 1, .3, 1), box-shadow .2s ease-out; }
-    .shot:hover { border-color: var(--line-strong); box-shadow: 0 24px 48px -28px #000; transform: translateY(-2px); }
-    .shot:active { transform: translateY(0); box-shadow: none; }
-    .shot:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 12px; }
-    .pair figcaption { margin-top: 12px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
+    /* CRT bezels: the captures sit behind a cabinet screen's frame, never filtered. */
+    .bezel { position: relative; padding: 14px 14px 44px; border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch; }
+    .bezel .shot { display: block; overflow: clip; border: 2px solid #000; background: #000; cursor: zoom-in; }
+    .bezel .shot img { width: 100%; }
+    .bezel .shot:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+    .bezel::after { content: ""; position: absolute; right: 22px; bottom: 20px; width: 8px; height: 8px; background: var(--red-line); }
+    .bezel-label { position: absolute; left: 22px; bottom: 16px; color: var(--quiet); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+    .showcase { width: min(100% - 2 * var(--gutter), 1120px); margin: -136px auto 0; }
+    figcaption { margin-top: 14px; color: var(--soft); font: 400 15px/1.5 var(--sans); }
+    .showcase figcaption { text-align: center; }
 
-    section { padding-top: 88px; }
-    h2 { font: 700 clamp(26px, 2.5vw, 34px)/1.12 var(--sans); letter-spacing: -.032em; text-wrap: balance; }
-    .lead { color: var(--soft); font: 400 clamp(16px, 1.2vw, 17px)/1.55 var(--sans); text-wrap: pretty; }
-    .lead a { color: var(--ink); text-decoration-color: #ffffff59; text-decoration-thickness: 1px; transition: text-decoration-color .15s ease-out; }
+    section { padding-top: 96px; }
+    .section-title { font: 700 32px/1.05 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; text-wrap: balance; }
+    .lead { color: var(--soft); font: 400 17px/1.6 var(--sans); text-wrap: pretty; }
+    .lead a { color: var(--ink); text-decoration-color: var(--red-line); }
     .lead a:hover { text-decoration-color: currentColor; }
+    .head { display: grid; justify-items: center; gap: 20px; text-align: center; }
+    .head .lead { max-width: 60ch; }
 
-    .catalog-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px 48px; align-items: end; }
-    .catalog { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px 32px; margin-top: 40px; }
-    .catalog h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line-strong); font: 700 18px/1.2 var(--sans); letter-spacing: -.015em; }
-    .catalog h3 data { color: var(--quiet); font: 400 14px/1 var(--mono); font-variant-numeric: tabular-nums; }
-    .catalog ul { margin: 0; padding: 0; list-style: none; color: var(--soft); font: 400 15px/1.4 var(--sans); }
-    .catalog li { padding: 8px 0; border-bottom: 1px solid var(--line); break-inside: avoid; }
-    .hud { grid-column: span 2; }
-    .hud ul { columns: 2; column-gap: 32px; }
+    /* Character select: every module is a tile on the board, grouped by kind. */
+    .catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px 32px; margin-top: 48px; }
+    .group-hud { grid-column: 1 / -1; }
+    .catalog h3 { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; font: 400 24px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+    .catalog h3::after { content: ""; flex: 1; height: 2px; background: repeating-linear-gradient(to right, var(--line-strong) 0 4px, transparent 4px 8px); order: 1; }
+    .catalog h3 data { order: 2; color: var(--quiet); font: 400 16px/1 var(--pixel); font-variant-numeric: tabular-nums; }
+    /* Select screen: each module is a slot in a pixel frame. Slots are a list, not controls, so they do not react to the pointer. */
+    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 8px; padding: 0; list-style: none; }
+    .tiles li { position: relative; display: grid; align-content: center; min-height: 60px; padding: 12px 14px; border: 4px solid; border-image: var(--box) 4 fill / 4px stretch; color: var(--ink); font: 600 15px/1.25 var(--sans); }
 
-    .layout-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px 48px; align-items: end; }
-    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 40px; }
-    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 32px; margin: 40px 0 0; padding: 0; list-style: none; }
-    .facts li { padding-top: 16px; border-top: 1px solid var(--line-strong); color: var(--soft); font: 400 15px/1.55 var(--sans); }
-    .facts strong { display: block; margin-bottom: 4px; color: var(--ink); font: 700 17px/1.3 var(--sans); letter-spacing: -.012em; }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin-top: 48px; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 56px; padding: 0; list-style: none; }
+    .facts li { color: var(--soft); font: 400 16px/1.6 var(--sans); }
+    .facts strong { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; color: var(--ink); font: 400 24px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+    .facts strong::before { content: ""; width: 10px; height: 10px; background: var(--red-line); }
     .keys { white-space: nowrap; }
-    kbd { display: inline-block; padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--raise-2); box-shadow: inset 0 -1px #0006; color: var(--ink); font: 500 .84em/1.6 var(--mono); white-space: nowrap; }
+    kbd { display: inline-block; padding: 1px 8px 3px; border: 2px solid var(--line-strong); border-bottom-width: 4px; background: var(--raise-2); color: var(--ink); font: 400 .84em/1.5 var(--mono); white-space: nowrap; }
 
-    .install h2 { margin-bottom: 16px; }
-    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 40px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); list-style: none; counter-reset: step; }
-    .steps li { counter-increment: step; padding: 24px; }
-    .steps li + li { border-left: 1px solid var(--line); }
-    .steps li::before { content: counter(step); display: block; margin-bottom: 12px; color: var(--quiet); font: 700 26px/1 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-    .steps h3 { margin-bottom: 6px; font: 700 18px/1.25 var(--sans); letter-spacing: -.015em; }
-    .steps p { color: var(--soft); font: 400 15px/1.55 var(--sans); text-wrap: pretty; }
-    .steps strong { color: var(--ink); font-weight: 500; }
-    .help { margin-top: 24px; color: var(--soft); font: 400 16px/1.6 var(--sans); }
-    .help a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: #ffffff59; text-decoration-thickness: 1px; transition: text-decoration-color .15s ease-out; }
+    /* STAGE 1 to 3, with oversized pixel numerals. */
+    .stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 48px; padding: 0; list-style: none; counter-reset: stage; }
+    .stages li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 20px; align-content: start; padding: 24px 24px 28px; border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch; counter-increment: stage; }
+    .stages li::before { content: counter(stage); grid-area: 1 / 1; justify-self: center; color: var(--red-text); font: 700 64px/.82 var(--pixel); -webkit-font-smoothing: none; }
+    /* The word STAGE sits under its numeral, so the step's heading leads its own column. */
+    .stages li::after { content: "Stage"; grid-area: 2 / 1 / span 2; justify-self: center; margin-top: 8px; color: var(--quiet); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+    .stages li > * { grid-column: 2; }
+    .stages h3 { font: 400 24px/1.1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+    .stages p:not(.stage-name) { margin-top: 8px; color: var(--soft); font: 400 16px/1.55 var(--sans); text-wrap: pretty; }
+    .stages strong { color: var(--ink); font-weight: 600; }
+    .help { margin-top: 32px; color: var(--soft); font: 400 17px/1.6 var(--sans); }
+    .help a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: var(--red-line); }
     .help a:hover { text-decoration-color: currentColor; }
 
-    footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 32px; align-items: end; margin-top: 96px; padding-block: 32px 40px; border-top: 1px solid var(--line); color: var(--quiet); font: 400 14px/1.5 var(--sans); }
-    .foot-logo { grid-column: 1 / -1; width: min(100%, 200px); margin: -8px 0 0 -12px; }
+    footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 32px; align-items: end; margin-top: 128px; padding-block: 32px 40px; border-top: 2px solid var(--line); color: var(--quiet); font: 400 14px/1.5 var(--sans); }
+    .foot-logo { grid-column: 1 / -1; width: min(100%, 220px); margin: -16px 0 -16px -10px; }
 
     @media (max-width: 900px) {
-      .hero, .catalog-head, .layout-head { grid-template-columns: minmax(0, 1fr); }
-      .hero { padding-top: calc(var(--site-header-height) + 40px); }
-      section { padding-top: 80px; }
-      .catalog { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 40px; }
-      .hud { grid-column: 1 / -1; }
-      .pair { grid-template-columns: minmax(0, 1fr); gap: 32px; margin-top: 40px; }
-      .facts { grid-template-columns: minmax(0, 1fr); margin-top: 40px; }
-      .steps { grid-template-columns: minmax(0, 1fr); margin-top: 40px; }
-      .steps li { display: grid; grid-template-columns: 40px minmax(0, 1fr); padding: 20px; }
-      .steps li + li { border-left: 0; border-top: 1px solid var(--line); }
-      .steps li::before { grid-row: span 2; margin: 0; font-size: 24px; }
-      footer { grid-template-columns: minmax(0, 1fr); margin-top: 80px; }
+      .hero { padding-bottom: 168px; }
+      .hero-grid { grid-template-columns: minmax(0, 1fr); }
+      section { padding-top: 96px; }
+      .section-title { font-size: 24px; }
+      .catalog { grid-template-columns: minmax(0, 1fr); }
+      .pair, .facts, .stages { grid-template-columns: minmax(0, 1fr); }
+      .showcase { margin-top: -112px; }
+      footer { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 640px) {
+      /* The note sits on its own ground plate, and the hero runs long enough that the formation stands below the content. */
+      .hero { padding-bottom: 264px; }
+      .download-note { padding: 2px 12px; border: 4px solid; border-image: var(--box-quiet) 4 fill / 4px stretch; text-shadow: none; }
+      .download-note .note-sep { display: none; }
+      .download-note a { flex-basis: 100%; }
     }
     @media (max-width: 480px) {
-      .split { width: 100%; }
-      .download { flex: 1; padding-inline: 16px; font-size: 17px; }
-      .catalog { grid-template-columns: minmax(0, 1fr); }
-      .hud ul { column-gap: 16px; }
-      .visual ul, .mechanic ul { columns: 2; column-gap: 16px; }
+      h1 img { margin-block: -20px -28px; }
+      .cart { font-size: 24px; }
+      .split { display: flex; width: 100%; }
+      #download { flex: 1; padding-inline: 12px; }
+      .channel-menu { left: 0; right: auto; width: 100%; max-width: none; }
+      .bezel { padding: 10px 10px 40px; }
+      .bezel-label { left: 14px; bottom: 12px; }
+      .bezel::after { right: 16px; bottom: 16px; }
+      .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tiles li { min-height: 72px; padding: 10px 12px 12px; font-size: 14px; }
+      .stages li { padding: 22px 20px 24px; }
+      .stages li::before { font-size: 48px; }
     }
   </style>
 </head>
 <body class="site">
   @@SITE_HEADER@@
   <main>
-    <div class="hero wrap">
-      <h1><img src="/title.png" alt="Cinnabar" width="2000" height="667"> <span>Mod</span></h1>
-      <div class="hero-side">
-        <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
-        <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
-        <div class="split" id="download-split">
-          <a class="download" id="download" data-mod-download="@@API_ORIGIN@@/v1/mod/download" href="@@API_ORIGIN@@/v1/mod/download?channel=beta"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4v7h4l-6 6-6-6h4zM3 15h3v2h8v-2h3v5H3z"/></svg>Download Cinnabar Mod</a>
-          <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu" aria-label="Choose download channel"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5"/></svg></button>
-          <div class="channel-menu" id="channel-menu" role="menu" aria-label="Download channel" hidden>
-            <button type="button" class="channel-option" id="channel-beta" role="menuitemradio" aria-checked="true" data-channel="beta">Beta<span class="hint">Recommended</span></button>
-            <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>
+    <div class="hero">
+      <div class="scene" aria-hidden="true">
+        <canvas class="scene-canvas" data-scene="surface" data-ore="left" width="320" height="180"></canvas>
+        <canvas class="scene-bloom" width="320" height="180"></canvas>
+        <div class="scene-crt"></div>
+      </div>
+      <div class="hero-bar"><button type="button" class="fx-toggle" data-fx-toggle aria-pressed="true"><span class="fx-switch" aria-hidden="true"></span>Effects <span class="fx-state" data-fx-state aria-hidden="true">On</span></button></div>
+      <div class="hero-grid">
+        <h1><img src="/title.png" alt="Cinnabar" width="2000" height="667"> <span class="cart">Mod</span></h1>
+        <div class="hero-side">
+          <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
+          <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
+          <div class="split" id="download-split">
+            <a class="download" id="download" data-mod-download="@@API_ORIGIN@@/v1/mod/download" href="@@API_ORIGIN@@/v1/mod/download?channel=beta"><svg viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path d="M4 0h4v4h2v2H8v2H6v2H4V8H2V6H0V4h4zM0 10h12v2H0z"/></svg>Download Cinnabar Mod</a>
+            <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu"><span class="mode" id="channel-mode">Beta</span><span class="visually-hidden"> channel, change</span><svg viewBox="0 0 10 6" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h10v2H8v2H6v2H4V4H2V2H0z"/></svg></button>
+            <div class="channel-menu" id="channel-menu" role="menu" aria-label="Download channel" hidden>
+              <button type="button" class="channel-option" id="channel-beta" role="menuitemradio" aria-checked="true" data-channel="beta">Beta<span class="hint">Recommended</span></button>
+              <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>
+            </div>
           </div>
+          <p class="download-note">Downloads <code>CinnabarClient.wasm</code><span class="note-sep" aria-hidden="true"> · </span><a href="#install">How to install</a></p>
         </div>
-        <p class="download-note">Downloads <code>CinnabarClient.wasm</code> · <a href="#install">How to install</a></p>
       </div>
     </div>
 
     <figure class="showcase">
-      <a class="shot" href="/mod/mods.webp" aria-label="Open the full-size Mods menu screenshot"><img src="/mod/mods.webp" alt="In game, the Mods menu of Cinnabar Mod over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"></a>
+      <div class="bezel">
+        <a class="shot" href="/mod/mods.webp" aria-label="Open the full-size Mods menu screenshot"><img src="/mod/mods.webp" alt="In game, the Mods menu of Cinnabar Mod over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"></a>
+        <span class="bezel-label" aria-hidden="true">Cinnabar Mod</span>
+      </div>
       <figcaption>The Mods menu. Search, filter, toggle and bind every module from one grid.</figcaption>
     </figure>
 
     <section class="modules wrap" aria-labelledby="modules-title">
-      <div class="catalog-head">
-        <h2 id="modules-title">39 modules, ready to switch on</h2>
+      <div class="head">
+        <h2 class="section-title rule-title glow" id="modules-title">39 modules, ready to switch on</h2>
         <p class="lead">PvP essentials and everyday info. Every module has its own settings and an optional shortcut.</p>
       </div>
       <div class="catalog">
-        <div class="hud"><h3>HUD <data value="22">22</data></h3><ul><li>FPS</li><li>CPS</li><li>Keystrokes</li><li>Armor Status</li><li>Coordinates</li><li>Potion Effects</li><li>Ping</li><li>Direction HUD</li><li>Saturation</li><li>Scoreboard</li><li>Reach Display</li><li>Momentum</li><li>Playtime</li><li>Stopwatch</li><li>Item Counter</li><li>Inventory</li><li>View Angles</li><li>Potion Counter</li><li>Totem Counter</li><li>Speed Meter</li><li>Clock</li><li>Day Counter</li></ul></div>
-        <div class="visual"><h3>Visual <data value="10">10</data></h3><ul><li>Crosshair</li><li>Lighting</li><li>Menu Blur</li><li>Time Changer</li><li>Hit Color</li><li>Nametags</li><li>Hitbox</li><li>Damage Indicator</li><li>Hurt Cam</li><li>Weather Changer</li></ul></div>
-        <div class="mechanic"><h3>Mechanic <data value="7">7</data></h3><ul><li>Zoom</li><li>Toggle Sneak/Sprint</li><li>CPS Limiter</li><li>Inventory Cursor</li><li>No Swing Sounds</li><li>No Cam Reset</li><li>No Item Delay</li></ul></div>
+        <div class="group-hud"><h3>HUD <data value="22">22</data></h3><ul class="tiles"><li>FPS</li><li>CPS</li><li>Keystrokes</li><li>Armor Status</li><li>Coordinates</li><li>Potion Effects</li><li>Ping</li><li>Direction HUD</li><li>Saturation</li><li>Scoreboard</li><li>Reach Display</li><li>Momentum</li><li>Playtime</li><li>Stopwatch</li><li>Item Counter</li><li>Inventory</li><li>View Angles</li><li>Potion Counter</li><li>Totem Counter</li><li>Speed Meter</li><li>Clock</li><li>Day Counter</li></ul></div>
+        <div class="group-visual"><h3>Visual <data value="10">10</data></h3><ul class="tiles"><li>Crosshair</li><li>Lighting</li><li>Menu Blur</li><li>Time Changer</li><li>Hit Color</li><li>Nametags</li><li>Hitbox</li><li>Damage Indicator</li><li>Hurt Cam</li><li>Weather Changer</li></ul></div>
+        <div class="group-mechanic"><h3>Mechanic <data value="7">7</data></h3><ul class="tiles"><li>Zoom</li><li>Toggle Sneak/Sprint</li><li>CPS Limiter</li><li>Inventory Cursor</li><li>No Swing Sounds</li><li>No Cam Reset</li><li>No Item Delay</li></ul></div>
       </div>
     </section>
 
     <section class="layout wrap" aria-labelledby="layout-title">
-      <div class="layout-head">
-        <h2 id="layout-title">Tune it, then put it where you want it</h2>
+      <div class="head">
+        <h2 class="section-title rule-title glow" id="layout-title">Tune it, then put it where you want it</h2>
         <p class="lead">Open any module for its settings and a live sample: color, background, opacity, scale and more. Press <kbd>Right Shift</kbd> in game to open HUD Layout, then drag and resize widgets on a snapping grid.</p>
       </div>
       <div class="pair">
         <figure>
-          <a class="shot" href="/mod/settings.webp" aria-label="Open the full-size Keystrokes settings screenshot"><img src="/mod/settings.webp" alt="In game, the Keystrokes settings drawer beside the module grid: an enable switch, a shortcut button, a sample with an Edit position button, and controls for text color, background, background opacity, scale and text shadow." width="1532" height="862" loading="lazy"></a>
+          <div class="bezel">
+            <a class="shot" href="/mod/settings.webp" aria-label="Open the full-size Keystrokes settings screenshot"><img src="/mod/settings.webp" alt="In game, the Keystrokes settings drawer beside the module grid: an enable switch, a shortcut button, a sample with an Edit position button, and controls for text color, background, background opacity, scale and text shadow." width="1532" height="862" loading="lazy"></a>
+            <span class="bezel-label" aria-hidden="true">Settings</span>
+          </div>
           <figcaption>Every module has its own settings and a live sample.</figcaption>
         </figure>
         <figure>
-          <a class="shot" href="/mod/layout.webp" aria-label="Open the full-size HUD Layout screenshot"><img src="/mod/layout.webp" alt="In game, HUD Layout over the world: FPS, CPS, Keystrokes and Armor Status widgets on a snapping grid, with a Modules button in the center." width="1920" height="1080" loading="lazy"></a>
+          <div class="bezel">
+            <a class="shot" href="/mod/layout.webp" aria-label="Open the full-size HUD Layout screenshot"><img src="/mod/layout.webp" alt="In game, HUD Layout over the world: FPS, CPS, Keystrokes and Armor Status widgets on a snapping grid, with a Modules button in the center." width="1920" height="1080" loading="lazy"></a>
+            <span class="bezel-label" aria-hidden="true">HUD Layout</span>
+          </div>
           <figcaption>HUD Layout: drag widgets anywhere on screen.</figcaption>
         </figure>
       </div>
@@ -163,9 +219,11 @@
     </section>
 
     <section class="install wrap" id="install" aria-labelledby="install-title">
-      <h2 id="install-title">Install in three steps</h2>
-      <p class="lead">You need an up-to-date copy of <a href="/">Cinnabar</a> first.</p>
-      <ol class="steps">
+      <div class="head">
+        <h2 class="section-title rule-title glow" id="install-title">Install in three steps</h2>
+        <p class="lead">You need an up-to-date copy of <a href="/">Cinnabar</a> first.</p>
+      </div>
+      <ol class="stages">
         <li><h3>Download</h3><p>Save <strong>CinnabarClient.wasm</strong> with the button at the top of this page.</p></li>
         <li><h3>Import</h3><p>In Cinnabar, open <strong>Settings → Mods → Import</strong>, pick the file and grant the capabilities it asks for.</p></li>
         <li><h3>Play</h3><p>Join a world and press <kbd>Right Shift</kbd>. Choose <strong>Modules</strong> to start switching things on.</p></li>
@@ -175,5 +233,7 @@
   </main>
   <footer class="wrap"><img class="foot-logo" src="/title.png" alt="" width="2000" height="667" loading="lazy"><p>Cinnabar Mod · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
   <script src="/app.js" defer></script>
+  <script src="/arcade-ui.js" defer></script>
+  <script src="/arcade-scene.js" defer></script>
 </body>
 </html>

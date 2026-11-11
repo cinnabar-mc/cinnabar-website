@@ -6,8 +6,9 @@
   <meta name="description" content="Explore Cinnabar community mods and inspect their requested permissions.">
   <title>Marketplace · Cinnabar</title>
   <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
-  <meta name="theme-color" content="#141312">
-  <link rel="preload" href="/assets/fonts/schibsted-grotesk-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <meta name="theme-color" content="#0b0708">
+  <link rel="preload" href="/assets/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/silkscreen-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/marketplace.css">
   <style>@@SITE_HEADER_STYLES@@</style>
 </head>
@@ -16,6 +17,9 @@
   @@SITE_HEADER@@
   <div class="shell">
     <div class="market-heading">
+      <div class="scene market-scene" aria-hidden="true">
+        <canvas class="scene-canvas" data-scene="surface" data-ore="right" data-parallax="off" data-still width="320" height="90"></canvas>
+      </div>
       <div><h1>Mods</h1><p>Mods for Cinnabar.</p></div>
       <div class="account" id="account"></div>
     </div>
@@ -56,5 +60,6 @@
   <script src="/marketplace-http.js" defer></script>
   <script src="/marketplace-validation.js" defer></script>
   <script src="/marketplace.js" defer></script>
+  <script src="/arcade-scene.js" defer></script>
 </body>
 </html>

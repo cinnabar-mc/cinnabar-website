@@ -1,93 +1,141 @@
-/* Shared type, palette and navigation for the home page, the mod page and the book. Sizes use px because the book's root is 10px. */
-@font-face { font-family: "Schibsted Grotesk"; font-weight: 400; font-display: swap; src: url("/assets/fonts/schibsted-grotesk-latin-400-normal.woff2") format("woff2"); }
-@font-face { font-family: "Schibsted Grotesk"; font-weight: 500; font-display: swap; src: url("/assets/fonts/schibsted-grotesk-latin-500-normal.woff2") format("woff2"); }
-@font-face { font-family: "Schibsted Grotesk"; font-weight: 700; font-display: swap; src: url("/assets/fonts/schibsted-grotesk-latin-700-normal.woff2") format("woff2"); }
+/* Arcade: shared type, palette, header and the red power-up button for the home page, the mod page, the marketplace and the book.
+   Sizes use px because the book's root is 10px. Pixel type is set only at whole multiples of its 8px grid (16, 24, 32, 48, 64). */
+@font-face { font-family: "Silkscreen"; font-weight: 400; font-display: swap; src: url("/assets/fonts/silkscreen-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Silkscreen"; font-weight: 700; font-display: swap; src: url("/assets/fonts/silkscreen-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Archivo"; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url("/assets/fonts/archivo-latin-wdth-normal.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap; src: url("/assets/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-weight: 500; font-display: swap; src: url("/assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
 
 :root {
-  --sans: "Schibsted Grotesk", system-ui, sans-serif;
+  --sans: "Archivo", system-ui, sans-serif;
+  --pixel: "Silkscreen", ui-monospace, monospace;
   --mono: "JetBrains Mono", ui-monospace, monospace;
-  --ground: #141312;
-  --raise: #1d1b1a;
-  --raise-2: #292624;
-  --line: #322f2c;
-  --line-strong: #4d4843;
-  --ink: #f6f3ef;
-  --soft: #d2cdc7;
-  --quiet: #aaa49d;
-  --red-hover: color-mix(in oklab, var(--cinnabar-red) 90%, #fff);
-  --red-press: color-mix(in oklab, var(--cinnabar-red) 78%, #000);
-  --red-line: color-mix(in oklab, var(--cinnabar-red) 74%, #ffb199);
+  /* Phosphor black and the warm raised surfaces of a cabinet at night. */
+  --ground: #0b0708;
+  --raise: #151011;
+  --raise-2: #211919;
+  --line: #2e2423;
+  --line-strong: #4c3c39;
+  --ink: #f6eee7;
+  --soft: #d8ccc3;
+  --quiet: #ab9d93;
+  /* The one accent, derived from the icon's fill. */
+  --red-hover: color-mix(in oklab, var(--cinnabar-red) 86%, #ff8a6e);
+  --red-press: color-mix(in oklab, var(--cinnabar-red) 74%, #000);
+  --red-deep: color-mix(in oklab, var(--cinnabar-red) 38%, #000);
+  --red-line: color-mix(in oklab, var(--cinnabar-red) 70%, #ffb199);
   --red-text: color-mix(in oklab, var(--cinnabar-red) 44%, #ffb199);
-  --focus: #fff;
+  /* The single gold pixel edge along the top of the power-up. */
+  --gold: #f2c35c;
+  /* The dark rim around red pixel keys and the face of the warning panel. */
+  --rim: #140405;
+  --warning-face: #120b0b;
+  --focus: var(--red-line);
   --gutter: clamp(16px, 4vw, 64px);
   --page: 1360px;
   --site-header-height: 64px;
+  /* Two whole 2px steps cut from each corner of a pixel box, and the single step inside its 2px edge. */
+  --step-2: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+  --step-1: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px));
+  /* Neutral pixel boxes as nine-slice frames: a 2px edge with stepped corners around a solid face. */
+  --box: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23151011' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%234c3c39' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E");
+  --box-hover: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23211919' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%23ab9d93' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E");
+  --box-quiet: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%230b0708' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%232e2423' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E");
+  /* The cabinet frame: a stepped outer edge, a dark channel, an inner edge and a rivet at each inner corner. Slice 10. */
+  --frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' shape-rendering='crispEdges'%3E%3Cpath fill='%230b0708' d='M4 2h16v20H4zM2 4h20v16H2z'/%3E%3Cpath fill='%23151011' d='M8 8h8v8H8z'/%3E%3Cpath fill='%234c3c39' d='M4 0h16v2H4zM4 22h16v2H4zM0 4h2v16H0zM22 4h2v16h-2zM2 2h2v2H2zM20 2h2v2h-2zM2 20h2v2H2zM20 20h2v2h-2z'/%3E%3Cpath fill='%233a2d2b' d='M6 6h12v2H6zM6 16h12v2H6zM6 8h2v8H6zM16 8h2v8h-2z'/%3E%3Cpath fill='%23ab9d93' d='M6 6h2v2H6zM16 6h2v2h-2zM6 16h2v2H6zM16 16h2v2h-2z'/%3E%3C/svg%3E");
+  /* The select-screen frame: an ink edge around a raised face. */
+  --box-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23211919' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%23f6eee7' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E");
+  --box-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' shape-rendering='crispEdges'%3E%3Cpath fill='%23f6eee7' d='M4 2h4v8H4zM2 4h8v4H2z'/%3E%3Cpath fill='%23f6eee7' d='M4 0h4v2H4zM4 10h4v2H4zM0 4h2v4H0zM10 4h2v4h-2zM2 2h2v2H2zM8 2h2v2H8zM2 8h2v2H2zM8 8h2v2H8z'/%3E%3C/svg%3E");
 }
 
 html { scrollbar-color: var(--line-strong) var(--ground); scroll-padding-top: calc(var(--site-header-height) + 24px); }
 ::selection { background: var(--red-press); color: #fff; }
-input, textarea { caret-color: var(--red-text); }
+input, textarea { caret-color: var(--red-line); }
 
-.site-header { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: var(--site-header-height); padding-inline: var(--gutter); border-bottom: 1px solid transparent; }
-.site-header a { box-sizing: border-box; transition: color .15s ease-out, background-color .15s ease-out, transform .1s ease-out; }
-.site-header .brand-home { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; border-radius: 8px; color: var(--ink); font: 700 18px/1 var(--sans); letter-spacing: -.02em; text-decoration: none; }
-.site-header .brand-home:active { transform: translateY(1px); }
+/* Header: the cabinet's marquee strip. The brand and nav are pixel caps; the current page carries the menu cursor. */
+.site-header { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: var(--site-header-height); padding-inline: var(--gutter); border-bottom: 2px solid transparent; }
+.site-header a { box-sizing: border-box; transition: color .12s steps(2, end), background-color .12s steps(2, end); }
+.site-header .brand-home { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding-right: 4px; color: var(--ink); font: 700 16px/1 var(--pixel); letter-spacing: 0; text-transform: uppercase; text-decoration: none; -webkit-font-smoothing: none; }
+.site-header .brand-home img { width: 28px; height: 28px; }
 .site-header .socials { display: flex; align-items: center; gap: 4px; margin-right: -12px; }
-.site-header .socials a { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--soft); font: 500 15px/1 var(--sans); text-decoration: none; white-space: nowrap; }
+.site-header .socials a { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 12px; color: var(--soft); font: 400 16px/1 var(--pixel); text-transform: uppercase; text-decoration: none; white-space: nowrap; -webkit-font-smoothing: none; }
 .site-header .socials svg { width: 20px; height: 20px; fill: currentColor; }
 .site-header .socials .github, .site-header .socials .discord { width: 44px; padding: 0; }
 .site-header .github span, .site-header .discord span { display: none; }
-.site-header .socials a:hover { background: #ffffff1a; color: var(--ink); }
-.site-header .socials a:active { background: #ffffff0f; transform: translateY(1px); }
-.site-header .socials a[aria-current="page"] { color: var(--ink); }
-.site-header .socials a[aria-current="page"]::after { content: ""; position: absolute; inset: auto 12px 6px; height: 2px; border-radius: 1px; background: var(--red-line); }
+.site-header .socials a:hover { background: #ffffff14; color: var(--ink); }
+.site-header .socials a:active { background: #ffffff0a; }
+.site-header .socials a[aria-current="page"] { padding-left: 24px; color: var(--ink); }
+/* The arcade menu cursor: a stepped triangle drawn in whole 2px pixels. */
+.site-header .socials a[aria-current="page"]::before { content: ""; position: absolute; left: 10px; top: 50%; width: 6px; height: 10px; margin-top: -5px; background: var(--red-line); clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px); }
 .site-header a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-/* On the home and mod pages the header floats transparent over the opening, then turns solid past it. */
+/* On the home and mod pages the header floats over the scene, then turns solid past it. */
 .site .site-header { position: fixed; inset: 0 0 auto; z-index: 50; animation: header-solid linear both; animation-timeline: scroll(root); animation-range: calc(var(--solid-at) - 96px) var(--solid-at); }
 @keyframes header-solid { to { background: var(--ground); border-bottom-color: var(--line); } }
 @supports not (animation-timeline: scroll()) { .site .site-header { background: var(--ground); border-bottom-color: var(--line); } }
 
-/* The primary action on the home and mod pages. */
-.cta, a.download { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 24px; border: 0; border-radius: 10px; background: var(--cinnabar-red); box-shadow: inset 0 1px #ffffff2e, 0 12px 28px -12px #000c; color: #fff; font: 700 16px/1.2 var(--sans); letter-spacing: -.01em; text-decoration: none; cursor: pointer; transition: background-color .15s ease-out, transform .1s ease-out, box-shadow .15s ease-out; }
-.cta svg, a.download svg { width: 18px; height: 18px; flex: none; fill: currentColor; }
-.cta:hover, a.download:hover { background: var(--red-hover); }
-.cta:active, a.download:active { background: var(--red-press); box-shadow: inset 0 1px #0000004d; transform: translateY(1px); }
-.cta:focus-visible, a.download:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+/* The power-up: a red pixel key with a 2px dark rim, a one-pixel gold edge on top and a pressed-in shade below. */
+.cta, a.download { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 56px; padding: 0 24px 4px; border: 0; border-radius: 0; background: none; color: #fff; font: 400 16px/1 var(--pixel); letter-spacing: 0; text-transform: uppercase; text-decoration: none; text-shadow: 0 2px var(--red-deep); cursor: pointer; -webkit-font-smoothing: none; }
+.cta::before, a.download::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--rim); clip-path: var(--step-2); }
+.cta::after, a.download::after { content: ""; position: absolute; inset: 2px; z-index: -1; background: var(--cinnabar-red); box-shadow: inset 0 2px var(--gold), inset 0 4px color-mix(in oklab, var(--cinnabar-red) 70%, var(--gold)), inset 0 -4px var(--red-press); clip-path: var(--step-1); }
+.cta svg, a.download svg { width: 16px; height: 16px; flex: none; fill: currentColor; filter: drop-shadow(0 2px var(--red-deep)); }
+.cta:hover::after, a.download:hover::after { background: var(--red-hover); }
+.cta:active, a.download:active { padding-bottom: 0; transform: translateY(2px); }
+.cta:active::after, a.download:active::after { inset: 2px 2px 4px; box-shadow: inset 0 2px var(--red-press); }
+.cta:focus-visible, a.download:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Phosphor glow, for pixel titles only and never prose. It switches off with the effects and on pages without them. */
+:root[data-fx="on"] .glow { text-shadow: 0 0 1px color-mix(in oklab, var(--ink) 55%, transparent), 0 0 10px color-mix(in oklab, var(--cinnabar-red) 60%, transparent), 0 0 26px color-mix(in oklab, var(--cinnabar-red) 28%, transparent); }
+/* The cabinet title rule: a pixel line ending in a red block on each side of the title. */
+.rule-title { display: flex; align-items: center; justify-content: center; gap: 24px; text-align: center; }
+.rule-title::before, .rule-title::after { content: ""; flex: 1 1 0; min-width: 24px; height: 8px; background: linear-gradient(var(--red-line) 0 0) right center / 8px 8px no-repeat, linear-gradient(var(--line-strong) 0 0) left center / calc(100% - 12px) 2px no-repeat; }
+.rule-title::after { transform: scaleX(-1); }
+/* On a phone the rules run full width above and below a title that wraps. */
+@media (max-width: 640px) {
+  .rule-title { flex-wrap: wrap; gap: 14px; }
+  .rule-title::before, .rule-title::after { flex-basis: 100%; }
+}
+.nav-short { display: none; }
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* Shared split download and channel menu. */
-.split { position: relative; display: inline-flex; max-width: 100%; border-radius: 10px; box-shadow: 0 16px 36px -14px #000e; }
-#download { min-width: 0; border-radius: 10px 0 0 10px; box-shadow: inset 0 1px #ffffff2e; }
-#channel-toggle { flex: none; width: 56px; padding: 0; border-left: 1px solid #0000004d; border-radius: 0 10px 10px 0; box-shadow: inset 0 1px #ffffff2e; }
-#channel-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s cubic-bezier(.16, 1, .3, 1); }
-#channel-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
-#download:active, #channel-toggle:active { box-shadow: inset 0 1px #0000004d; }
-.channel-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: 320px; max-width: calc(100vw - 2 * var(--gutter)); padding: 6px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raise); box-shadow: 0 20px 48px -12px #000d; text-align: left; }
+/* Split download: the start key and its mode-select key, two separate keys on one panel. */
+.split { position: relative; display: inline-flex; gap: 4px; max-width: 100%; }
+#download { min-width: 0; }
+#channel-toggle { flex: none; gap: 8px; min-width: 56px; padding-inline: 16px; }
+#channel-toggle .mode { font: 400 16px/1 var(--pixel); }
+#channel-toggle svg { width: 10px; height: 6px; fill: currentColor; transition: transform .12s steps(2, end); }
+#channel-toggle[aria-expanded="true"] svg { transform: scaleY(-1); }
+
+/* Mode select: the channel menu reads like a cabinet's mode screen, with a cursor on the focused row and a lit pixel on the chosen one. */
+.channel-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: 340px; max-width: calc(100vw - 2 * var(--gutter)); padding: 4px; border: 4px solid; border-image: var(--box) 4 fill / 4px stretch; text-align: left; filter: drop-shadow(0 18px 24px #000c); }
 .channel-menu[hidden] { display: none; }
-.channel-option { position: relative; display: block; width: 100%; min-height: 56px; padding: 10px 12px 10px 44px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: 500 16px/1.35 var(--sans); text-align: left; transition: background-color .12s ease-out; }
+.channel-option { position: relative; display: block; width: 100%; min-height: 60px; padding: 12px 12px 12px 48px; border: 0; border-radius: 0; background: transparent; color: var(--ink); font: 400 16px/1 var(--pixel); text-align: left; text-transform: uppercase; -webkit-font-smoothing: none; }
 .channel-option:hover, .channel-option:focus-visible { background: var(--raise-2); }
 .channel-option:active { background: var(--line); }
 .channel-option:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.channel-option::before { content: ""; position: absolute; left: 14px; top: 14px; width: 18px; height: 18px; border: 1.5px solid var(--quiet); border-radius: 50%; }
-.channel-option[aria-checked="true"]::before { border-color: var(--red-line); box-shadow: inset 0 0 0 4px var(--raise), inset 0 0 0 9px var(--red-line); }
-.channel-option .hint { display: block; margin-top: 2px; color: var(--quiet); font-weight: 400; font-size: 14px; }
+/* The chosen channel shows a lit pixel inside a pixel socket. */
+.channel-option::before { content: ""; position: absolute; left: 16px; top: 14px; width: 14px; height: 14px; background: var(--line-strong); clip-path: var(--step-1); box-shadow: inset 0 0 0 2px var(--line-strong), inset 0 0 0 7px var(--raise); }
+.channel-option[aria-checked="true"]::before { background: var(--red-line); box-shadow: inset 0 0 0 2px var(--red-line), inset 0 0 0 4px var(--raise); }
+.channel-option .hint { display: block; margin-top: 8px; color: var(--soft); font: 400 14px/1.4 var(--sans); text-transform: none; }
 
 @media (max-width: 480px) {
   .site-header { gap: 4px; padding-inline: 12px; }
   .site-header .brand-home span { display: none; }
   .site-header .socials { gap: 0; margin-right: 0; }
-  .site-header .socials a { padding: 0 8px; font-size: 14px; }
-}
-
-@media (max-width: 380px) {
-  .site-header .socials a { padding: 0 6px; font-size: 13px; }
+  .site-header .socials { min-width: 0; }
+  /* The mode key shrinks to its chevron so the product's label keeps one line. */
+  #channel-toggle { min-width: 52px; padding-inline: 0; }
+  #channel-toggle .mode { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  #download { white-space: nowrap; padding-inline: 12px; gap: 10px; }
+  /* Pixel caps stay at 16px on a phone; long labels drop to their short form so every link keeps a 44px target. */
+  .site-header .socials a { padding: 0 6px; }
+  .site-header .nav-long { display: none; }
+  .site-header .nav-short { display: inline; }
+  .site-header .socials a[aria-current="page"] { padding-left: 18px; }
+  .site-header .socials a[aria-current="page"]::before { left: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: .01ms !important; }
+  *, *::before, *::after { transition-duration: .01ms !important; animation-iteration-count: 1 !important; }
   :is(a, button, label, .shot):is(:hover, :active) { transform: none !important; }
 }
