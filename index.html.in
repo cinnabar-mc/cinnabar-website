@@ -141,7 +141,6 @@
     .gallery figure { min-width: 0; }
     .frame { padding: 2px; border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch; }
     .frame img { width: 100%; background: var(--raise); }
-    .gallery-note { grid-column: 1 / -1; margin: -16px 0 0; color: var(--quiet); font: 400 14px/1.5 var(--sans); }
     /* The large sunset holds two rows while forest and PvP stack beside it, then cave and river share the last row.
        Each frame fills its grid area and its capture covers the frame, so no row leaves a dead block. */
     @media (min-width: 901px) {
@@ -343,7 +342,6 @@
       <figure class="shot-river">
         <div class="frame"><img src="/assets/gameplay/river.webp" alt="A moonlit river between pale sand banks under a starry sky, with a rock spire dark against the moon." width="2358" height="1414" loading="lazy"></div>
       </figure>
-      <p class="gallery-note">The sunset, cave and river captures use a shader pack.</p>
     </section>
 
     <section class="closing" aria-labelledby="closing-title">
