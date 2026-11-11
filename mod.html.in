@@ -12,7 +12,7 @@
   <script>try { var fx = localStorage.getItem('cinnabar-arcade-fx'); document.documentElement.dataset.fx = fx || (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on'); } catch (error) {}</script>
   <style>
     @@SITE_HEADER_STYLES@@
-    :root { --cinnabar-red: @@RED@@; --solid-at: 520px; color-scheme: dark; }
+    :root { --cinnabar-red: @@RED@@; --solid-at: 120px; color-scheme: dark; }
     * { box-sizing: border-box; }
     html { background: var(--ground); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body { margin: 0; overflow-x: clip; background: var(--ground); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
@@ -27,7 +27,7 @@
     /* The same world, seen from the other side of the ore. */
     .scene { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: var(--ground); }
     .scene canvas { position: absolute; left: 0; top: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
-    .scene-bloom { mix-blend-mode: screen; filter: contrast(2.4) brightness(.85) blur(10px); opacity: .6; }
+    .scene-bloom { mix-blend-mode: screen; opacity: .6; }
     .scene-crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, #0000 0 calc(var(--px, 4px) - 1px), #00000052 calc(var(--px, 4px) - 1px) var(--px, 4px)); }
     :root[data-fx="off"] .scene-bloom, :root[data-fx="off"] .scene-crt { display: none; }
 
@@ -80,17 +80,9 @@
     .catalog h3 { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; font: 400 24px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
     .catalog h3::after { content: ""; flex: 1; height: 2px; background: repeating-linear-gradient(to right, var(--line-strong) 0 4px, transparent 4px 8px); order: 1; }
     .catalog h3 data { order: 2; color: var(--quiet); font: 400 16px/1 var(--pixel); font-variant-numeric: tabular-nums; }
-    /* Select screen: each module is a slot. The cursor rests on the first slot and follows the pointer. */
+    /* Select screen: each module is a slot in a pixel frame. Slots are a list, not controls, so they do not react to the pointer. */
     .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 8px; padding: 0; list-style: none; }
-    .tiles li { position: relative; display: grid; align-content: center; min-height: 60px; padding: 12px 34px 12px 14px; border: 4px solid; border-image: var(--box) 4 fill / 4px stretch; color: var(--ink); font: 600 15px/1.25 var(--sans); }
-    /* The select cursor: a stepped triangle that lands on the slot under the pointer, with an ink frame. */
-    .tiles li::after { content: ""; position: absolute; right: 12px; top: 50%; width: 6px; height: 10px; margin-top: -5px; background: var(--red-line); clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px); opacity: 0; transform: scaleX(-1); }
-    @media (hover: hover) {
-      .tiles li:hover { border-image-source: var(--box-select); }
-      .tiles li:hover::after { opacity: 1; }
-    }
-    .catalog:not(:has(.tiles li:hover)) .group-hud li:first-child { border-image-source: var(--box-select); }
-    .catalog:not(:has(.tiles li:hover)) .group-hud li:first-child::after { opacity: 1; }
+    .tiles li { position: relative; display: grid; align-content: center; min-height: 60px; padding: 12px 14px; border: 4px solid; border-image: var(--box) 4 fill / 4px stretch; color: var(--ink); font: 600 15px/1.25 var(--sans); }
 
     .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin-top: 48px; }
     .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 56px; padding: 0; list-style: none; }
@@ -145,7 +137,6 @@
       .bezel::after { right: 16px; bottom: 16px; }
       .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .tiles li { min-height: 72px; padding: 10px 12px 12px; font-size: 14px; }
-      .tiles li::after { display: none; }
       .stages li { padding: 22px 20px 24px; }
       .stages li::before { font-size: 48px; }
     }
@@ -168,7 +159,7 @@
           <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
           <div class="split" id="download-split">
             <a class="download" id="download" data-mod-download="@@API_ORIGIN@@/v1/mod/download" href="@@API_ORIGIN@@/v1/mod/download?channel=beta"><svg viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path d="M4 0h4v4h2v2H8v2H6v2H4V8H2V6H0V4h4zM0 10h12v2H0z"/></svg>Download Cinnabar Mod</a>
-            <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu" aria-label="Choose download channel"><span class="mode" id="channel-mode">Beta</span><svg viewBox="0 0 10 6" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h10v2H8v2H6v2H4V4H2V2H0z"/></svg></button>
+            <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu"><span class="mode" id="channel-mode">Beta</span><span class="visually-hidden"> channel, change</span><svg viewBox="0 0 10 6" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h10v2H8v2H6v2H4V4H2V2H0z"/></svg></button>
             <div class="channel-menu" id="channel-menu" role="menu" aria-label="Download channel" hidden>
               <button type="button" class="channel-option" id="channel-beta" role="menuitemradio" aria-checked="true" data-channel="beta">Beta<span class="hint">Recommended</span></button>
               <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>

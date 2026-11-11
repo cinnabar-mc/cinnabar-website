@@ -125,7 +125,7 @@ input, textarea { caret-color: var(--red-line); }
   .site-header .socials { min-width: 0; }
   /* The mode key shrinks to its chevron so the product's label keeps one line. */
   #channel-toggle { min-width: 52px; padding-inline: 0; }
-  #channel-toggle .mode { display: none; }
+  #channel-toggle .mode { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   #download { white-space: nowrap; padding-inline: 12px; gap: 10px; }
   /* Pixel caps stay at 16px on a phone; long labels drop to their short form so every link keeps a 44px target. */
   .site-header .socials a { padding: 0 6px; }

@@ -13,7 +13,7 @@
   <script>try { var fx = localStorage.getItem('cinnabar-arcade-fx'); document.documentElement.dataset.fx = fx || (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on'); } catch (error) {}</script>
   <style>
     @@SITE_HEADER_STYLES@@
-    :root { --cinnabar-red: @@RED@@; --solid-at: 100svh; color-scheme: dark; }
+    :root { --cinnabar-red: @@RED@@; --solid-at: 120px; color-scheme: dark; }
     * { box-sizing: border-box; }
     html { background: var(--ground); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body { margin: 0; overflow-x: clip; background: var(--ground); color: var(--ink); font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
@@ -28,7 +28,7 @@
     /* ---------- The scene: canvas world, phosphor bloom and scanline gaps ---------- */
     .scene { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: var(--ground); }
     .scene canvas { position: absolute; left: 0; top: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
-    .scene-bloom { mix-blend-mode: screen; filter: contrast(2.4) brightness(.85) blur(10px); opacity: .6; }
+    .scene-bloom { mix-blend-mode: screen; opacity: .6; }
     .scene-crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, #0000 0 calc(var(--px, 4px) - 1px), #00000052 calc(var(--px, 4px) - 1px) var(--px, 4px)); }
     :root[data-fx="off"] .scene-bloom, :root[data-fx="off"] .scene-crt { display: none; }
 
@@ -234,14 +234,17 @@
       .page-foot nav { margin-left: -12px; }
     }
     @media (max-width: 640px) {
+      /* The warning must be on the first screen, so the live numbers follow it here. */
+      .hero { grid-template-rows: auto auto 1fr; }
+      .hud { order: 3; align-self: start; margin-top: 24px; border-bottom: 0; border-top: 2px dashed #ffffff1f; }
       .hud { flex-direction: column; align-items: stretch; gap: 4px; padding-top: 12px; }
       .scoreline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
       .score { flex-direction: column; align-items: flex-start; gap: 6px; }
       .score-average { display: none; }
       .fx-toggle { align-self: flex-start; margin-left: -12px; }
       .hero { padding-bottom: 24px; }
-      .hero-main { padding-block: 24px 32px; }
-      .actions { width: 100%; margin-top: 32px; }
+      .hero-main { padding-block: 16px 20px; }
+      .actions { width: 100%; margin-top: 24px; }
       .split { display: flex; width: 100%; }
       #download { flex: 1; padding-inline: 12px; }
       .channel-menu { left: 0; right: auto; width: 100%; max-width: none; }
@@ -283,7 +286,7 @@
           <p class="press" aria-hidden="true">Press start</p>
           <div class="split" id="download-split">
             <button type="button" class="cta" id="download"><svg viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path d="M4 0h4v4h2v2H8v2H6v2H4V8H2V6H0V4h4zM0 10h12v2H0z"/></svg><span id="download-label">Download for your device</span></button>
-            <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu" aria-label="Choose download channel"><span class="mode" id="channel-mode">Beta</span><svg viewBox="0 0 10 6" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h10v2H8v2H6v2H4V4H2V2H0z"/></svg></button>
+            <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu"><span class="mode" id="channel-mode">Beta</span><span class="visually-hidden"> channel, change</span><svg viewBox="0 0 10 6" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h10v2H8v2H6v2H4V4H2V2H0z"/></svg></button>
             <div class="channel-menu" id="channel-menu" role="menu" aria-label="Download channel" hidden>
               <button type="button" class="channel-option" id="channel-beta" role="menuitemradio" aria-checked="true" data-channel="beta">Beta<span class="hint">Recommended</span></button>
               <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>

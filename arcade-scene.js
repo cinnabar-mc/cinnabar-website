@@ -510,7 +510,7 @@
       draw();
     }
 
-    const moving = () => root.dataset.fx !== 'off' && !reduceQuery.matches;
+    const moving = () => !('still' in canvas.dataset) && root.dataset.fx !== 'off' && !reduceQuery.matches;
 
     /** Scroll offset into the host in native pixels, for whole-pixel parallax. */
     function offset() {
@@ -577,7 +577,11 @@
         ctx.drawImage(world.fore, 0, 0);
       }
       if (world.kind === 'deep') overlayGlints(0);
-      if (bctx && root.dataset.fx !== 'off') { bctx.clearRect(0, 0, W, H); bctx.drawImage(canvas, 0, 0); }
+      if (bctx && root.dataset.fx !== 'off') {
+        // Blur at native resolution (10 CSS px), so the compositor only scales a small bitmap.
+        bctx.filter = `contrast(2.4) brightness(.85) blur(${(10 * dpr / scale).toFixed(2)}px)`;
+        bctx.clearRect(0, 0, W, H); bctx.drawImage(canvas, 0, 0);
+      }
     }
 
     /** Runs the diagonal glint across lit crystal faces and ore facets, and a few slow sparkles. */
@@ -593,20 +597,28 @@
       }
     }
 
-    function loop(now) {
+    /** Advances one attract tick. A timer paces it at the scene's own rate, not the display's. */
+    function loop() {
       raf = 0;
       if (!running()) return;
-      if (now - last >= TICK) { last = now; step(); draw(); }
-      else if (kind === 'surface' && offset() !== lastOffset) draw();
-      raf = requestAnimationFrame(loop);
+      step(); draw();
+      raf = setTimeout(loop, TICK);
     }
     const running = () => visible && !document.hidden && moving();
 
     /** Starts the attract loop when the scene can move, or settles on one still frame. */
     function update() {
-      if (running()) { if (!raf) raf = requestAnimationFrame(loop); }
-      else { if (raf) cancelAnimationFrame(raf); raf = 0; if (!moving()) { tick = 0; sweep = -999; embers = []; } draw(); }
+      if (running()) { if (!raf) raf = setTimeout(loop, TICK); }
+      else { if (raf) clearTimeout(raf); raf = 0; if (!moving()) { tick = 0; sweep = -999; embers = []; } draw(); }
     }
+
+    /** Redraws for whole-pixel parallax only when a scroll actually moves the layers. */
+    let scrollQueued = false;
+    if (kind === 'surface' && parallax) addEventListener('scroll', () => {
+      if (scrollQueued || !visible || !moving()) return;
+      scrollQueued = true;
+      requestAnimationFrame(() => { scrollQueued = false; if (offset() !== lastOffset) draw(); });
+    }, { passive: true });
 
     layout();
     if ('ResizeObserver' in window) new ResizeObserver(() => { layout(); }).observe(host);

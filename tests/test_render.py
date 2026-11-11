@@ -247,6 +247,19 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(html.count('src="/assets/gameplay/sunset.webp"'), 1)
         self.assertNotIn("<figcaption>", html)
 
+    def test_channel_button_names_its_visible_channel_and_market_scene_is_still(self):
+        """Keep the channel button's accessible name starting with its visible label, and the marketplace scene still."""
+        RENDER.build(self.repository, self.output)
+        for page in ("index.html", "mod/index.html"):
+            html = (self.output / page).read_text()
+            toggle = html.split('id="channel-toggle"', 1)[1].split("</button>", 1)[0]
+            self.assertNotIn("aria-label", toggle.split(">", 1)[0])
+            self.assertIn('<span class="mode" id="channel-mode">Beta</span><span class="visually-hidden"> channel, change</span>', toggle)
+        market = (self.output / "mods/index.html").read_text()
+        self.assertIn("data-still", market)
+        self.assertNotIn("scene-bloom", market)
+        self.assertNotIn('class="glow"', market)
+
     def test_mod_page_title_leads_with_the_logotype(self):
         """Keep the accessible title reading Cinnabar Mod with the logotype as its first element."""
         RENDER.build(self.repository, self.output)

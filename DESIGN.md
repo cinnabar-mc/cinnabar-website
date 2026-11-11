@@ -406,7 +406,7 @@ With ground, the five night blues and star, these make the full sixteen-colour s
 
 The page is a centred column of up to 1360px with a fluid gutter of clamp(16px, 4vw, 64px). Spacing follows whole steps of 2, 4, 8, 12, 16, 24, 32, 40, 48 and 64px, so every edge lands on the pixel grid. Touch and pointer targets are at least 44px.
 
-- **Header** (64px): it floats transparent over the scene on home and `/mod/` and turns solid ground with a 2px line edge as it scrolls past (scroll-driven, at `--solid-at`, which is 100svh on home and 520px on `/mod/`). It is solid and sticky on the marketplace and fixed in the book.
+- **Header** (64px): it floats transparent over the scene on home and `/mod/` and turns solid ground with a 2px line edge as soon as the page scrolls (scroll-driven, solid by `--solid-at`, 120px on both), so content never shows through it. It is solid and sticky on the marketplace and fixed in the book.
 - **Home attract screen**: a full-viewport hero (100svh) on a three-row grid with the HUD score line at the top, the logotype, tagline, edition line, PRESS START and the split key centred in the sky, and the WARNING panel at the fold. Below it come the high-score board in a cabinet frame, a twelve-column gallery (the large sunset spans eight columns and two rows, forest and PvP stack beside it, and cave and river share the last row), and a closing chamber at least 760px tall with platform keys.
 - **`/mod/`**: a hero split 7fr/5fr between the logotype with its cartridge tag and the pitch with the split key. A CRT bezel showcase overlaps the hero's bottom edge by 136px. Below come a module select screen in two columns of groups, a paired settings and layout bezel row, three fact columns, and three stage cards.
 - **Marketplace**: a 7/5 heading row, tabs, then a 220px filter rail beside the result list, a 7/5 project page, and a 220px, fluid, 300px editor.
@@ -427,7 +427,9 @@ Depth comes from the world, not from surfaces. The scene parallaxes in layers, b
 - **Phosphor Glow** (`text-shadow: 0 0 1px` ink at 55%, `0 0 10px` red at 60%, `0 0 26px` red at 28%): it applies only to pixel section titles marked `.glow`, and only while effects are on.
 
 ### The effects layer
-- **Bloom**: a second canvas copies the scene and is drawn with `mix-blend-mode: screen; filter: contrast(2.4) brightness(.85) blur(10px); opacity: .6`.
+- **Bloom**: a second canvas copies the scene through a canvas filter of `contrast(2.4) brightness(.85)` and a 10 CSS px blur, applied at the scene's native resolution so the compositor only scales a small bitmap. It shows with `mix-blend-mode: screen; opacity: .6`.
+- **Pacing**: the scene ticks on a 12fps timer, not every display frame, and parallax redraws only when a scroll moves the layers.
+- **Marketplace band**: the browse screen shows the surface scene behind its heading as one still frame (`data-still`), with no bloom, scanlines or glow, because the marketplace has no Effects switch.
 - **Scanlines**: a repeating gradient with one dark row (Scanline colour) every native pixel over the scene, plus faint scan gaps (`#0000002e`, every 4px) over the chart screen only.
 
 ### Named Rules
@@ -443,7 +445,7 @@ The frame vocabulary:
 - **Box** (12px tile, slice 4): a Line Strong edge around a Raise face. This is the standard panel, button and code frame.
 - **Box Hover** (slice 4): a Quiet edge around a Raise 2 face, for neutral boxes under the pointer.
 - **Box Quiet** (slice 4): a Line edge around a Ground face, for the chart screen and the phone download note.
-- **Box Select** (slice 4): an Ink edge around a Raise 2 face, for a module slot under the cursor.
+- **Box Select** (slice 4): an Ink edge around a Raise 2 face, for a selected item.
 - **Box Ink** (slice 4): a solid Ink box, for the copy key, the selected range and the chart tooltip.
 - **Cabinet Frame** (24px tile, slice 10): a stepped Line Strong outer edge, a Ground body, a Frame Channel ring, a Raise face and a Quiet rivet at each inner corner. It frames the high-score board, gallery captures, CRT bezels and stage cards.
 
@@ -496,7 +498,7 @@ Section titles sit between two pixel lines: a 2px Line Strong line ending in an 
 The player chart, redrawn by `arcade-chart.js` over `history.js`, keeps its data, ranges, keyboard support and readout. Lines are snapped to a 4px grid as horizontal-then-vertical runs: a 2px Red Line stroke with square caps and a 2×2 checker dither under the line in red mixed 55% with Ground. Gridlines are dotted 2px Line Strong. The inspected sample is an 8px Ink square, and its readout appears in a Box Ink tooltip (Archivo 600 14px, tabular) that flips to the left near the right edge.
 
 ### Select Screen (signature, `/mod/`)
-The 39-module catalog is a character-select board. Groups have Silkscreen 24px headings with a dashed rule and a Quiet count. Each module is a slot in a Box frame, at least 60px tall, with Archivo 600 15px names. On hover-capable devices the slot under the pointer gets the Box Select ink frame and a Red Line cursor on its right. When nothing is hovered, the first HUD slot holds the selection. On phones the slots go to two columns and the cursor is dropped.
+The 39-module catalog is a character-select board. Groups have Silkscreen 24px headings with a dashed rule and a Quiet count. Each module is a slot in a Box frame, at least 60px tall, with Archivo 600 15px names. Slots are a list, not controls, so they do not react to the pointer; a hover state would promise an action that does not exist. On phones the slots go to two columns.
 
 ### CRT Bezel and Gallery Frame
 Captures sit inside the Cabinet Frame. On `/mod/` the bezel adds a black 2px screen edge, a 44px chin with a Silkscreen nameplate (Quiet) and an 8px Red Line power light. Each capture links to its full-size file (zoom-in cursor) and is never filtered or recoloured.
