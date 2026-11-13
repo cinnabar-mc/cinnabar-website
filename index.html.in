@@ -10,9 +10,11 @@
   <link rel="preload" href="/assets/fonts/silkscreen-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/silkscreen-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" as="image" type="image/webp" imagesrcset="@@TITLE_SRCSET@@" imagesizes="(max-width: 760px) 92vw, 720px" fetchpriority="high">
   <script>try { var fx = localStorage.getItem('cinnabar-arcade-fx'); document.documentElement.dataset.fx = fx || (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on'); } catch (error) {}</script>
   <style>
     @@SITE_HEADER_STYLES@@
+    @@ARCADE_STYLES@@
     :root { --cinnabar-red: @@RED@@; --solid-at: 120px; color-scheme: dark; }
     * { box-sizing: border-box; }
     html { background: var(--ground); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -22,21 +24,15 @@
     a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
     button { font: inherit; color: inherit; cursor: pointer; }
     img { display: block; max-width: 100%; height: auto; }
+    picture { display: contents; }
     .wrap { width: min(100% - 2 * var(--gutter), var(--page)); margin-inline: auto; }
     .px { font-family: var(--pixel); font-weight: 400; text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; }
-
-    /* ---------- The scene: canvas world, phosphor bloom and scanline gaps ---------- */
-    .scene { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: var(--ground); }
-    .scene canvas { position: absolute; left: 0; top: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
-    .scene-bloom { mix-blend-mode: screen; opacity: .6; }
-    .scene-crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, #0000 0 calc(var(--px, 4px) - 1px), #00000052 calc(var(--px, 4px) - 1px) var(--px, 4px)); }
-    :root[data-fx="off"] .scene-bloom, :root[data-fx="off"] .scene-crt { display: none; }
 
     /* ---------- Attract mode ---------- */
     .hero { position: relative; isolation: isolate; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; padding: var(--site-header-height) var(--gutter) 40px; overflow: clip; text-align: center; }
 
     /* The score line: real numbers along the top edge, like a cabinet's HUD. */
-    .hud { display: flex; align-items: center; justify-content: space-between; gap: 8px 24px; width: min(100%, var(--page)); padding-block: 12px; border-bottom: 2px dashed #ffffff1f; }
+    .hud { --hud-rule: #ffffff1f; display: flex; align-items: center; justify-content: space-between; gap: 8px 24px; width: min(100%, var(--page)); padding-block: 12px; border-bottom: 2px dashed var(--hud-rule); }
     .scoreline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 40px; text-align: left; }
     .score { display: flex; align-items: baseline; gap: 12px; white-space: nowrap; }
     .score dt { color: var(--quiet); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
@@ -49,15 +45,6 @@
     .trend[data-trend="down"]::before { background: var(--quiet); transform: scaleY(-1); }
     .trend[hidden] { display: none; }
 
-    /* The effects switch: scanlines, bloom and the moving scene. */
-    .fx-toggle { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--soft); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
-    .fx-toggle:hover { background: #ffffff14; color: var(--ink); }
-    .fx-switch { position: relative; width: 28px; height: 16px; background: var(--line-strong); clip-path: var(--step-1); }
-    .fx-switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; background: var(--quiet); }
-    .fx-toggle[aria-pressed="true"] .fx-switch { background: var(--red-press); }
-    .fx-toggle[aria-pressed="true"] .fx-switch::after { left: 16px; background: var(--ink); }
-    .fx-state { min-width: 3ch; text-align: left; }
-
     .hero-main { align-self: center; display: flex; flex-direction: column; align-items: center; width: 100%; padding-block: 32px 40px; }
     .logo-motion { width: min(100%, 720px, 92svh); margin: calc(min(100%, 720px, 92svh) * -.055) 0 calc(min(100%, 720px, 92svh) * -.075); }
     .logo { width: 100%; filter: drop-shadow(0 12px 18px #000000b3); }
@@ -67,6 +54,7 @@
     .press { color: var(--ink); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; text-shadow: 0 2px var(--ground); }
     .press::before, .press::after { content: ""; display: inline-block; width: 6px; height: 10px; margin: 0 12px; background: var(--red-line); vertical-align: -1px; clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px); }
     .press::after { transform: scaleX(-1); }
+    .actions .channel-note { text-shadow: 0 1px 2px var(--ground), 0 0 12px var(--ground); }
     /* PRESS START blinks three times when the cabinet wakes, then holds still. */
     @media (prefers-reduced-motion: no-preference) {
       :root[data-fx="on"] .press { animation: blink 1s steps(1, end) 3 .6s; }
@@ -79,14 +67,6 @@
     .download-count a { display: inline-flex; align-items: center; gap: .3em; min-height: 44px; text-decoration: underline; text-decoration-color: #ffffff4d; text-decoration-thickness: 2px; }
     .download-count a:hover { color: var(--ink); text-decoration-color: currentColor; }
     .download-count strong { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
-
-    /* The attract-mode WARNING screen: legible prose in a red pixel frame. It never blinks. */
-    .warning { position: relative; isolation: isolate; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px 28px; align-items: start; width: min(100%, 920px); padding: 22px 28px 24px; text-align: left; }
-    .warning::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--red-line); clip-path: var(--step-2); }
-    .warning::after { content: ""; position: absolute; inset: 2px; z-index: -1; background: var(--warning-face); clip-path: var(--step-1); }
-    .warning-title { display: flex; align-items: center; gap: 12px; padding-top: 4px; color: var(--red-text); font: 700 24px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
-    .warning-title svg { width: 20px; height: 18px; flex: none; fill: currentColor; shape-rendering: crispEdges; }
-    .disclaimer { color: var(--ink); font: 400 16px/1.55 var(--sans); text-wrap: pretty; }
 
     /* ---------- High-score board ---------- */
     .section-title { font: 700 32px/1 var(--pixel); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; text-wrap: balance; }
@@ -127,13 +107,15 @@
     .chart-cursor { stroke: var(--soft); stroke-width: 2; stroke-dasharray: 2 2; shape-rendering: crispEdges; }
     .chart-body:has(#history-plot[hidden]) { min-height: 200px; }
     #history-message { color: var(--soft); text-align: center; font: 400 16px/1.6 var(--sans); }
-    /* The inspected sample in a pixel box beside the cursor. */
-    .chart-tip { position: absolute; z-index: 2; max-width: 280px; padding: 10px 14px; border: 4px solid; border-image: var(--box-ink) 4 fill / 4px stretch; color: var(--ground); font: 600 14px/1.35 var(--sans); white-space: nowrap; pointer-events: none; transform: translate(16px, -50%); font-variant-numeric: tabular-nums; }
-    .chart-tip[data-side="left"] { transform: translate(calc(-100% - 16px), -50%); }
-    .chart-tip[data-below="true"] { transform: translate(16px, 12px); }
-    .chart-tip[data-side="left"][data-below="true"] { transform: translate(calc(-100% - 16px), 12px); }
+    /* The inspected sample in a pixel box beside the cursor: the time on one line, the counts under it. */
+    .chart-tip { position: absolute; z-index: 2; max-width: 100%; padding: 10px 14px; border: 4px solid; border-image: var(--box-ink) 4 fill / 4px stretch; color: var(--ground); font: 500 14px/1.35 var(--sans); pointer-events: none; transform: translateY(-50%); font-variant-numeric: tabular-nums; }
+    .chart-tip span, .chart-tip strong { display: block; }
+    .chart-tip span { white-space: nowrap; }
+    .chart-tip strong { font-weight: 700; text-wrap: balance; }
+    .chart-tip[data-place="below"] { transform: translateY(12px); }
+    .chart-tip[data-place="above"] { transform: translateY(calc(-100% - 12px)); }
     .chart-tip[hidden] { display: none; }
-    .chart-detail { min-height: 1.6em; margin-top: 16px; color: var(--quiet); font: 400 14px/1.6 var(--sans); font-variant-numeric: tabular-nums; }
+    .chart-detail { min-height: 1.6em; margin-top: 16px; color: var(--quiet); font: 400 14px/1.6 var(--sans); font-variant-numeric: tabular-nums; text-wrap: pretty; }
 
     /* ---------- Gallery: the owner's captures in pixel frames ---------- */
     .gallery { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 40px 32px; padding-top: 96px; }
@@ -176,7 +158,7 @@
 
     /* ---------- Install dialog: numbered stages ---------- */
     dialog { width: min(600px, calc(100% - 32px)); max-height: calc(100svh - 32px); padding: 32px; border: 4px solid; border-image: var(--box) 4 fill / 4px stretch; background: none; color: var(--ink); overflow: auto; }
-    dialog::backdrop { background: #0b0708d9; }
+    dialog::backdrop { background: var(--backdrop); }
     @media (prefers-reduced-motion: no-preference) {
       dialog[open] { animation: dialog-in .24s steps(4, end); }
       @keyframes dialog-in { from { clip-path: inset(50% 0); } to { clip-path: inset(0 0); } }
@@ -187,7 +169,8 @@
     dialog .close svg { width: 14px; height: 14px; fill: currentColor; shape-rendering: crispEdges; }
     dialog .close:hover { background: var(--raise-2); color: var(--ink); }
     dialog .close:active { background: var(--line); }
-    dialog .close:focus-visible, #copy-command:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    dialog .close:focus-visible, .copy-key:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    dialog .channel-note { justify-content: flex-start; margin: -8px 0 24px; }
     .stages { display: grid; gap: 24px; padding: 0; list-style: none; counter-reset: stage; }
     .stages > li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 0 16px; counter-increment: stage; }
     .stages > li::before { content: counter(stage); grid-row: 1 / span 6; color: var(--red-text); font: 700 48px/.8 var(--pixel); -webkit-font-smoothing: none; }
@@ -197,18 +180,24 @@
     #install-command { flex: 1; display: block; width: 100%; min-width: 0; min-height: 52px; padding: 13px 14px; field-sizing: content; resize: none; overflow-wrap: anywhere; border: 2px solid var(--line-strong); border-radius: 0; background: var(--ground); color: var(--ink); font: 400 14px/1.5 var(--mono); }
     #install-command:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     #install-command::selection { background: var(--red-press); }
-    #copy-command { flex: none; min-width: 96px; min-height: 52px; padding: 0 16px; border: 4px solid; border-image: var(--box-ink) 4 fill / 4px stretch; background: none; color: var(--ground); font: 700 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
-    #copy-command:hover { filter: brightness(1.08); }
-    #copy-command:active { transform: translateY(2px); }
-    #copy-status { min-height: 1.6em; margin: 8px 0 0; font-size: 14px; }
-    #copy-status:empty { min-height: 0; margin: 0; }
+    .copy-key { flex: none; min-width: 96px; min-height: 52px; padding: 0 16px; border: 4px solid; border-image: var(--box-ink) 4 fill / 4px stretch; background: none; color: var(--ground); font: 700 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+    .copy-key:hover { filter: brightness(1.08); }
+    .copy-key:active { transform: translateY(2px); }
+    .copy-status { min-height: 1.6em; margin: 8px 0 0; font-size: 14px; }
+    .copy-status:empty { min-height: 0; margin: 0; }
     .download-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; margin-top: 8px; padding: 0 18px; border: 4px solid; border-image: var(--box) 4 fill / 4px stretch; color: var(--ink); font: 600 16px/1.3 var(--sans); text-decoration: none; }
     .download-option::after { content: ""; flex: none; width: 12px; height: 12px; background: var(--quiet); mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath d='M4 0h4v4h2v2H8v2H6v2H4V8H2V6H0V4h4z'/%3E%3Cpath d='M0 10h12v2H0z'/%3E%3C/svg%3E") center / contain no-repeat; }
     .download-option:hover { border-image-source: var(--box-hover); }
     .download-option:hover::after { background: var(--red-line); }
     .download-option:active { transform: translateY(2px); }
     .options-intro { margin-bottom: 12px; }
-    .first-open code { display: block; margin-top: 10px; padding: 12px 14px; border: 2px solid var(--line); background: var(--ground); color: var(--ink); overflow-wrap: anywhere; font: 400 13.5px/1.6 var(--mono); }
+    .command-row code { flex: 1; min-width: 0; padding: 13px 14px; border: 2px solid var(--line-strong); background: var(--ground); color: var(--ink); overflow-wrap: anywhere; font: 400 14px/1.5 var(--mono); }
+    .command-row code::selection { background: var(--red-press); }
+    /* After a download that starts by itself: the way back to the file if nothing arrived. */
+    .retry { margin-top: 24px; }
+    .retry a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: var(--red-line); }
+    .retry a:hover { text-decoration-color: currentColor; }
+    dialog strong { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
 
     @media (max-width: 1100px) {
       .scoreline { gap: 8px 28px; }
@@ -236,7 +225,7 @@
     @media (max-width: 640px) {
       /* The warning must be on the first screen, so the live numbers follow it here. */
       .hero { grid-template-rows: auto auto 1fr; }
-      .hud { order: 3; align-self: start; margin-top: 24px; border-bottom: 0; border-top: 2px dashed #ffffff1f; }
+      .hud { order: 3; align-self: start; margin-top: 24px; border-bottom: 0; border-top: 2px dashed var(--hud-rule); }
       .hud { flex-direction: column; align-items: stretch; gap: 4px; padding-top: 12px; }
       .scoreline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
       .score { flex-direction: column; align-items: flex-start; gap: 6px; }
@@ -248,9 +237,6 @@
       .split { display: flex; width: 100%; }
       #download { flex: 1; padding-inline: 12px; }
       .channel-menu { left: 0; right: auto; width: 100%; max-width: none; }
-      .warning { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 20px 20px 22px; }
-      .warning-title { padding-top: 0; }
-      .disclaimer { font-size: 15px; }
       dialog { padding: 24px 20px; }
       .stages > li { grid-template-columns: 40px minmax(0, 1fr); gap: 0 12px; }
       .stages > li::before { font-size: 32px; }
@@ -260,8 +246,9 @@
   </style>
 </head>
 <body class="site">
+  <a class="skip-to-content" href="#content">Skip to content</a>
   @@SITE_HEADER@@
-  <main>
+  <main id="content">
     <div class="hero">
       <div class="scene" aria-hidden="true">
         <canvas class="scene-canvas" data-scene="surface" width="320" height="180"></canvas>
@@ -273,31 +260,32 @@
           <div class="score score-online"><dt>Online</dt><dd><span data-score="online" data-missing>--</span><span class="trend" data-trend hidden><span class="visually-hidden" data-trend-text></span></span></dd></div>
           <div class="score"><dt>Peak 24h</dt><dd data-score="peak" data-missing>--</dd></div>
           <div class="score score-average"><dt>Avg 24h</dt><dd data-score="average" data-missing>--</dd></div>
-          <div class="score"><dt>Unique</dt><dd data-score="unique" data-missing>--</dd></div>
+          <div class="score"><dt>Users</dt><dd data-score="unique" data-missing>--</dd></div>
           <div class="score"><dt>Downloads</dt><dd data-score="downloads" data-missing>--</dd></div>
         </dl>
         <button type="button" class="fx-toggle" data-fx-toggle aria-pressed="true"><span class="fx-switch" aria-hidden="true"></span>Effects <span class="fx-state" data-fx-state aria-hidden="true">On</span></button>
       </div>
       <div class="hero-main">
-        <h1 class="logo-motion"><img class="logo" src="/title.png" alt="Cinnabar" width="2000" height="667" fetchpriority="high"></h1>
+        <h1 class="logo-motion"><picture><source type="image/webp" srcset="@@TITLE_SRCSET@@" sizes="(max-width: 760px) 92vw, 720px"><img class="logo" src="/title.png" alt="Cinnabar" width="2000" height="667" fetchpriority="high"></picture></h1>
         <p class="description">A familiar world. A new client.</p>
         <p class="edition">Minecraft Bedrock client</p>
         <div class="actions">
           <p class="press" aria-hidden="true">Press start</p>
           <div class="split" id="download-split">
-            <button type="button" class="cta" id="download"><svg viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path d="M4 0h4v4h2v2H8v2H6v2H4V8H2V6H0V4h4zM0 10h12v2H0z"/></svg><span id="download-label">Download for your device</span></button>
+            <a class="cta" id="download" href="#platforms"><svg viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path d="M4 0h4v4h2v2H8v2H6v2H4V8H2V6H0V4h4zM0 10h12v2H0z"/></svg><span id="download-label">Download for your device</span></a>
             <button type="button" class="cta" id="channel-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="channel-menu"><span class="mode" id="channel-mode">Beta</span><span class="visually-hidden"> channel, change</span><svg viewBox="0 0 10 6" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h10v2H8v2H6v2H4V4H2V2H0z"/></svg></button>
             <div class="channel-menu" id="channel-menu" role="menu" aria-label="Download channel" hidden>
               <button type="button" class="channel-option" id="channel-beta" role="menuitemradio" aria-checked="true" data-channel="beta">Beta<span class="hint">Recommended</span></button>
               <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>
             </div>
           </div>
+          <p class="channel-note" data-channel-note hidden>Nightly build. Built daily from dev and may break.</p>
         </div>
-        <p class="download-count" id="download-count" role="status" aria-atomic="true"></p>
+        <p class="download-count" id="download-count"></p>
       </div>
       <div class="warning" role="note" aria-labelledby="warning-title">
         <p class="warning-title" id="warning-title"><svg viewBox="0 0 20 18" aria-hidden="true"><path d="M8 0h4v2h2v4h2v4h2v4h2v4H0v-4h2v-4h2V6h2V2h2zM9 5v6h2V5zM9 13v2h2v-2z" fill-rule="evenodd"/></svg>Warning</p>
-        <p class="disclaimer">Cinnabar is a non-vanilla client and still in development. Its movement and combat may not yet match the official client exactly, so server anticheats may flag you and some servers may ban you. Play on servers at your own risk.</p>
+        <p class="disclaimer">@@WARNING@@</p>
       </div>
     </div>
 
@@ -311,19 +299,19 @@
           <button type="button" data-history-range="30d" aria-pressed="false">30d</button>
         </div>
         <div class="board-stats">
-          <p class="online-count" id="online-count" role="status" aria-atomic="true"></p>
-          <p class="unique-count" id="unique-count" role="status" aria-atomic="true"></p>
+          <p class="online-count" id="online-count"></p>
+          <p class="unique-count" id="unique-count"></p>
           <p class="chart-summary" id="history-summary"></p>
         </div>
       </div>
       <div class="chart-screen">
         <div class="chart-body">
-          <svg id="history-plot" role="img" tabindex="0" aria-label="Player count history. Use left and right arrow keys to inspect samples." aria-describedby="history-summary history-detail" hidden></svg>
+          <svg id="history-plot" role="slider" tabindex="0" aria-orientation="horizontal" aria-label="Player history, inspected sample" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-describedby="history-summary" hidden></svg>
           <p id="history-message" role="status">Loading player history…</p>
           <div class="chart-tip" aria-hidden="true" hidden></div>
         </div>
       </div>
-      <p class="chart-detail" id="history-detail" aria-live="polite"></p>
+      <p class="chart-detail" id="history-detail"></p>
       <noscript><p>Enable JavaScript to view player history.</p></noscript>
       </div>
     </section>
@@ -353,10 +341,10 @@
         <canvas class="scene-bloom" width="320" height="180"></canvas>
         <div class="scene-crt"></div>
       </div>
-      <img class="closing-logo" src="/title.png" alt="Cinnabar" width="2000" height="667" loading="lazy">
+      <picture><source type="image/webp" srcset="@@TITLE_SRCSET@@" sizes="(max-width: 440px) 92vw, 400px"><img class="closing-logo" src="/title.png" alt="Cinnabar" width="2000" height="667" loading="lazy"></picture>
       <p class="closing-line" id="closing-title">A familiar world. A new client.</p>
-      <p class="closing-label" id="platforms-label">Select platform</p>
-      <nav class="closing-platforms" aria-labelledby="platforms-label">
+      <p class="closing-label" id="platforms-label">Select platform<span data-channel-note hidden> · Nightly</span></p>
+      <nav class="closing-platforms" id="platforms" aria-labelledby="platforms-label">
         <a data-release-asset="windows/x86_64">Windows setup</a>
         <a data-release-asset="linux/x86_64">Linux AppImage</a>
         <a data-release-asset="macos/arm64">macOS — Apple silicon</a>
@@ -374,11 +362,12 @@
   <dialog id="install-dialog" aria-labelledby="install-title">
     <button type="button" class="close" id="close-dialog" aria-label="Close"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M0 0h4v2h2v2h2V2h2V0h4v4h-2v2h-2v2h2v2h2v4h-4v-2H8v-2H6v2H4v2H0v-4h2V8h2V6H2V4H0z"/></svg></button>
     <h2 id="install-title">Install Cinnabar</h2>
+    <p class="channel-note" data-channel-note hidden>Nightly build. Built daily from dev and may break.</p>
     <div id="linux-install" hidden>
       <ol class="stages">
         <li><p class="stage-name">Copy</p><p>Copy this command.</p>
-          <div class="command-row"><textarea id="install-command" aria-label="Linux install command" rows="3" spellcheck="false" readonly></textarea><button type="button" id="copy-command">Copy</button></div>
-          <p id="copy-status" role="status"></p></li>
+          <div class="command-row"><textarea id="install-command" aria-label="Linux install command" rows="3" spellcheck="false" readonly></textarea><button type="button" class="copy-key" id="copy-command" data-copy>Copy</button></div>
+          <p class="copy-status" id="copy-status" data-copy-status role="status"></p></li>
         <li><p class="stage-name">Paste</p><p>Paste it into your terminal. It installs Cinnabar for your user and adds it to your app menu.</p></li>
       </ol>
     </div>
@@ -388,11 +377,27 @@
           <a class="download-option" data-release-asset="macos/arm64">Apple silicon (M series)</a>
           <a class="download-option" data-release-asset="macos/x86_64">Intel Mac</a></li>
         <li><p class="stage-name">Install</p><p>Open the disk image and drag Cinnabar into Applications.</p></li>
-        <li><p class="stage-name">First open</p><p class="first-open">If macOS blocks the first launch, run this once in Terminal, then open Cinnabar again:<code>xattr -dr com.apple.quarantine /Applications/Cinnabar.app</code></p></li>
+        <li><p class="stage-name">First open</p><p class="first-open">If macOS blocks the first launch, run this once in Terminal, then open Cinnabar again:</p>
+          <div class="command-row"><code id="first-open-command">xattr -dr com.apple.quarantine /Applications/Cinnabar.app</code><button type="button" class="copy-key" id="copy-first-open" data-copy>Copy</button></div>
+          <p class="copy-status" id="first-open-status" data-copy-status role="status"></p></li>
       </ol>
     </div>
+    <div id="windows-install" hidden>
+      <ol class="stages">
+        <li><p class="stage-name">Open</p><p>Open <strong data-download-file>the setup file</strong> from your downloads.</p></li>
+        <li><p class="stage-name">Install</p><p>Follow the setup, then start Cinnabar.</p></li>
+      </ol>
+      <p class="retry">Nothing downloading? <a data-release-asset="windows/x86_64">Download it again</a>.</p>
+    </div>
+    <div id="android-install" hidden>
+      <ol class="stages">
+        <li><p class="stage-name">Open</p><p>Open <strong data-download-file>the APK</strong> from your downloads or the download notification.</p></li>
+        <li><p class="stage-name">Allow</p><p>If Android asks, allow your browser to install apps, then tap Install.</p></li>
+      </ol>
+      <p class="retry">Nothing downloading? <a data-release-asset="android/arm64">Download it again</a>.</p>
+    </div>
     <div id="desktop-install" hidden>
-      <p class="options-intro">Choose a platform to download Cinnabar.</p>
+      <p class="options-intro" id="options-intro">Choose a platform to download Cinnabar.</p>
       <a class="download-option" data-release-asset="android/arm64">Android — ARM64 APK</a>
       <a class="download-option" data-release-asset="windows/x86_64">Windows setup</a>
       <a class="download-option" data-release-asset="linux/x86_64">Linux AppImage</a>

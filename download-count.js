@@ -2,6 +2,11 @@
   const label = document.getElementById('download-count');
   const config = window.CINNABAR_DOWNLOADS;
   const activity = window.CINNABAR_ACTIVITY;
+  /** The total is slow to compute when the API has no cached copy, so it gets longer than the live counts. */
+  const TIMEOUT_MS = 15_000;
+  /** A failed request tries again soon; a good total is refreshed at the usual slow pace. */
+  const RETRY_MS = 60_000;
+  const REFRESH_MS = 900_000;
   let timer;
   let controller;
   let sequence = 0;
@@ -13,10 +18,11 @@
     controller?.abort();
     if (!activity.active()) return;
     controller = new AbortController();
+    let failed = false;
     try {
       const response = await fetch(config.download_count_url, {
         cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(TIMEOUT_MS)]),
       });
       if (!response.ok) throw new Error('Download count unavailable');
       const body = await response.json();
@@ -36,14 +42,16 @@
       icon.append(path);
       label.replaceChildren(icon, link);
     } catch {
+      failed = true;
       if (request === sequence) label.replaceChildren();
     } finally {
-      if (request === sequence && activity.active()) timer = window.setTimeout(refresh, 900_000);
+      if (request === sequence && activity.active()) timer = window.setTimeout(refresh, failed ? RETRY_MS : REFRESH_MS);
     }
   }
 
-  activity.subscribe(() => {
-    label.replaceChildren();
+  activity.subscribe(active => {
+    // Clear the total in an unattended visible tab; keep it in a hidden one until the visitor's return refreshes it.
+    if (!active && !document.hidden) label.replaceChildren();
     void refresh();
   });
   void refresh();

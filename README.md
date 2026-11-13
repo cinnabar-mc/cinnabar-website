@@ -31,10 +31,26 @@ Both build workflows use the same installer. It supports Linux and macOS on
 x86-64 and ARM64. The renderer builds the book at `dist/docs/modding/`, applying
 the website's `docs-theme/` overrides to a temporary copy of the book.
 
+The renderer also writes 720 and 1440 px WebP copies of the client's logotype
+(`build-images.mjs`, using the pinned `sharp` package). Pages pick one through `srcset`,
+and `title.png` stays published as the fallback. Every direct download link gets its Beta
+address at build time, and the home page's download key is a link to those platform links,
+so downloads work before `app.js` runs; the script then adds platform detection and the
+Nightly addresses.
+
 The landing page and book share `site-header.html.in` and `site-header.css`.
+The home and mod pages also share `arcade.css` (the scene, the effects switch, the
+warning panel and the Nightly line), and the warning's text lives once, as `WARNING`
+in `render.py`.
 The book places its sidebar and search controls in that header row, marks Docs
 as the current page, and uses a dark theme without theme or print controls.
 Sidebar chapter numbers are disabled; upstream chapter titles are preserved.
+`docs-theme/head.hbs` declares `exports`, `module` and `define` before the book's
+bundled scripts, because a chapter heading with one of those ids would otherwise
+break search and code copying on that chapter. `docs-theme/cinnabar.js` closes the
+phone drawer on a tap outside it or Escape, lets long names in tables break, and makes
+a sideways-scrolling table focusable. After the build the renderer adds a skip link
+and the affiliation line to every chapter.
 
 The hourly Update client inputs workflow checks the client's `dev` branch. It
 opens a tested PR changing the pin only when one of the declared inputs changes;
@@ -79,7 +95,8 @@ Static assets use `auto-trailing-slash`: `/docs/modding/` serves the book's
 `index.html`, and nested chapter paths serve their matching HTML files. Requests
 for `.html` pages redirect to the clean URL. With `404-page`, missing book paths
 return the book's generated `404.html` with status 404; other missing paths return
-a normal 404. No route falls back to the landing page.
+the site's own `404.html` (from `404.html.in`: the shared header and links to the home
+page, the mod and the book), also with status 404. No route falls back to the landing page.
 
 ## Official Mod
 

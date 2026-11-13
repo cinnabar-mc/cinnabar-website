@@ -36,7 +36,7 @@ class Page(HTMLParser):
             self.downloads.append(attrs["data-release-asset"])
         if tag == "a" and attrs.get("class") == "github":
             self.repository = attrs["href"]
-        if tag not in {"meta", "link", "img", "input", "br"}:
+        if tag not in {"meta", "link", "img", "input", "br", "source", "wbr"}:
             self.ancestors.append((tag, attrs))
 
     def handle_endtag(self, tag):
@@ -130,7 +130,8 @@ class RenderTests(unittest.TestCase):
                          f'https://github.com/{self.config["repository"]}/releases/download/nightly/')
         self.assertEqual(config["nightly_install_command"], config["install_command"] + " -s -- --channel nightly")
         self.assertEqual({path.name for path in self.output.iterdir()}, {
-            "index.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js", "title.png", "texture.svg", "docs", "mod", "assets",
+            "index.html", "404.html", "downloads.js", "app.js", "activity.js", "presence.js", "history.js", "download-count.js",
+            "title.png", "title-720.webp", "title-1440.webp", "docs", "mod", "assets",
             "mods", "marketplace", "marketplace.css", "marketplace-capabilities.js",
             "marketplace-core.js", "marketplace-mock.js", "marketplace-http.js", "marketplace-content.js",
             "marketplace-validation.js", "marketplace.js", "validator",
@@ -189,6 +190,120 @@ class RenderTests(unittest.TestCase):
                 self.assertEqual(links, [{"class": "marketplace-link", "href": "/mods/", "aria-current": "page"}])
             else:
                 self.assertEqual(links, [])
+
+    def test_direct_downloads_are_real_links_before_any_script_runs(self):
+        """Give every platform link its Beta address at build time, and make the main key lead to them without scripts."""
+        RENDER.build(self.repository, self.output)
+        config = self.config_from_output()
+        assets = {**config["assets"], **config["manual_assets"]}
+        page = Page()
+        page.feed((self.output / "index.html").read_text(encoding="utf-8"))
+        links = [attrs for tag, attrs, _ in page.elements if tag == "a" and "data-release-asset" in attrs]
+        self.assertGreaterEqual(len(links), 10)
+        for link in links:
+            platform, architecture = link["data-release-asset"].split("/")
+            self.assertEqual(link["href"], config["download_base"] + assets[platform][architecture])
+        key, = [(tag, attrs) for tag, attrs, _ in page.elements if attrs.get("id") == "download"]
+        self.assertEqual(key[0], "a")
+        self.assertEqual(key[1]["href"], "#platforms")
+        target, = [attrs for tag, attrs, _ in page.elements if attrs.get("id") == "platforms"]
+        self.assertEqual(target["class"], "closing-platforms")
+
+    def test_logotype_ships_small_webp_copies_with_the_png_as_fallback(self):
+        """Serve the logotype from WebP copies a fraction of the PNG's size wherever a page shows it."""
+        RENDER.build(self.repository, self.output)
+        full = (self.output / "title.png").stat().st_size
+        for width in RENDER.TITLE_WIDTHS:
+            copy = (self.output / f"title-{width}.webp").read_bytes()
+            self.assertEqual(copy[:4] + copy[8:12], b"RIFFWEBP")
+            self.assertLess(len(copy), full / 8)
+        srcset = ", ".join(f"/title-{width}.webp {width}w" for width in RENDER.TITLE_WIDTHS)
+        for route, count in (("index.html", 2), ("mod/index.html", 2)):
+            html = (self.output / route).read_text(encoding="utf-8")
+            page = Page()
+            page.feed(html)
+            sources = [attrs for tag, attrs, parents in page.elements
+                       if tag == "source" and parents and parents[-1][0] == "picture"]
+            self.assertEqual([source["srcset"] for source in sources], [srcset] * count)
+            self.assertTrue(all(source["type"] == "image/webp" and source["sizes"] for source in sources))
+            logos = [attrs for tag, attrs, parents in page.elements
+                     if tag == "img" and attrs.get("src") == "/title.png"]
+            self.assertEqual(len(logos), count)
+            self.assertTrue(all(any(parent == "picture" for parent, _ in parents) for tag, attrs, parents in page.elements
+                                if tag == "img" and attrs.get("src") == "/title.png"))
+
+    def test_missing_addresses_get_a_page_with_ways_back(self):
+        """Publish a root not-found page with the shared header, absolute links and no index entry."""
+        RENDER.build(self.repository, self.output)
+        html = (self.output / "404.html").read_text(encoding="utf-8")
+        self.assertNotIn("@@", html)
+        page = Page()
+        page.feed(html)
+        self.assertIn(("meta", {"name": "robots", "content": "noindex"}), [(tag, attrs) for tag, attrs, _ in page.elements])
+        ways = [attrs["href"] for tag, attrs, parents in page.elements
+                if tag == "a" and any(parent == "main" for parent, _ in parents)]
+        self.assertEqual(ways, ["/", "/mod/", "/docs/modding/"])
+        self.assertTrue(all(attrs["href"].startswith(("/", "#", "https://")) for tag, attrs, _ in page.elements if tag == "a"))
+        self.assertIn('class="site-header"', html)
+        self.assertIn("Not affiliated with Mojang or Microsoft.", html)
+
+    def test_every_page_starts_with_a_skip_link_to_its_content(self):
+        """Make the first Tab stop on the home page, the mod page, the not-found page and each chapter skip the header."""
+        RENDER.build(self.repository, self.output)
+        for route, target in (("index.html", "content"), ("mod/index.html", "content"), ("404.html", "content"),
+                              ("docs/modding/guides/getting-started.html", "mdbook-content"),
+                              ("docs/modding/index.html", "mdbook-content")):
+            page = Page()
+            page.feed((self.output / route).read_text(encoding="utf-8"))
+            first = next((tag, attrs) for tag, attrs, parents in page.elements
+                         if any(parent == "body" for parent, _ in parents) and tag in {"a", "button", "input"})
+            self.assertEqual(first, ("a", {"class": "skip-to-content", "href": "#" + target}), route)
+            self.assertEqual(len([attrs for _, attrs, _ in page.elements if attrs.get("id") == target]), 1, route)
+
+    def test_book_scripts_survive_headings_named_like_module_globals(self):
+        """Declare exports, module and define before the book's bundled scripts, and ship the site's book script."""
+        RENDER.build(self.repository, self.output)
+        html = (self.output / "docs/modding/guides/getting-started.html").read_text(encoding="utf-8")
+        head, body = html.split("</head>", 1)
+        self.assertIn("var exports, module, define;", head)
+        script, = (self.output / "docs/modding/theme").glob("cinnabar-*.js")
+        self.assertIn("../theme/" + script.name, body)
+        self.assertEqual(script.read_bytes(), (SITE / "docs-theme/cinnabar.js").read_bytes())
+        self.assertLess(body.index("clipboard-"), body.index("../theme/" + script.name))
+        self.assertIn('<p class="book-foot">Not affiliated with Mojang or Microsoft.</p>', body)
+        self.assertLess(body.index('class="nav-wrapper"'), body.index('class="book-foot"'))
+
+    def test_server_risk_warning_is_shared_and_world_styles_stay_off_other_surfaces(self):
+        """Show the same warning on the home page and the mod page, with the world's styles only where a world runs."""
+        RENDER.build(self.repository, self.output)
+        arcade = (SITE / "arcade.css").read_text(encoding="utf-8")
+        for route in ("index.html", "mod/index.html"):
+            html = (self.output / route).read_text(encoding="utf-8")
+            self.assertEqual(html.count(f'<p class="disclaimer">{RENDER.WARNING}</p>'), 1, route)
+            self.assertIn(arcade, html)
+            hero = html.split('<div class="hero">', 1)[1]
+            self.assertLess(hero.index('id="download"'), hero.index('class="warning"'))
+        for route in ("mods/index.html", "404.html", "docs/modding/index.html"):
+            self.assertNotIn(RENDER.WARNING, (self.output / route).read_text(encoding="utf-8"))
+        stylesheet, = (self.output / "docs/modding/theme").glob("cinnabar-*.css")
+        for other in ((self.output / "mods/index.html").read_text(encoding="utf-8"), stylesheet.read_text(encoding="utf-8")):
+            self.assertNotIn(".scene-crt", other)
+
+    def test_ambient_counts_are_not_live_regions_and_the_chart_is_a_slider(self):
+        """Keep polled numbers quiet for screen readers and expose the chart's inspection as a slider."""
+        RENDER.build(self.repository, self.output)
+        page = Page()
+        page.feed((self.output / "index.html").read_text(encoding="utf-8"))
+        by_id = {attrs["id"]: attrs for _, attrs, _ in page.elements if "id" in attrs}
+        for name in ("online-count", "unique-count", "download-count", "history-detail"):
+            self.assertNotIn("role", by_id[name], name)
+            self.assertNotIn("aria-live", by_id[name], name)
+        plot = by_id["history-plot"]
+        self.assertEqual((plot["role"], plot["tabindex"], plot["aria-orientation"]), ("slider", "0", "horizontal"))
+        self.assertTrue(plot["aria-label"])
+        for name in ("aria-valuemin", "aria-valuemax", "aria-valuenow"):
+            self.assertIn(name, plot)
+        self.assertEqual(by_id["history-message"].get("role"), "status")
 
     def test_gameplay_captures_are_published_unchanged(self):
         """Serve every capture from the repository at its stable /assets/ path."""

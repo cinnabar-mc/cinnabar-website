@@ -30,6 +30,11 @@
   --rim: #140405;
   --warning-face: #120b0b;
   --focus: var(--red-line);
+  /* The washes under a hovered and a pressed link, the dialog backdrop and the dark gap of a scanline. */
+  --hover-wash: #ffffff14;
+  --press-wash: #ffffff0a;
+  --backdrop: #0b0708d9;
+  --scanline: #00000052;
   --gutter: clamp(16px, 4vw, 64px);
   --page: 1360px;
   --site-header-height: 64px;
@@ -51,6 +56,10 @@ html { scrollbar-color: var(--line-strong) var(--ground); scroll-padding-top: ca
 ::selection { background: var(--red-press); color: #fff; }
 input, textarea { caret-color: var(--red-line); }
 
+/* The first Tab stop on every page jumps past the header. It stays off screen until it takes focus. */
+.skip-to-content { position: fixed; left: 16px; top: 10px; z-index: 300; display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 4px solid; border-image: var(--box-ink) 4 fill / 4px stretch; color: var(--ground); font: 400 16px/1 var(--pixel); text-transform: uppercase; text-decoration: none; -webkit-font-smoothing: none; transform: translateY(-80px); }
+.skip-to-content:focus { transform: none; outline: 2px solid var(--focus); outline-offset: 2px; }
+
 /* Header: the cabinet's marquee strip. The brand and nav are pixel caps; the current page carries the menu cursor. */
 .site-header { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: var(--site-header-height); padding-inline: var(--gutter); border-bottom: 2px solid transparent; }
 .site-header a { box-sizing: border-box; transition: color .12s steps(2, end), background-color .12s steps(2, end); }
@@ -61,8 +70,8 @@ input, textarea { caret-color: var(--red-line); }
 .site-header .socials svg { width: 20px; height: 20px; fill: currentColor; }
 .site-header .socials .github, .site-header .socials .discord { width: 44px; padding: 0; }
 .site-header .github span, .site-header .discord span { display: none; }
-.site-header .socials a:hover { background: #ffffff14; color: var(--ink); }
-.site-header .socials a:active { background: #ffffff0a; }
+.site-header .socials a:hover { background: var(--hover-wash); color: var(--ink); }
+.site-header .socials a:active { background: var(--press-wash); }
 .site-header .socials a[aria-current="page"] { padding-left: 24px; color: var(--ink); }
 /* The arcade menu cursor: a stepped triangle drawn in whole 2px pixels. */
 .site-header .socials a[aria-current="page"]::before { content: ""; position: absolute; left: 10px; top: 50%; width: 6px; height: 10px; margin-top: -5px; background: var(--red-line); clip-path: polygon(0 0, 2px 0, 2px 2px, 4px 2px, 4px 4px, 6px 4px, 6px 6px, 4px 6px, 4px 8px, 2px 8px, 2px 10px, 0 10px); }
@@ -133,6 +142,23 @@ input, textarea { caret-color: var(--red-line); }
   .site-header .nav-short { display: inline; }
   .site-header .socials a[aria-current="page"] { padding-left: 18px; }
   .site-header .socials a[aria-current="page"]::before { left: 6px; }
+}
+
+/* At 380px and below the start key tightens, and its label may wrap instead of pushing the keys past the screen edge.
+   The selector outranks each page's own phone rule for the key, which comes later. */
+@media (max-width: 380px) {
+  .split #download { white-space: normal; padding: 8px 8px 12px; gap: 8px; line-height: 1.25; text-wrap: balance; }
+}
+
+/* Forced colours drop backgrounds, shadows and clip-path shapes, so the keys and the chosen channel get real edges. */
+@media (forced-colors: active) {
+  .cta, a.download, .skip-to-content { border: 2px solid CanvasText; border-image: none; clip-path: none; }
+  .cta::before, .cta::after, a.download::before, a.download::after { display: none; }
+  .channel-menu { border: 2px solid CanvasText; border-image: none; background: Canvas; }
+  .channel-option::before { border: 2px solid CanvasText; box-shadow: none; clip-path: none; background: Canvas; forced-color-adjust: none; }
+  .channel-option[aria-checked="true"]::before { box-shadow: none; background: Highlight; }
+  .site-header .socials a[aria-current="page"]::before { background: CanvasText; forced-color-adjust: none; }
+  .site .site-header { animation: none; background: Canvas; border-bottom-color: CanvasText; }
 }
 
 @media (prefers-reduced-motion: reduce) {

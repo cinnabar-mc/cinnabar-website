@@ -12,20 +12,31 @@ const downloadButton = document.getElementById('download');
 if (downloadButton.dataset?.modDownload) {
   setupDownloadChannel(channel => {
     downloadButton.href = `${downloadButton.dataset.modDownload}?channel=${channel}`;
-  }, () => window.location.assign(downloadButton.href));
+  });
 } else {
   setupClientDownload(downloadButton);
 }
 
-// Share channel selection, checked state and keyboard navigation across download pages.
-function setupDownloadChannel(applyChannel, startDownload) {
+/**
+ * Shares channel selection, its checked state and keyboard navigation across download pages.
+ * Choosing a channel only selects it; the download key is the one control that downloads.
+ */
+function setupDownloadChannel(applyChannel) {
   const split = document.getElementById('download-split');
   const toggle = document.getElementById('channel-toggle');
   const menu = document.getElementById('channel-menu');
   const options = [document.getElementById('channel-beta'), document.getElementById('channel-nightly')];
+  const notes = Array.from(document.querySelectorAll('[data-channel-note]'));
   let channel = 'beta';
-  applyChannel(channel);
-  options.forEach(option => option.setAttribute('aria-checked', String(option.dataset.channel === channel)));
+
+  /** Applies a channel to the download, the menu's checked row and every line that names Nightly. */
+  function select(selected) {
+    channel = selected;
+    applyChannel(channel);
+    options.forEach(option => option.setAttribute('aria-checked', String(option.dataset.channel === channel)));
+    notes.forEach(note => { note.hidden = channel !== 'nightly'; });
+  }
+  select(channel);
 
   function setMenu(open, focusIndex) {
     menu.hidden = !open;
@@ -43,6 +54,9 @@ function setupDownloadChannel(applyChannel, startDownload) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       options[(index + (event.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length].focus();
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      options[event.key === 'Home' ? 0 : options.length - 1].focus();
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       choose(event.target);
@@ -56,13 +70,16 @@ function setupDownloadChannel(applyChannel, startDownload) {
   document.addEventListener('click', event => {
     if (!menu.hidden && !split.contains(event.target)) setMenu(false);
   });
+  // Tabbing out of the keys closes the menu, so it never stays open over the page behind it.
+  split.addEventListener('focusout', event => {
+    if (!menu.hidden && event.relatedTarget && !split.contains(event.relatedTarget)) setMenu(false);
+  });
 
+  /** Selects a channel and hands focus back to the channel key, which now names the choice. */
   function choose(option) {
-    channel = option.dataset.channel;
-    applyChannel(channel);
-    options.forEach(item => item.setAttribute('aria-checked', String(item.dataset.channel === channel)));
+    select(option.dataset.channel);
     setMenu(false);
-    startDownload();
+    toggle.focus();
   }
 }
 
@@ -73,7 +90,16 @@ function setupClientDownload(button) {
   const platform = detectPlatform(navigator.userAgent, navigator.userAgentData?.platform || navigator.platform, navigator.maxTouchPoints);
   const labels = {windows: 'Windows', macos: 'macOS', linux: 'Linux', android: 'Android'};
   const dialog = document.getElementById('install-dialog');
+  // Platforms whose download starts at once: the dialog then says what to do with the file.
+  const direct = {windows: ['windows', 'x86_64'], android: ['android', 'arm64']}[platform];
+  const sections = {linux: 'linux-install', macos: 'macos-install', windows: 'windows-install', android: 'android-install'};
+  const titles = {linux: 'Install on Linux', macos: 'Download for macOS', windows: 'Install on Windows', android: 'Install on Android'};
   document.getElementById('download-label').textContent = labels[platform] ? `Download for ${labels[platform]}` : 'Downloads';
+  // Without this script the key is a plain link to the platform list. With it, the key acts as a button.
+  button.setAttribute('role', 'button');
+  if (platform === 'mobile') {
+    document.getElementById('options-intro').textContent = 'Cinnabar is not available for iPhone or iPad. Choose a platform to download it for another device.';
+  }
   let channel = 'beta';
   const base = () => channel === 'nightly' ? config.nightly_base : config.download_base;
   const installCommand = () => channel === 'nightly' ? config.nightly_install_command : config.install_command;
@@ -88,25 +114,30 @@ function setupClientDownload(button) {
   setupDownloadChannel(selected => {
     channel = selected;
     applyChannel();
-  }, startDownload);
+  });
 
-  button.addEventListener('click', startDownload);
+  button.addEventListener('click', event => {
+    event.preventDefault();
+    startDownload();
+  });
+  button.addEventListener('keydown', event => {
+    if (event.key !== ' ') return;
+    event.preventDefault();
+    startDownload();
+  });
 
+  /** Starts the download where one file fits the device, then opens the dialog with that platform's steps. */
   function startDownload() {
-    if (platform === 'windows') {
-      window.location.assign(base() + config.assets.windows.x86_64);
-      return;
+    for (const [name, id] of Object.entries(sections)) document.getElementById(id).hidden = platform !== name;
+    document.getElementById('desktop-install').hidden = platform in sections;
+    document.getElementById('install-title').textContent = titles[platform] || 'Choose your platform';
+    document.querySelectorAll('[data-copy]').forEach(copyButton => { copyButton.textContent = 'Copy'; });
+    document.querySelectorAll('[data-copy-status]').forEach(status => { status.textContent = ''; });
+    if (direct) {
+      const file = assets[direct[0]][direct[1]];
+      document.querySelectorAll('[data-download-file]').forEach(name => { name.textContent = file; });
+      window.location.assign(base() + file);
     }
-    if (platform === 'android') {
-      window.location.assign(base() + assets.android.arm64);
-      return;
-    }
-    document.getElementById('linux-install').hidden = platform !== 'linux';
-    document.getElementById('macos-install').hidden = platform !== 'macos';
-    document.getElementById('desktop-install').hidden = platform === 'linux' || platform === 'macos';
-    document.getElementById('install-title').textContent = platform === 'linux' ? 'Install on Linux' : platform === 'macos' ? 'Download for macOS' : 'Choose your platform';
-    document.getElementById('copy-command').textContent = 'Copy';
-    document.getElementById('copy-status').textContent = '';
     dialog.showModal();
   }
   document.getElementById('close-dialog').addEventListener('click', () => dialog.close());
@@ -116,17 +147,28 @@ function setupClientDownload(button) {
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
     }
   });
-  document.getElementById('copy-command').addEventListener('click', async event => {
-    const copyButton = event.currentTarget;
-    try {
-      await navigator.clipboard.writeText(installCommand());
-      copyButton.textContent = 'Copied';
-      document.getElementById('copy-status').textContent = 'Install command copied.';
-    } catch {
-      const input = document.getElementById('install-command');
-      input.focus();
-      input.select();
-      document.getElementById('copy-status').textContent = 'Select and copy the command above.';
-    }
-  });
+
+  /** Copies a command and confirms it, or selects the command for manual copying when the clipboard is unavailable. */
+  function copyKey(id, text, sourceId, statusId, done) {
+    document.getElementById(id).addEventListener('click', async event => {
+      const copyButton = event.currentTarget;
+      const status = document.getElementById(statusId);
+      try {
+        await navigator.clipboard.writeText(text());
+        copyButton.textContent = 'Copied';
+        status.textContent = done;
+      } catch {
+        const source = document.getElementById(sourceId);
+        if (source.select) {
+          source.focus();
+          source.select();
+        } else {
+          window.getSelection?.()?.selectAllChildren(source);
+        }
+        status.textContent = 'Select and copy the command above.';
+      }
+    });
+  }
+  copyKey('copy-command', installCommand, 'install-command', 'copy-status', 'Install command copied.');
+  copyKey('copy-first-open', () => document.getElementById('first-open-command').textContent, 'first-open-command', 'first-open-status', 'Command copied.');
 }

@@ -53,18 +53,22 @@ test('mod channels use the home page wording and menu semantics', () => {
   }
 });
 
-test('choosing Nightly updates the mod link and download, and Beta can be selected again', () => {
+test('choosing Nightly re-points the mod link without downloading, and Beta can be selected again', () => {
   const p = page();
   const endpoint = p.element('download').dataset.modDownload;
+  const note = p.document.querySelector('[data-channel-note]');
+  assert.equal(note.hidden, true);
   for (const channel of ['nightly', 'beta']) {
     p.click('channel-toggle');
     p.click(`channel-${channel}`);
     assert.equal(p.element('download').href, `${endpoint}?channel=${channel}`);
-    assert.equal(p.location.destination, p.element('download').href);
+    assert.equal(p.location.destination, undefined);
     assert.equal(p.element(`channel-${channel}`).getAttribute('aria-checked'), 'true');
     assert.equal(p.element(`channel-${channel === 'beta' ? 'nightly' : 'beta'}`).getAttribute('aria-checked'), 'false');
     assert.equal(p.element('channel-menu').hidden, true);
     assert.equal(p.element('channel-toggle').getAttribute('aria-expanded'), 'false');
+    assert.equal(p.document.activeElement.id, 'channel-toggle');
+    assert.equal(note.hidden, channel !== 'nightly');
   }
 });
 
@@ -85,12 +89,27 @@ test('mod menu arrows wrap focus, Escape returns focus, and Enter/Space select c
   p.key('channel-toggle', 'ArrowUp');
   assert.equal(p.document.activeElement.id, 'channel-nightly');
   assert.equal(p.key('channel-nightly', 'Enter').defaultPrevented, true);
-  assert.equal(p.location.destination, `${endpoint}?channel=nightly`);
+  assert.equal(p.element('download').href, `${endpoint}?channel=nightly`);
+  assert.equal(p.document.activeElement.id, 'channel-toggle');
   p.click('channel-toggle');
   assert.equal(p.document.activeElement.id, 'channel-nightly');
   p.key('channel-nightly', 'ArrowUp');
   assert.equal(p.key('channel-beta', ' ').defaultPrevented, true);
-  assert.equal(p.location.destination, `${endpoint}?channel=beta`);
+  assert.equal(p.element('download').href, `${endpoint}?channel=beta`);
+  assert.equal(p.location.destination, undefined);
+});
+
+test('the mod page states the server risk in the home page\'s words and names its captures', () => {
+  const home = parseHTML(fs.readFileSync(path.join(output, 'index.html'), 'utf8')).document;
+  const p = page();
+  const warning = p.document.querySelector('.hero .warning .disclaimer');
+  assert.ok(warning.textContent.includes('some servers may ban you'));
+  assert.equal(warning.textContent, home.querySelector('.warning .disclaimer').textContent);
+  for (const shot of p.document.querySelectorAll('a.shot')) {
+    assert.equal(shot.hasAttribute('aria-label'), false);
+    assert.ok(shot.querySelector('img').alt.length > 40);
+    assert.equal(shot.querySelector('.visually-hidden').textContent.trim(), 'Open the full-size screenshot.');
+  }
 });
 
 test('outside clicks close the mod menu without changing the selected channel', () => {

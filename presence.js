@@ -23,7 +23,8 @@
         if (!response.ok) throw new Error('Count unavailable');
         const body = await response.json();
         if (!Number.isSafeInteger(body?.[field]) || body[field] < 0) throw new Error('Invalid count');
-        if (request === sequence) label.textContent = format(body[field]);
+        const text = format(body[field]);
+        if (request === sequence && label.textContent !== text) label.textContent = text;
       } catch {
         if (request === sequence) label.textContent = '';
       } finally {
@@ -31,8 +32,10 @@
       }
     }
 
-    activity.subscribe(() => {
-      label.textContent = '';
+    activity.subscribe(active => {
+      // An unattended visible tab must not keep an old count on screen. A hidden tab is not being read,
+      // so its count stays for the moment the visitor returns, and the refresh replaces or clears it.
+      if (!active && !document.hidden) label.textContent = '';
       void refresh();
     });
     void refresh();

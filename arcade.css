@@ -1,0 +1,46 @@
+/* Arcade: the parts shared by the two pages that run a world, the home page and the mod page: the scene,
+   the effects switch, the WARNING panel and the Nightly line. site-header.css comes first and holds the tokens. */
+/* The scene: a canvas world with phosphor bloom and scanline gaps, on the pages that run one. */
+.scene { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: var(--ground); }
+.scene canvas { position: absolute; left: 0; top: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
+.scene-bloom { mix-blend-mode: screen; opacity: .6; }
+.scene-crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, #0000 0 calc(var(--px, 4px) - 1px), var(--scanline) calc(var(--px, 4px) - 1px) var(--px, 4px)); }
+:root[data-fx="off"] .scene-bloom, :root[data-fx="off"] .scene-crt { display: none; }
+
+/* The effects switch: scanlines, bloom and the moving scene. */
+.fx-toggle { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--soft); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+.fx-toggle:hover { background: var(--hover-wash); color: var(--ink); }
+.fx-switch { position: relative; width: 28px; height: 16px; background: var(--line-strong); clip-path: var(--step-1); }
+.fx-switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; background: var(--quiet); }
+.fx-toggle[aria-pressed="true"] .fx-switch { background: var(--red-press); }
+.fx-toggle[aria-pressed="true"] .fx-switch::after { left: 16px; background: var(--ink); }
+.fx-state { min-width: 3ch; text-align: left; }
+
+/* The attract-mode WARNING screen: legible prose in a red pixel frame. It never blinks. */
+.warning { position: relative; isolation: isolate; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px 28px; align-items: start; width: min(100%, 840px); padding: 22px 28px 24px; text-align: left; }
+.warning::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--red-line); clip-path: var(--step-2); }
+.warning::after { content: ""; position: absolute; inset: 2px; z-index: -1; background: var(--warning-face); clip-path: var(--step-1); }
+.warning-title { display: flex; align-items: center; gap: 12px; padding-top: 4px; color: var(--red-text); font: 700 24px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
+.warning-title svg { width: 20px; height: 18px; flex: none; fill: currentColor; shape-rendering: crispEdges; }
+.disclaimer { color: var(--ink); font: 400 16px/1.55 var(--sans); text-wrap: pretty; }
+@media (max-width: 640px) {
+  .warning { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 20px 20px 22px; }
+  .warning-title { padding-top: 0; }
+  .disclaimer { font-size: 15px; }
+}
+
+/* A line that names the Nightly channel wherever a download follows it. Hidden while Beta is chosen. */
+.channel-note { display: flex; align-items: flex-start; justify-content: center; gap: 10px; color: var(--soft); font: 400 15px/1.4 var(--sans); text-align: left; }
+.channel-note::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: .42em; background: var(--red-line); }
+.channel-note[hidden] { display: none; }
+
+/* Forced colours drop backgrounds and clip-path shapes, so the warning, the tag and the switches get real edges. */
+@media (forced-colors: active) {
+  .cart, .warning, .fx-switch, .chart-tip, .chart-ranges button, .copy-key { border: 2px solid CanvasText; border-image: none; clip-path: none; }
+  .cart::before, .cart::after, .warning::before, .warning::after { display: none; }
+  .fx-switch::after { background: CanvasText; forced-color-adjust: none; }
+  .fx-toggle[aria-pressed="true"] .fx-switch { background: Highlight; forced-color-adjust: none; }
+  .fx-toggle[aria-pressed="true"] .fx-switch::after { background: HighlightText; }
+  .chart-ranges button[aria-pressed="true"] { background: Highlight; color: HighlightText; forced-color-adjust: none; }
+  .channel-note::before { background: CanvasText; forced-color-adjust: none; }
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0708">
+  <meta name="robots" content="noindex">
+  <title>Page not found · Cinnabar</title>
+  <link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
+  <link rel="preload" href="/assets/fonts/silkscreen-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    @@SITE_HEADER_STYLES@@
+    :root { --cinnabar-red: @@RED@@; --solid-at: 120px; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html { background: var(--ground); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    /* This page answers any missing address, so every link and asset on it is absolute. */
+    body { display: grid; grid-template-rows: 1fr auto; min-height: 100svh; margin: 0; background: var(--ground); color: var(--ink); font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+    p, h1 { margin: 0; }
+    a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .lost { display: grid; align-content: center; justify-items: center; gap: 24px; width: min(100% - 2 * var(--gutter), 760px); margin-inline: auto; padding-block: calc(var(--site-header-height) + 64px) 96px; text-align: center; }
+    .lost h1 { justify-self: stretch; font: 700 32px/1 var(--pixel); text-transform: uppercase; letter-spacing: 0; -webkit-font-smoothing: none; text-wrap: balance; }
+    .lost p { max-width: 48ch; color: var(--soft); text-wrap: pretty; }
+    .lost nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+    .lost nav a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 14px; border: 4px solid; border-image: var(--box) 4 fill / 4px stretch; color: var(--soft); font: 400 16px/1 var(--pixel); text-transform: uppercase; text-decoration: none; -webkit-font-smoothing: none; transition: color .12s steps(2, end); }
+    .lost nav a:hover { border-image-source: var(--box-hover); color: var(--ink); }
+    .lost nav a:active { transform: translateY(2px); }
+    footer { width: min(100% - 2 * var(--gutter), var(--page)); margin-inline: auto; padding-block: 24px 40px; color: var(--quiet); font: 400 14px/1.5 var(--sans); text-align: center; }
+    @media (max-width: 900px) {
+      .lost h1 { font-size: 24px; }
+    }
+    @media (forced-colors: active) {
+      .lost nav a { border: 2px solid CanvasText; border-image: none; }
+    }
+  </style>
+</head>
+<body class="site">
+  <a class="skip-to-content" href="#content">Skip to content</a>
+  @@SITE_HEADER@@
+  <main class="lost" id="content">
+    <h1 class="rule-title">Page not found</h1>
+    <p>There is nothing at this address. It may have moved, or the link may be mistyped.</p>
+    <nav aria-label="Site pages"><a href="/">Home</a><a href="/mod/">Official Mod</a><a href="/docs/modding/">Docs</a></nav>
+  </main>
+  <footer><p>Not affiliated with Mojang or Microsoft.</p></footer>
+</body>
+</html>
