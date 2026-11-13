@@ -28,6 +28,8 @@ colors:
   soft: "#d8ccc3"
   quiet: "#ab9d93"
   hover-wash: "#ffffff14"
+  press-wash: "#ffffff0a"
+  book-ink: "#ece8e2"
   backdrop: "#0b0708d9"
   scanline: "#00000052"
   code-ink: "#e6e1da"
@@ -45,7 +47,7 @@ typography:
     fontVariation: "'wdth' 112"
   headline-pixel:
     fontFamily: "Silkscreen, ui-monospace, monospace"
-    fontSize: "48px"
+    fontSize: "32px"
     fontWeight: 700
     lineHeight: 1
     letterSpacing: "0em"
@@ -155,8 +157,8 @@ spacing:
   header: "64px"
   gutter: "clamp(16px, 4vw, 64px)"
   page: "1360px"
-  section: "136px"
-  section-compact: "96px"
+  section: "96px"
+  section-compact: "64px"
 components:
   button-power-up:
     backgroundColor: "{colors.cinnabar-red}"
@@ -250,7 +252,7 @@ components:
   cabinet:
     backgroundColor: "{colors.raise}"
     rounded: "{rounded.none}"
-    padding: "40px 48px 28px"
+    padding: "28px 32px 20px"
   warning-panel:
     backgroundColor: "{colors.warning-face}"
     textColor: "{colors.ink}"
@@ -308,7 +310,7 @@ The world rejects two things by construction: the dimmed-screenshot hero, and th
 
 - **The scenes are code.** Both worlds, the surface night (home hero, `/mod/` hero with the formation mirrored to the left) and the deep cave chamber (home closing), are drawn at runtime by `arcade-scene.js` from a fixed seed (`0x51CB`). Every visit and every width draws the same place. No generated rasters ship.
 - **The captures are the owner's.** `assets/gameplay/*.webp` (sunset, forest, PvP, cave, river) and `assets/mod/*.webp` (mods, settings, layout) are the owner's captures of Cinnabar. They are shown unfiltered inside frames and bezels.
-- **The logotype is the client's.** `/title.png` is copied from the client repository's `assets/branding/title.png`. The header mark is the client's `packaging/icons/cinnabar.svg`, inlined as a data URI.
+- **The logotype is the client's.** `/title.png` is copied from the client repository's `assets/branding/title.png`. Pages show it through 720px and 1440px WebP copies that the build derives from that file, with the PNG as the fallback. The header mark is the client's `packaging/icons/cinnabar.svg`, inlined as a data URI.
 - **Fonts are OFL and self-hosted** in `assets/fonts/`: Silkscreen 400 and 700, Archivo variable (weight 100–900, width 62–125%) and JetBrains Mono 400, each with its licence file.
 - **Pixel icons are hand-drawn SVG paths** on a 2px grid with `shape-rendering: crispEdges`: the download arrow, the warning triangle, the close cross, the chevron and the menu cursor.
 
@@ -341,8 +343,9 @@ A phosphor-black cabinet of warm near-blacks, one red pulled from the icon, a si
 - **Ink** (#f6eee7): headings, numbers, the selected and inverted keys, the select-screen frame and tooltip faces.
 - **Soft** (#d8ccc3): secondary prose, nav at rest and captions.
 - **Quiet** (#ab9d93): score labels, axis text, hints, frame rivets and missing data.
-- **Hover Wash** (#ffffff14): the background of a text link or nav item under the pointer. The marketplace uses a slightly stronger white wash at about 10%.
-- **Backdrop** (#0b0708d9): the dialog backdrop.
+- **Hover Wash** (#ffffff14) and **Press Wash** (#ffffff0a): the background of a text link, nav item or book icon button under the pointer and while pressed, as `--hover-wash` and `--press-wash`. The marketplace uses a slightly stronger white wash at about 10%.
+- **Book Ink** (#ece8e2): body text in the book's reading column, one step calmer than Ink.
+- **Backdrop** (#0b0708d9): the dialog backdrop and the dim layer behind the book's phone drawer, as `--backdrop`.
 - **Scanline** (#00000052): the dark gap of each scanline over the scene.
 
 ### Code
@@ -384,7 +387,7 @@ With ground, the five night blues and star, these make the full sixteen-colour s
 ### Hierarchy
 - **Logotype** (`/title.png`, up to 720px wide on home, 520px on `/mod/`, 400px at the home closing): the name, always as the textured image, with a soft drop shadow so it sits over the scene.
 - **Tagline** (Archivo 800, clamp(26px, 2.9vw, 40px), 1.08, width 112%, −0.02em): "A familiar world. A new client." under the logotype. The closing and `/mod/` versions run at 800 with widths of 108–112% and smaller clamps.
-- **Section Title** (Silkscreen 700, 48px, 1; 32px at ≤900px): cabinet and section titles, uppercase, flanked by the title rule.
+- **Section Title** (Silkscreen 700, 32px, 1; 24px at ≤900px): cabinet and section titles, uppercase, flanked by the title rule.
 - **Stage Numeral** (Silkscreen 700, 64px, 0.82 on `/mod/`, 48px there on phones; 48px in the home install dialog, 32px there on phones): the oversized numbers of install stages, in Red Text.
 - **Pixel Title** (Silkscreen 400–700, 24px): the WARNING title, module group names, fact titles, stage names, dialog titles and marketplace panel headings.
 - **Score** (Silkscreen 700, 24px, tabular): the numbers in the score line.
@@ -408,10 +411,11 @@ The page is a centred column of up to 1360px with a fluid gutter of clamp(16px, 
 
 - **Header** (64px): it floats transparent over the scene on home and `/mod/` and turns solid ground with a 2px line edge as soon as the page scrolls (scroll-driven, solid by `--solid-at`, 120px on both), so content never shows through it. It is solid and sticky on the marketplace and fixed in the book.
 - **Home attract screen**: a full-viewport hero (100svh) on a three-row grid with the HUD score line at the top, the logotype, tagline, edition line, PRESS START and the split key centred in the sky, and the WARNING panel at the fold. Below it come the high-score board in a cabinet frame, a twelve-column gallery (the large sunset spans eight columns and two rows, forest and PvP stack beside it, and cave and river share the last row), and a closing chamber at least 760px tall with platform keys.
-- **`/mod/`**: a hero split 7fr/5fr between the logotype with its cartridge tag and the pitch with the split key. A CRT bezel showcase overlaps the hero's bottom edge by 136px. Below come a module select screen in two columns of groups, a paired settings and layout bezel row, three fact columns, and three stage cards.
+- **Narrow phones (≤380px)**: the start key tightens its padding and its label may wrap to two lines, so the split key never runs past the screen edge. The layout reflows down to 320px with no horizontal scroll.
+- **`/mod/`**: a hero split 7fr/5fr between the logotype with its cartridge tag and the pitch with the split key. The WARNING panel spans both columns under them, inside the hero. A CRT bezel showcase overlaps the hero's bottom edge by 136px. Below come a module select screen in two columns of groups, a paired settings and layout bezel row, three fact columns, and three stage cards.
 - **Marketplace**: a 7/5 heading row, tabs, then a 220px filter rail beside the result list, a 7/5 project page, and a 220px, fluid, 300px editor.
 - **Book**: a 288px sidebar beside a 64ch reading column. Below 1080px the sidebar becomes a drawer under the fixed header.
-- **Section rhythm**: 136px between home sections (128px on `/mod/`) and 96px at 900px and below.
+- **Section rhythm**: 96px between sections on home and `/mod/`. At 900px and below home drops to 64px and `/mod/` stays at 96px. The `/mod/` footer sits 128px below the last section.
 - **Breakpoints**: 1100px (the score line drops its average), 900px (everything stacks to one column and section titles drop to 32px), 640px (the score line becomes a two-column grid and the split key fills the width), and 480px (the nav switches to short labels, the brand word hides, the mode key shrinks to its chevron, and module slots go to two columns).
 - **Scene scale**: the canvas covers its host at a native resolution of the host size ÷ the art scale, which is 4× at 1200px and up, 3× at 640px and up and 2× below, multiplied by the device pixel ratio and rounded to a whole number. Scanline pitch follows the same pixel through `--px`. On narrow screens the formation moves to the far edge, clear of the centred text, and the moon shrinks.
 
@@ -457,6 +461,7 @@ The frame vocabulary:
 ### Buttons
 The keys are tactile and arcade-literal. They press down by 2px, step through state changes (`steps(2, end)` over 0.12s) and never glide.
 - **Power-Up Key (primary):** a red face inside a 2px Rim, stepped corners, the Key Bevel, Silkscreen 16px white caps over a Red Deep drop, 56px tall, padded 0 24px 4px. Hover lightens the face to Red Hover. Active moves the key down 2px and collapses the bevel. Focus draws a 2px Ink outline offset 2px, since red on red would vanish.
+- **Download Key (home):** the home page's power-up key is a link to the platform keys at the page's end, so it works before any script runs. The script gives it the button role, the Space key and the platform's download.
 - **Split Key:** the download key and a separate mode key on one 4px-gapped panel. The mode key shows the chosen channel (BETA or NIGHTLY) and a chevron that flips when open. On phones it shrinks to the chevron alone.
 - **Ink Key:** an inverted Ink box with Ground text, used for the main step of an operate flow (marketplace primary, Archivo 500 15px; the dialog's COPY key, Silkscreen 700 16px). Hover goes to pure white on the marketplace and brightens slightly elsewhere.
 - **Pixel Box Key:** a Box frame with Soft pixel caps. Hover switches to Box Hover with Ink text, and the selected state (`aria-pressed`) switches to Box Ink with Ground text. It is used for the chart's 24H, 7D and 30D ranges.
@@ -464,7 +469,7 @@ The keys are tactile and arcade-literal. They press down by 2px, step through st
 - **Quiet Operate Button:** a transparent face, a 2px Line Strong border, square corners, Archivo 500 15px and a height of 44px. Hover raises it to Raise 2 with a Quiet border.
 
 ### Mode Select (channel menu)
-A Box-framed menu (340px) under the split key, with arrow-key and Escape support kept from the existing script. Each row is Silkscreen 16px caps with an Archivo 14px hint below. A pixel socket on the left shows a lit Red Line pixel for the chosen channel. Hovered and focused rows take Raise 2, and focus draws an inset 2px Red Line outline.
+A Box-framed menu (340px) under the split key, with arrow-key and Escape support kept from the existing script. Each row is Silkscreen 16px caps with an Archivo 14px hint below. A pixel socket on the left shows a lit Red Line pixel for the chosen channel. Hovered and focused rows take Raise 2, and focus draws an inset 2px Red Line outline. Home and End jump to the first and last row. Choosing a row only selects the channel: the menu closes, focus returns to the mode key, and the download key stays the one control that downloads. The menu also closes when focus leaves the split key.
 
 ### Chips / Tags
 Tags have square corners, a 2px Line Strong border and Archivo 500 13px Soft text. State tags carry a 6px square marker, Ink for good and Red Line for warning or error, rather than a colour fill.
@@ -474,7 +479,7 @@ Tags have square corners, a 2px Line Strong border and Archivo 500 13px Soft tex
 - **Background:** a Raise face drawn by the frame itself (`border-image … fill`). The CSS background stays `none`.
 - **Shadow Strategy:** flat. See Elevation & Depth.
 - **Panels:** the marketplace sideboxes, preview cards, verdicts, queues, notices, code blocks and dialogs, plus the book's code, tables, quotes and warnings, all use the Box frame. Notices and warnings carry an 8px Red Line square at the top left.
-- **Cabinet:** the high-score board, inside the riveted Cabinet Frame, padded 40px 48px 28px (28px 18px 20px on phones).
+- **Cabinet:** the high-score board, inside the riveted Cabinet Frame, padded 28px 32px 20px (28px 18px 20px at 900px and below).
 - **Internal Padding:** 24px in standard panels, 32px in dialogs.
 
 ### Inputs / Fields
@@ -485,17 +490,17 @@ Tags have square corners, a 2px Line Strong border and Archivo 500 13px Soft tex
 ### Navigation
 - **Header:** the brand mark (28px icon) and the word CINNABAR in Silkscreen 700 16px, followed by nav links in Silkscreen 400 16px Soft caps, 44px targets and GitHub and Discord marks as 44px square icon links. Hover applies Hover Wash with Ink text.
 - **Current page:** the arcade menu cursor, a 6×10 stepped triangle in Red Line, sits left of an Ink label. The book's sidebar and the marketplace review queue reuse the same cursor.
-- **Phone (≤480px):** the brand word hides, "Official Mod" becomes "Mod" and "Marketplace" becomes "Mods". The visible text is always the link's accessible name.
+- **Phone (≤480px):** the brand word hides, "Official Mod" becomes "Mod" and "Marketplace" becomes "Market". The visible text is always the link's accessible name.
 - **Tabs (marketplace):** Silkscreen 16px caps with a 4px Red Line rule under the current tab.
 
 ### Score Line (signature)
-The cabinet's HUD runs along the top of the home hero above a 2px dashed white-12% rule. Labels are Silkscreen 16px Quiet and values are Silkscreen 700 24px Ink with tabular figures. Online carries an 8px Red Line square and a stepped trend arrow (Red Line up, Quiet down) that compares the current count with the 24-hour average. Values only mirror what the shared scripts wrote, and missing data shows `--` in Quiet. The Effects switch sits at the right end.
+The cabinet's HUD runs along the top of the home hero above a 2px dashed white-12% rule. Labels are Silkscreen 16px Quiet and values are Silkscreen 700 24px Ink with tabular figures. Online carries an 8px Red Line square and a stepped trend arrow (Red Line up, Quiet down) that compares the current count with the 24-hour average. Values only mirror what the shared scripts wrote, and missing data shows `--` in Quiet. The Effects switch sits at the right end. The numbers are ambient: none of them is a live region, so a screen reader is not interrupted each time they refresh.
 
 ### Title Rule (signature)
 Section titles sit between two pixel lines: a 2px Line Strong line ending in an 8px Red Line block on each side. On phones the lines run full width above and below a wrapped title. Section titles on home and `/mod/` also carry the Phosphor Glow.
 
 ### High-Score Chart (signature)
-The player chart, redrawn by `arcade-chart.js` over `history.js`, keeps its data, ranges, keyboard support and readout. Lines are snapped to a 4px grid as horizontal-then-vertical runs: a 2px Red Line stroke with square caps and a 2×2 checker dither under the line in red mixed 55% with Ground. Gridlines are dotted 2px Line Strong. The inspected sample is an 8px Ink square, and its readout appears in a Box Ink tooltip (Archivo 600 14px, tabular) that flips to the left near the right edge.
+The player chart, redrawn by `arcade-chart.js` over `history.js`, keeps its data, ranges, keyboard support and readout. The plot is exposed as a slider over its samples (arrows step one sample, Page Up and Page Down a tenth of the range, Home and End the ends), with the inspected sample as its value text. Lines are snapped to a 4px grid as horizontal-then-vertical runs: a 2px Red Line stroke with square caps and a 2×2 checker dither under the line in red mixed 55% with Ground. Gridlines are dotted 2px Line Strong. The inspected sample is an 8px Ink square, and its readout appears in a Box Ink tooltip (Archivo 600 14px, tabular) that flips to the left near the right edge. The tooltip sets the time on one line and the counts in bold under it, and on a narrow chart it sits above or below the sample instead of beside it. A 24-hour axis names the weekday in its labels, since its two ends share a time of day.
 
 ### Select Screen (signature, `/mod/`)
 The 39-module catalog is a character-select board. Groups have Silkscreen 24px headings with a dashed rule and a Quiet count. Each module is a slot in a Box frame, at least 60px tall, with Archivo 600 15px names. Slots are a list, not controls, so they do not react to the pointer; a hover state would promise an action that does not exist. On phones the slots go to two columns.
@@ -504,10 +509,19 @@ The 39-module catalog is a character-select board. Groups have Silkscreen 24px h
 Captures sit inside the Cabinet Frame. On `/mod/` the bezel adds a black 2px screen edge, a 44px chin with a Silkscreen nameplate (Quiet) and an 8px Red Line power light. Each capture links to its full-size file (zoom-in cursor) and is never filtered or recoloured.
 
 ### Warning Panel
-The attract-mode WARNING screen is a Red Line stepped frame around a Warning Face. A Red Text Silkscreen 700 24px title with a stepped warning glyph sits beside Archivo 16px Ink prose. It never blinks and never sits under effects.
+The attract-mode WARNING screen is a Red Line stepped frame around a Warning Face, up to 840px wide so its prose stays near 75 characters a line. It sits at the fold of the home hero and under the pitch in the `/mod/` hero, with the same words. A Red Text Silkscreen 700 24px title with a stepped warning glyph sits beside Archivo 16px Ink prose. It never blinks and never sits under effects.
 
 ### Stage Cards
 Install steps are numbered stages. Each has a Red Text Silkscreen 700 64px numeral with the word STAGE in Quiet 16px caps beneath it, and a Silkscreen 24px step name above Archivo prose. On `/mod/` they are three Cabinet Frame cards. In the home install dialog they form a 56px numeral column.
+
+### Channel Note
+Wherever a download follows the chosen channel (under the split key, in the install dialog, beside SELECT PLATFORM and in the `/mod/` download note), a line names Nightly while it is chosen. It is Archivo 15px Soft with an 8px Red Line square, and it is hidden while Beta is chosen.
+
+### Skip Link
+The first Tab stop on home, `/mod/`, the not-found page and every chapter of the book is a Box Ink key in pixel caps that stays off screen until focused. It reads "Skip to content", or "Skip to chapter" in the book.
+
+### Not-Found Page
+Any missing address outside the book gets a still page on the ground colour: the shared header, a ruled pixel title, one sentence, and three Pixel Box Keys back to Home, Official Mod and Docs. It runs no scene and no effects.
 
 ### Effects Switch
 A 28×16 stepped track in Line Strong with an 8px Quiet knob reads EFFECTS ON or OFF in Silkscreen caps. When on, the track turns Red Press and the knob moves right in Ink. It sets `aria-pressed`.
@@ -525,6 +539,7 @@ A 28×16 stepped track in Line Strong with an 8px Quiet knob reads EFFECTS ON or
 - **Do** show live numbers only from the real API, and show `--` in Quiet when they are missing.
 - **Do** keep the Effects switch visible wherever a scene runs, and freeze to a still frame under reduced motion.
 - **Do** keep targets at 44px or more and focus rings at 2px Red Line, or Ink on red keys.
+- **Do** give anything drawn with `clip-path`, a pseudo-element face or a `box-shadow` a real `CanvasText` border under `@media (forced-colors: active)`, and mark chosen states with `Highlight`.
 
 ### Don't:
 - **Don't** hardcode a red hex anywhere in the site's code.

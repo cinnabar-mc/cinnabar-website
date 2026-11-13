@@ -25,7 +25,7 @@ Static pages served from a Cloudflare static-assets Worker. Live aggregates come
 ## Capabilities and Constraints
 
 - Home carries only its existing content: the logo, tagline, edition line, platform-aware download with a Beta/Nightly channel choice, install dialogs (Linux command, macOS architecture and first-open guidance, all-platform list), download total, server-risk warning, online and unique counts, and the player history chart with its 24h/7d/30d ranges. The owner confirmed this redesign adds no new product claims to the home page.
-- `/mod/` carries its existing content: the anonymous WASM download, 39-module catalog, settings and HUD Layout, profiles, waypoints, autosave, three-step install, Discord help.
+- `/mod/` carries its existing content: the anonymous WASM download, 39-module catalog, settings and HUD Layout, profiles, waypoints, autosave, three-step install, Discord help. It also carries the home page's server-risk warning, word for word, beside its download.
 - `/mods/` is the community mod marketplace: browsing, project pages, per-account libraries the client downloads from, a creator editor, and staff review, report, role and audit screens. The default build targets the separate Cinnabar API; an explicit mock build is a clearly labelled preview with sample data. Runtime grants, compatibility and installation stay client responsibilities, and the site never invents a scan or review pass.
 - `/docs/modding/` is a generated book. Chapter text is upstream; the site owns its theme and shared header.
 - Release filenames, API origin, branding and the book come from the client repository through `source.json`. There is no build step beyond `render.py`, and no framework.
@@ -53,4 +53,4 @@ Static pages served from a Cloudflare static-assets Worker. Live aggregates come
 
 ## Accessibility & Inclusion
 
-Keep the existing keyboard support: the channel menu's arrow keys and Escape, chart inspection with arrows and Home/End, focus-visible states and 44px targets. Keep reduced-motion respect in any motion added.
+Keep the existing keyboard support: the channel menu's arrow keys, Home, End and Escape, chart inspection as a slider with arrows, Page Up and Page Down, and Home and End, a skip link as the first Tab stop on every page, focus-visible states and 44px targets. Keep the layout reflowing at 320px, real edges under forced colours, and reduced-motion respect in any motion added. Live numbers are not announced as they refresh.

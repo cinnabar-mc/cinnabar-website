@@ -78,14 +78,20 @@
     if (!shown) { tip.hidden = true; return; }
     const x = snap(Number(marker.getAttribute('cx'))), y = snap(Number(marker.getAttribute('cy')));
     square.setAttribute('x', x - 4); square.setAttribute('y', y - 4);
-    tip.textContent = detail ? detail.textContent : '';
-    tip.hidden = !tip.textContent;
-    const width = plot.clientWidth;
-    const flip = x > width - 260;
-    tip.style.left = `${x}px`;
+    // The readout is "when · what": the time on its own line, the counts under it, so no part is ever cut off.
+    const [when, ...what] = (detail ? detail.textContent : '').split(' · ');
+    const first = document.createElement('span'), second = document.createElement('strong');
+    first.textContent = when; second.textContent = what.join(' · ');
+    tip.replaceChildren(first, second);
+    tip.hidden = !when;
+    // Sit beside the sample where there is room, on whichever side has it; on a narrow chart sit above or below it.
+    const room = body.clientWidth, width = tip.offsetWidth;
+    let left = x + 16, place = y < 64 ? 'below' : 'beside';
+    if (left + width > room) left = x - 16 - width;
+    if (left < 0) { left = Math.max(0, Math.min(room - width, x - width / 2)); place = y < plot.clientHeight / 2 ? 'below' : 'above'; }
+    tip.style.left = `${left}px`;
     tip.style.top = `${y}px`;
-    tip.dataset.side = flip ? 'left' : 'right';
-    tip.dataset.below = y < 64 ? 'true' : 'false';
+    tip.dataset.place = place;
   }
 
   new MutationObserver(records => { if (records.some(r => r.addedNodes.length)) enhance(); }).observe(plot, { childList: true });

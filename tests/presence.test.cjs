@@ -96,11 +96,33 @@ test('pauses polling in background tabs and refreshes on return', async () => {
   assert.equal(p.requests.length, 2);
   assert.equal(p.timers.size, 2);
   await p.visible(false);
-  assert.equal(p.label.textContent, '');
   assert.equal(p.timers.size, 0);
   await p.visible(true);
   assert.equal(p.requests.length, 4);
   assert.equal(p.label.textContent, '2 people are using Cinnabar right now');
+});
+
+test('a hidden tab keeps its last count so returning does not flash an empty score, and a failed refresh clears it', async () => {
+  let reply = {online: 2, unique: 20};
+  const p = await page(() => reply);
+  await p.visible(false);
+  assert.equal(p.label.textContent, '2 people are using Cinnabar right now');
+  assert.equal(p.unique.textContent, '20 unique users');
+  reply = new Error('offline');
+  await p.visible(true);
+  assert.equal(p.label.textContent, '');
+  assert.equal(p.unique.textContent, '');
+});
+
+test('an unchanged count is not written again, so nothing observing the label is disturbed', async () => {
+  const p = await page({online: 9});
+  let writes = 0;
+  let text = p.label.textContent;
+  Object.defineProperty(p.label, 'textContent', {get: () => text, set(value) { writes++; text = value; }});
+  await p.refresh({online: 9});
+  assert.equal(writes, 0);
+  await p.refresh({online: 10});
+  assert.equal(writes, 1);
 });
 
 
@@ -115,7 +137,6 @@ test('shows unique users independently with zero, singular and formatted totals'
   await p.refresh({online: 1, unique: 12345});
   assert.equal(p.unique.textContent, `${(12345).toLocaleString()} unique users`);
   await p.visible(false);
-  assert.equal(p.unique.textContent, '');
   assert.equal(p.timers.size, 0);
   await p.visible(true);
   assert.notEqual(p.unique.textContent, '');

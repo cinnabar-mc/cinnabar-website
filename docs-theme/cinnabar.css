@@ -11,6 +11,7 @@
     --page-padding: 32px;
     --code-font-size: .875em;
     --bg: var(--ground);
+    /* Book Ink: the reading column's body text, one step calmer than Ink. */
     --fg: #ece8e2;
     --sidebar-bg: var(--ground);
     --sidebar-fg: var(--soft);
@@ -61,8 +62,8 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 html .page #mdbook-menu-bar { position: fixed; top: 0 !important; left: calc(var(--gutter) + 156px); z-index: 201; display: flex; align-items: center; width: auto; height: var(--site-header-height); margin: 0; border: 0; background: transparent; }
 #mdbook-menu-bar .left-buttons { display: flex; align-items: center; gap: 8px; margin: 0; }
 #mdbook-menu-bar .icon-button { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border-radius: 0; color: var(--soft); line-height: 1; transition: color .15s ease-out, background-color .15s ease-out, border-color .15s ease-out, transform .08s steps(1, end); }
-#mdbook-menu-bar .icon-button:hover { background: #ffffff1a; color: var(--ink); }
-#mdbook-menu-bar .icon-button:active { background: #ffffff0f; transform: translateY(1px); }
+#mdbook-menu-bar .icon-button:hover { background: var(--hover-wash); color: var(--ink); }
+#mdbook-menu-bar .icon-button:active { background: var(--press-wash); transform: translateY(1px); }
 #mdbook-menu-bar .fa-svg { padding: 0; line-height: 1; font-size: 16px; }
 #mdbook-menu-bar-hover-placeholder, #mdbook-menu-bar .menu-title,
 #mdbook-menu-bar #mdbook-theme-toggle, #mdbook-theme-list, #mdbook-menu-bar .right-buttons, .nav-wide-wrapper { display: none; }
@@ -99,6 +100,7 @@ html .page #mdbook-menu-bar { position: fixed; top: 0 !important; left: calc(var
 .content { padding: 56px 0 64px; overflow-y: visible; font-size: 16px; line-height: 1.65; }
 .content main { max-width: var(--content-max-width); color: var(--fg); }
 .content p, .content ol, .content ul { line-height: 1.68; }
+.content p, .content li { text-wrap: pretty; }
 .content li { margin-block: 6px; }
 .content li::marker { color: var(--quiet); }
 :target { scroll-margin-top: calc(var(--site-header-height) + 24px); }
@@ -188,14 +190,22 @@ ul#mdbook-searchresults span.teaser em { color: var(--ink); font-weight: 500; }
 .mobile-nav-chapters.next .chapter-name, .mobile-nav-chapters.next::after { grid-column: 1; }
 .mobile-nav-chapters.next::after { content: "Next"; }
 
+/* The site's affiliation line closes every chapter. */
+.book-foot { max-width: var(--content-max-width); margin: 32px auto 0; color: var(--quiet); font: 400 14px/1.5 var(--sans); }
+
 /* Below the wide layout the sidebar is a drawer over the page, under the fixed header. */
 @media (max-width: 1079px) {
     #mdbook-sidebar-toggle-anchor:checked ~ .page-wrapper { margin-inline-start: 0; transform: none; }
-    #mdbook-sidebar-toggle-anchor:checked ~ .page-wrapper::before { content: ""; position: fixed; inset: var(--site-header-height) 0 0; z-index: 140; background: #0b0a09b3; pointer-events: none; }
+    /* The dim layer takes taps, so they close the drawer (cinnabar.js) instead of reaching the page under it. */
+    #mdbook-sidebar-toggle-anchor:checked ~ .page-wrapper::before { content: ""; position: fixed; inset: var(--site-header-height) 0 0; z-index: 140; background: var(--backdrop); }
     .sidebar { box-shadow: 24px 0 48px -24px #000c; }
 }
 @media (max-width: 700px) {
     :root, .navy, .light, .rust, .coal, .ayu { --page-padding: 20px; }
+    /* Long names break (after "::" and "_" where cinnabar.js marked them) so every column stays on screen. */
+    .content table td code { white-space: normal; overflow-wrap: anywhere; }
+    .content table th, .content table thead th { white-space: normal; }
+    .content table th, .content table td { padding-inline: 12px; }
     .content { padding-top: 36px; font-size: 16px; }
     .content h1 + p { font-size: 17px; }
     .content h2 { margin-top: 44px; padding-top: 32px; font-size: 22px; }
@@ -213,7 +223,7 @@ ul#mdbook-searchresults span.teaser em { color: var(--ink); font-weight: 500; }
 }
 
 @media print {
-    .site-header, #mdbook-menu-bar { display: none; }
+    .site-header, #mdbook-menu-bar, .skip-to-content { display: none; }
     .page-wrapper { padding-top: 0; }
 }
 

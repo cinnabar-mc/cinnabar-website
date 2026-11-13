@@ -59,6 +59,15 @@ test('links formatted zero, singular and plural package totals to the shared rel
   assert.equal([...p.timers.values()][0].delay, 900000);
 });
 
+test('a failed total is retried within a minute instead of staying missing for a quarter of an hour', async () => {
+  const p = await page(new Error('timeout'));
+  assert.equal(p.label.children.length, 0);
+  assert.deepEqual([...p.timers.values()].map(timer => timer.delay), [60000]);
+  await p.refresh({downloads: 5});
+  assert.equal(p.label.children[1].children[0].textContent, '5');
+  assert.deepEqual([...p.timers.values()].map(timer => timer.delay), [900000]);
+});
+
 test('clears unavailable or malformed totals and recovers without showing a fabricated zero', async () => {
   const p = await page();
   for (const invalid of [new Error('offline'), new DOMException('timeout', 'TimeoutError'), 'http-error',
@@ -80,10 +89,11 @@ test('pauses in background tabs and does not paint requests completed while hidd
   let finish;
   const refreshing = p.refresh(() => new Promise(resolve => { finish = resolve; }));
   await p.visible(false);
-  assert.equal(p.label.children.length, 0);
+  // A hidden tab keeps the last total, so returning to it does not flash an empty score.
+  assert.equal(p.label.children[1].children[0].textContent, '2');
   finish({downloads: 3});
   await refreshing;
-  assert.equal(p.label.children.length, 0);
+  assert.equal(p.label.children[1].children[0].textContent, '2');
   assert.equal(p.timers.size, 0);
   await p.visible(true);
   finish({downloads: 4});

@@ -64,6 +64,19 @@
       + " · Local time · Gaps mean no data";
   }
 
+  /** Words one observed bucket: when it was, how many players, and its peak when the bucket is an average. */
+  function describe(point) {
+    return timestamp.format(point.at) + " · " + number.format(point.online) + " players"
+      + (data.interval_ms > 60000 ? " average · Peak " + number.format(point.peak) : "");
+  }
+
+  /** Tells assistive technology which sample the chart's slider is on, as its position and its wording. */
+  function announce(index) {
+    plot.setAttribute("aria-valuemax", data.points.length - 1);
+    plot.setAttribute("aria-valuenow", index);
+    plot.setAttribute("aria-valuetext", describe(data.points[index]));
+  }
+
   /** Shows one observed bucket's value for pointer and keyboard users. */
   function inspect(index) {
     if (!data || !coordinates || !data.points.length) return;
@@ -73,8 +86,8 @@
     cursor.setAttribute("x1", x); cursor.setAttribute("x2", x);
     marker.setAttribute("cx", x); marker.setAttribute("cy", y);
     cursor.setAttribute("visibility", "visible"); marker.setAttribute("visibility", "visible");
-    detail.textContent = timestamp.format(point.at) + " · " + number.format(point.online) + " players"
-      + (data.interval_ms > 60000 ? " average · Peak " + number.format(point.peak) : "");
+    detail.textContent = describe(point);
+    announce(selected);
   }
 
   /** Restores the chart's reading guide when a sample is no longer selected. */
@@ -98,10 +111,17 @@
       svg("line", { x1: g.left, x2: g.right, y1: g.y(value), y2: g.y(value), class: "chart-grid" });
       svg("text", { x: g.left - 8, y: g.y(value) + 4, "text-anchor": "end" }, number.format(value));
     });
-    const format = new Intl.DateTimeFormat(undefined, range === "24h" ? { hour: "2-digit", minute: "2-digit" } : { month: "short", day: "numeric" });
-    [data.from, (data.from + data.to) / 2, data.to].forEach(function (at, index) {
-      svg("text", { x: g.x(at), y: height - 8, "text-anchor": ["start", "middle", "end"][index] }, format.format(at));
+    // A day's axis starts and ends at the same time of day, so its labels also name the weekday.
+    const day = range === "24h", span = g.right - g.left;
+    const format = new Intl.DateTimeFormat(undefined, day ? { weekday: "short", hour: "2-digit", minute: "2-digit" } : { month: "short", day: "numeric" });
+    // On a narrow day chart the start label keeps only its weekday, so both ends fit and still differ.
+    const start = day && span < 440 ? new Intl.DateTimeFormat(undefined, { weekday: "short" }) : format;
+    const labels = [data.from, (data.from + data.to) / 2, data.to].map(function (at, index) {
+      return svg("text", { x: g.x(at), y: height - 8, "text-anchor": ["start", "middle", "end"][index] }, (index ? format : start).format(at));
     });
+    // If the two ends would still touch, the start label goes and the end keeps its full time.
+    if (typeof labels[0].getComputedTextLength === "function"
+      && labels[0].getComputedTextLength() + labels[2].getComputedTextLength() + 16 > span) plot.removeChild(labels[0]);
     g.segments.forEach(function (segment) {
       if (segment.length === 1) {
         svg("circle", { cx: segment[0].x, cy: segment[0].y, r: 3, class: "chart-point" });
@@ -112,7 +132,7 @@
     cursor = svg("line", { y1: g.top, y2: g.bottom, class: "chart-cursor", visibility: "hidden" });
     marker = svg("circle", { r: 4, class: "chart-point", visibility: "hidden" });
     if (selected >= 0) inspect(selected);
-    else clearSelection();
+    else { clearSelection(); announce(data.points.length - 1); }
   }
 
   /** Clears old readings when a range is empty, loading, or unavailable. */
@@ -151,7 +171,7 @@
       summary.textContent = "Peak " + number.format(peak) + " · Average " + number.format(sum / samples);
       draw();
     } catch (error) {
-      if (request === sequence) showMessage("Player history is unavailable. Trying again shortly.");
+      if (request === sequence) showMessage("Player history is unavailable. Trying again in a few minutes.");
     } finally {
       if (request === sequence && window.CINNABAR_ACTIVITY.active()) timer = window.setTimeout(load, 300000);
     }
@@ -181,11 +201,14 @@
   plot.addEventListener("pointerleave", function (event) { if (event.pointerType !== "touch") clearSelection(); });
   plot.addEventListener("blur", clearSelection);
   plot.addEventListener("focus", function () { if (data && selected < 0) inspect(data.points.length - 1); });
+  /** Arrow keys step one sample (up and right are later), Page keys a tenth of the range, Home and End the ends. */
+  const steps = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -.1, PageUp: .1 };
   plot.addEventListener("keydown", function (event) {
-    if (!data || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    if (!data || !(event.key in steps || event.key === "Home" || event.key === "End")) return;
     event.preventDefault();
-    inspect(event.key === "Home" ? 0 : event.key === "End" ? data.points.length - 1
-      : (selected < 0 ? data.points.length - 1 : selected) + (event.key === "ArrowLeft" ? -1 : 1));
+    const last = data.points.length - 1, step = steps[event.key];
+    inspect(event.key === "Home" ? 0 : event.key === "End" ? last
+      : (selected < 0 ? last : selected) + (Math.abs(step) === 1 ? step : Math.sign(step) * Math.max(1, Math.round(last / 10))));
   });
   window.CINNABAR_ACTIVITY.subscribe(load);
   if (typeof ResizeObserver !== "undefined") new ResizeObserver(draw).observe(plot);

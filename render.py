@@ -2,11 +2,11 @@
 """Render the standalone site using Cinnabar's original artwork and release filenames."""
 
 import argparse
+from html import escape
 import json
 import os
 import re
 from pathlib import Path
-import random
 import shutil
 import subprocess
 import tempfile
@@ -26,6 +26,15 @@ INPUTS = load_config()["inputs"]
 MOD_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")
 # Files served under /assets/: gameplay captures and any self-hosted fonts.
 PUBLIC_ASSETS = ("gameplay", "fonts")
+# Widths of the WebP copies of the logotype. Pages pick one through srcset; the full PNG stays as the fallback.
+TITLE_WIDTHS = (720, 1440)
+# The server-risk warning, shown word for word on the home page and the mod page.
+WARNING = ("Cinnabar is a non-vanilla client and still in development. Its movement and combat may not yet match "
+           "the official client exactly, so server anticheats may flag you and some servers may ban you. "
+           "Play on servers at your own risk.")
+# Each page template and where it is published.
+PAGES = (("index.html.in", "index.html"), ("mod.html.in", "mod/index.html"), ("mods.html.in", "mods/index.html"),
+         ("404.html.in", "404.html"))
 
 
 def build_book(repository, output, red, header):
@@ -48,6 +57,7 @@ def build_book(repository, output, red, header):
         environment = dict(os.environ, **{
             "MDBOOK_OUTPUT__HTML__THEME": "theme",
             "MDBOOK_OUTPUT__HTML__ADDITIONAL_CSS": '["theme/cinnabar.css"]',
+            "MDBOOK_OUTPUT__HTML__ADDITIONAL_JS": '["theme/cinnabar.js"]',
             "MDBOOK_OUTPUT__HTML__DEFAULT_THEME": "navy",
             "MDBOOK_OUTPUT__HTML__PREFERRED_DARK_THEME": "navy",
             "MDBOOK_OUTPUT__HTML__NO_SECTION_LABEL": "true",
@@ -59,6 +69,34 @@ def build_book(repository, output, red, header):
         subprocess.run([str(executable), "build", str(staged), "--dest-dir", str(destination)],
                        env=environment, check=True)
     label_chapter_links(destination)
+    frame_chapters(destination)
+
+
+def frame_chapters(book):
+    """Give every chapter a skip link as its first Tab stop and the site's affiliation line after its navigation."""
+    skip = '<a class="skip-to-content" href="#mdbook-content">Skip to chapter</a>'
+    foot = '<p class="book-foot">Not affiliated with Mojang or Microsoft.</p>'
+    for page in book.rglob("*.html"):
+        html = page.read_text()
+        if 'id="mdbook-content"' not in html:
+            continue
+        html = re.sub(r"(<body[^>]*>)", lambda match: match[1] + skip, html, count=1)
+        start = html.find('<nav class="nav-wrapper"')
+        end = html.find("</nav>", start) + len("</nav>") if start >= 0 else -1
+        if end > 0:
+            html = html[:end] + foot + html[end:]
+        page.write_text(html)
+
+
+def link_release_assets(page, config):
+    """Give every direct download its Beta address at build time, so the links work before any script runs."""
+    assets = {**config["assets"], **config["manual_assets"]}
+
+    def linked(match):
+        """Add the address of one platform's file to its link."""
+        platform, architecture = match[2].split("/")
+        return f'{match[1]} href="{escape(config["download_base"] + assets[platform][architecture])}"'
+    return re.sub(r'(<a\b[^>]*\bdata-release-asset="([^"]+)")', linked, page)
 
 
 def label_chapter_links(book):
@@ -127,13 +165,16 @@ def build(repository, output, marketplace_backend="http"):
         "@@FAVICON@@": "data:image/svg+xml," + quote(icon, safe=""),
         "@@REPOSITORY_URL@@": repository_url,
         "@@API_ORIGIN@@": api_origin.rstrip("/"),
+        "@@TITLE_SRCSET@@": ", ".join(f"/title-{width}.webp {width}w" for width in TITLE_WIDTHS),
+        "@@WARNING@@": WARNING,
         "@@SITE_HEADER_STYLES@@": (HERE / "site-header.css").read_text(encoding="utf-8"),
+        "@@ARCADE_STYLES@@": (HERE / "arcade.css").read_text(encoding="utf-8"),
     }
     output.mkdir(parents=True, exist_ok=True)
     header = (HERE / "site-header.html.in").read_text(encoding="utf-8")
     for marker, value in replacements.items():
         header = header.replace(marker, value)
-    for template, target in (("index.html.in", "index.html"), ("mod.html.in", "mod/index.html"), ("mods.html.in", "mods/index.html")):
+    for template, target in PAGES:
         page_header = header.replace("@@DOCS_CURRENT@@", "").replace(
             "@@MOD_CURRENT@@", ' aria-current="page"' if target.startswith("mod/") else "").replace(
             # The marketplace is hidden from the rest of the site for now; only its own page links to itself.
@@ -141,6 +182,7 @@ def build(repository, output, marketplace_backend="http"):
         page = (HERE / template).read_text(encoding="utf-8").replace("@@SITE_HEADER@@", page_header)
         for marker, value in replacements.items():
             page = page.replace(marker, value)
+        page = link_release_assets(page, config)
         destination = output / target
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(page, encoding="utf-8")
@@ -166,18 +208,11 @@ def build(repository, output, marketplace_backend="http"):
     for script in ("arcade-scene.js", "arcade-ui.js", "arcade-chart.js"):
         shutil.copyfile(HERE / script, output / script)
     shutil.copyfile(repository / INPUTS["title"], output / "title.png")
+    subprocess.run(["node", str(HERE / "build-images.mjs"), str(output / "title.png"), str(output),
+                    *map(str, TITLE_WIDTHS)], check=True)
     for directory in PUBLIC_ASSETS:
         if (HERE / "assets" / directory).is_dir():
             shutil.copytree(HERE / "assets" / directory, output / "assets" / directory, dirs_exist_ok=True)
-    rng = random.Random(27)
-    colors = ["#1c221d", "#202620", "#242a23", "#262d25", "#1f251f"]
-    pixels = "".join(
-        f'<rect x="{x}" y="{y}" width="16" height="16" fill="{rng.choice(colors)}"/>'
-        for y in range(0, 256, 16) for x in range(0, 256, 16)
-    )
-    (output / "texture.svg").write_text(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">' + pixels + "</svg>"
-    )
     build_book(repository, output, red, header)
 
 

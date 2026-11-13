@@ -90,6 +90,17 @@ test('renders measured data, supports keyboard inspection, and retries after err
   assert.match(p.elements['history-detail'].textContent, /0 players/);
   plot.events.keydown({key: 'ArrowRight', preventDefault() {}});
   assert.match(p.elements['history-detail'].textContent, /8 players/);
+  // The plot is a slider: its position and wording follow the inspected sample for assistive technology.
+  assert.equal(plot.attributes['aria-valuenow'], 1);
+  assert.equal(plot.attributes['aria-valuemax'], 2);
+  assert.equal(plot.attributes['aria-valuetext'], p.elements['history-detail'].textContent);
+  for (const [key, players] of [['PageUp', 4], ['ArrowDown', 8], ['PageDown', 0], ['ArrowUp', 8], ['End', 4], ['Home', 0], ['ArrowRight', 8]]) {
+    plot.events.keydown({key, preventDefault() {}});
+    assert.match(plot.attributes['aria-valuetext'], new RegExp(` ${players} players`));
+  }
+  let scrolled = true;
+  plot.events.keydown({key: 'Tab', preventDefault() { scrolled = false; }});
+  assert.equal(scrolled, true);
   plot.events.pointerdown({clientX: 32, pointerType: 'touch'});
   plot.events.focus();
   plot.events.pointerleave({pointerType: 'touch'});

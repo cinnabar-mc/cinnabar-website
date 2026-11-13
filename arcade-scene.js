@@ -235,7 +235,8 @@
 
     // A waxing gibbous moon: a pixel disc lit from the upper left, a dithered terminator, rimmed craters and a two-step halo.
     const ms = narrow ? 11 : 17;
-    const mx = Math.round(W * (narrow ? .8 : .13)), my = Math.round(H * (narrow ? .245 : .18)) + ext;
+    // On a phone the moon and its halo sit against the right edge, clear of the centred lines of text.
+    const mx = narrow ? W - ms - 9 : Math.round(W * .13), my = Math.round(H * (narrow ? .245 : .18)) + ext;
     const mr = ms / 2, mcx = mx + mr, mcy = my + mr;
     for (let y = my - 9; y < my + ms + 9; y++) {
       for (let x = mx - 9; x < mx + ms + 9; x++) {

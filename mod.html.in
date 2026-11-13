@@ -12,6 +12,7 @@
   <script>try { var fx = localStorage.getItem('cinnabar-arcade-fx'); document.documentElement.dataset.fx = fx || (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on'); } catch (error) {}</script>
   <style>
     @@SITE_HEADER_STYLES@@
+    @@ARCADE_STYLES@@
     :root { --cinnabar-red: @@RED@@; --solid-at: 120px; color-scheme: dark; }
     * { box-sizing: border-box; }
     html { background: var(--ground); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -21,16 +22,11 @@
     a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
     button { font: inherit; color: inherit; cursor: pointer; }
     img { display: block; max-width: 100%; height: auto; }
+    picture { display: contents; }
     .wrap { width: min(100% - 2 * var(--gutter), var(--page)); margin-inline: auto; }
     code { font: 400 .9em/1.5 var(--mono); }
 
-    /* The same world, seen from the other side of the ore. */
-    .scene { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: var(--ground); }
-    .scene canvas { position: absolute; left: 0; top: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
-    .scene-bloom { mix-blend-mode: screen; opacity: .6; }
-    .scene-crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, #0000 0 calc(var(--px, 4px) - 1px), #00000052 calc(var(--px, 4px) - 1px) var(--px, 4px)); }
-    :root[data-fx="off"] .scene-bloom, :root[data-fx="off"] .scene-crt { display: none; }
-
+    /* The same world as the home page, seen from the other side of the ore. */
     .hero { position: relative; isolation: isolate; min-height: min(760px, 100svh); padding: calc(var(--site-header-height) + 8px) var(--gutter) 200px; overflow: clip; }
     .hero-bar { display: flex; justify-content: flex-end; width: min(100%, var(--page)); margin-inline: auto; }
     .hero-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px 64px; align-items: center; width: min(100%, var(--page)); margin: 24px auto 0; }
@@ -47,13 +43,9 @@
     .download-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .4em; min-height: 44px; margin-top: 10px; color: var(--soft); font: 400 15px/1.5 var(--sans); text-shadow: 0 1px 2px var(--ground); }
     .download-note a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: var(--red-line); }
     .download-note a:hover { text-decoration-color: currentColor; }
-    .fx-toggle { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--soft); font: 400 16px/1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
-    .fx-toggle:hover { background: #ffffff14; color: var(--ink); }
-    .fx-switch { position: relative; width: 28px; height: 16px; background: var(--line-strong); clip-path: var(--step-1); }
-    .fx-switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 8px; height: 8px; background: var(--quiet); }
-    .fx-toggle[aria-pressed="true"] .fx-switch { background: var(--red-press); }
-    .fx-toggle[aria-pressed="true"] .fx-switch::after { left: 16px; background: var(--ink); }
-    .fx-state { min-width: 3ch; text-align: left; }
+    .download-note [data-channel-note] { color: var(--ink); }
+    /* The server-risk warning from the home page spans the hero under the pitch, above the showcase. */
+    .hero-grid .warning { grid-column: 1 / -1; justify-self: center; }
 
     /* CRT bezels: the captures sit behind a cabinet screen's frame, never filtered. */
     .bezel { position: relative; padding: 14px 14px 44px; border: 10px solid; border-image: var(--frame) 10 fill / 10px stretch; }
@@ -72,6 +64,7 @@
     .lead a { color: var(--ink); text-decoration-color: var(--red-line); }
     .lead a:hover { text-decoration-color: currentColor; }
     .head { display: grid; justify-items: center; gap: 20px; text-align: center; }
+    .head .section-title { justify-self: stretch; }
     .head .lead { max-width: 60ch; }
 
     /* Character select: every module is a tile on the board, grouped by kind. */
@@ -102,16 +95,21 @@
     .stages h3 { font: 400 24px/1.1 var(--pixel); text-transform: uppercase; -webkit-font-smoothing: none; }
     .stages p:not(.stage-name) { margin-top: 8px; color: var(--soft); font: 400 16px/1.55 var(--sans); text-wrap: pretty; }
     .stages strong { color: var(--ink); font-weight: 600; }
+    .stages a { color: var(--ink); text-decoration-color: var(--red-line); }
+    .stages a:hover { text-decoration-color: currentColor; }
     .help { margin-top: 32px; color: var(--soft); font: 400 17px/1.6 var(--sans); }
     .help a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration-color: var(--red-line); }
     .help a:hover { text-decoration-color: currentColor; }
 
     footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 32px; align-items: end; margin-top: 128px; padding-block: 32px 40px; border-top: 2px solid var(--line); color: var(--quiet); font: 400 14px/1.5 var(--sans); }
+    footer p { text-wrap: pretty; }
     .foot-logo { grid-column: 1 / -1; width: min(100%, 220px); margin: -16px 0 -16px -10px; }
 
     @media (max-width: 900px) {
       .hero { padding-bottom: 168px; }
       .hero-grid { grid-template-columns: minmax(0, 1fr); }
+      /* Stacked, the note crosses the formation, so it sits on its own ground plate. */
+      .download-note { padding: 2px 12px; border: 4px solid; border-image: var(--box-quiet) 4 fill / 4px stretch; text-shadow: none; }
       section { padding-top: 96px; }
       .section-title { font-size: 24px; }
       .catalog { grid-template-columns: minmax(0, 1fr); }
@@ -120,9 +118,8 @@
       footer { grid-template-columns: minmax(0, 1fr); }
     }
     @media (max-width: 640px) {
-      /* The note sits on its own ground plate, and the hero runs long enough that the formation stands below the content. */
+      /* The hero runs long enough that the formation stands below the content. */
       .hero { padding-bottom: 264px; }
-      .download-note { padding: 2px 12px; border: 4px solid; border-image: var(--box-quiet) 4 fill / 4px stretch; text-shadow: none; }
       .download-note .note-sep { display: none; }
       .download-note a { flex-basis: 100%; }
     }
@@ -143,8 +140,9 @@
   </style>
 </head>
 <body class="site">
+  <a class="skip-to-content" href="#content">Skip to content</a>
   @@SITE_HEADER@@
-  <main>
+  <main id="content">
     <div class="hero">
       <div class="scene" aria-hidden="true">
         <canvas class="scene-canvas" data-scene="surface" data-ore="left" width="320" height="180"></canvas>
@@ -153,7 +151,7 @@
       </div>
       <div class="hero-bar"><button type="button" class="fx-toggle" data-fx-toggle aria-pressed="true"><span class="fx-switch" aria-hidden="true"></span>Effects <span class="fx-state" data-fx-state aria-hidden="true">On</span></button></div>
       <div class="hero-grid">
-        <h1><img src="/title.png" alt="Cinnabar" width="2000" height="667"> <span class="cart">Mod</span></h1>
+        <h1><picture><source type="image/webp" srcset="@@TITLE_SRCSET@@" sizes="(max-width: 600px) 92vw, 520px"><img src="/title.png" alt="Cinnabar" width="2000" height="667" fetchpriority="high"></picture> <span class="cart">Mod</span></h1>
         <div class="hero-side">
           <p class="description">Your HUD, your keybinds, your setup. The official module pack for Cinnabar.</p>
           <p class="edition">Free WASM mod for Minecraft Bedrock · Requires Cinnabar</p>
@@ -165,14 +163,18 @@
               <button type="button" class="channel-option" id="channel-nightly" role="menuitemradio" aria-checked="false" data-channel="nightly">Nightly (Unstable)<span class="hint">Built daily from dev and may break.</span></button>
             </div>
           </div>
-          <p class="download-note">Downloads <code>CinnabarClient.wasm</code><span class="note-sep" aria-hidden="true"> · </span><a href="#install">How to install</a></p>
+          <p class="download-note">Downloads <code>CinnabarClient.wasm</code><span data-channel-note hidden>(Nightly)</span><span class="note-sep" aria-hidden="true"> · </span><a href="#install">How to install</a></p>
+        </div>
+        <div class="warning" role="note" aria-labelledby="warning-title">
+          <p class="warning-title" id="warning-title"><svg viewBox="0 0 20 18" aria-hidden="true"><path d="M8 0h4v2h2v4h2v4h2v4h2v4H0v-4h2v-4h2V6h2V2h2zM9 5v6h2V5zM9 13v2h2v-2z" fill-rule="evenodd"/></svg>Warning</p>
+          <p class="disclaimer">@@WARNING@@</p>
         </div>
       </div>
     </div>
 
     <figure class="showcase">
       <div class="bezel">
-        <a class="shot" href="/mod/mods.webp" aria-label="Open the full-size Mods menu screenshot"><img src="/mod/mods.webp" alt="In game, the Mods menu of Cinnabar Mod over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"></a>
+        <a class="shot" href="/mod/mods.webp"><img src="/mod/mods.webp" alt="In game, the Mods menu of Cinnabar Mod over a blurred world: a grid of module cards with live previews, toggles and shortcut buttons, filters for HUD, Visual and Mechanic modules, and a search field." width="1532" height="862"><span class="visually-hidden"> Open the full-size screenshot.</span></a>
         <span class="bezel-label" aria-hidden="true">Cinnabar Mod</span>
       </div>
       <figcaption>The Mods menu. Search, filter, toggle and bind every module from one grid.</figcaption>
@@ -198,14 +200,14 @@
       <div class="pair">
         <figure>
           <div class="bezel">
-            <a class="shot" href="/mod/settings.webp" aria-label="Open the full-size Keystrokes settings screenshot"><img src="/mod/settings.webp" alt="In game, the Keystrokes settings drawer beside the module grid: an enable switch, a shortcut button, a sample with an Edit position button, and controls for text color, background, background opacity, scale and text shadow." width="1532" height="862" loading="lazy"></a>
+            <a class="shot" href="/mod/settings.webp"><img src="/mod/settings.webp" alt="In game, the Keystrokes settings drawer beside the module grid: an enable switch, a shortcut button, a sample with an Edit position button, and controls for text color, background, background opacity, scale and text shadow." width="1532" height="862" loading="lazy"><span class="visually-hidden"> Open the full-size screenshot.</span></a>
             <span class="bezel-label" aria-hidden="true">Settings</span>
           </div>
           <figcaption>Every module has its own settings and a live sample.</figcaption>
         </figure>
         <figure>
           <div class="bezel">
-            <a class="shot" href="/mod/layout.webp" aria-label="Open the full-size HUD Layout screenshot"><img src="/mod/layout.webp" alt="In game, HUD Layout over the world: FPS, CPS, Keystrokes and Armor Status widgets on a snapping grid, with a Modules button in the center." width="1920" height="1080" loading="lazy"></a>
+            <a class="shot" href="/mod/layout.webp"><img src="/mod/layout.webp" alt="In game, HUD Layout over the world: FPS, CPS, Keystrokes and Armor Status widgets on a snapping grid, with a Modules button in the center." width="1920" height="1080" loading="lazy"><span class="visually-hidden"> Open the full-size screenshot.</span></a>
             <span class="bezel-label" aria-hidden="true">HUD Layout</span>
           </div>
           <figcaption>HUD Layout: drag widgets anywhere on screen.</figcaption>
@@ -224,14 +226,14 @@
         <p class="lead">You need an up-to-date copy of <a href="/">Cinnabar</a> first.</p>
       </div>
       <ol class="stages">
-        <li><h3>Download</h3><p>Save <strong>CinnabarClient.wasm</strong> with the button at the top of this page.</p></li>
+        <li><h3>Download</h3><p>Save <strong>CinnabarClient.wasm</strong> with the <a href="#download">download key</a> at the top of this page.</p></li>
         <li><h3>Import</h3><p>In Cinnabar, open <strong>Settings → Mods → Import</strong>, pick the file and grant the capabilities it asks for.</p></li>
         <li><h3>Play</h3><p>Join a world and press <kbd>Right Shift</kbd>. Choose <strong>Modules</strong> to start switching things on.</p></li>
       </ol>
       <p class="help">Stuck? <a href="https://discord.gg/MeEz7BEHcM">Ask in Discord</a>.</p>
     </section>
   </main>
-  <footer class="wrap"><img class="foot-logo" src="/title.png" alt="" width="2000" height="667" loading="lazy"><p>Cinnabar Mod · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
+  <footer class="wrap"><picture><source type="image/webp" srcset="@@TITLE_SRCSET@@" sizes="220px"><img class="foot-logo" src="/title.png" alt="" width="2000" height="667" loading="lazy"></picture><p>Cinnabar Mod · The official HUD and module pack for Cinnabar.</p><p>Not affiliated with Mojang or Microsoft.</p></footer>
   <script src="/app.js" defer></script>
   <script src="/arcade-ui.js" defer></script>
   <script src="/arcade-scene.js" defer></script>
