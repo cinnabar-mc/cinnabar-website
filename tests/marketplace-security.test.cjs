@@ -132,16 +132,13 @@ test('legacy gallery data is ignored rather than saved with a submission', async
   assert.equal(response.body.listing.icon, null);
 });
 
-test('release states and approval readiness fail closed on pending, failed, missing and expired evidence', () => {
-  const version = { status: 'submitted', scan: { state: 'complete', review_ready: true, expires_at: Date.now() + 60000,
-    report: { deterministic: 'pass', ai: { verdict: 'clear' } } } };
-  assert.equal(C.scanApproval(version).ok, true);
+test('release states follow the server alone, without scan evidence', () => {
+  const version = { status: 'submitted', publication: null };
+  assert.equal(C.scanApproval, undefined);
   assert.equal(C.releaseState(version).label, 'Awaiting staff review');
-  assert.equal(C.scanApproval({ ...version, scan: undefined }).ok, false);
-  assert.equal(C.scanApproval({ ...version, scan: { ...version.scan, expires_at: 1 } }).ok, false);
-  assert.equal(C.scanApproval({ ...version, scan: { ...version.scan, report: { deterministic: 'block' } } }).ok, false);
-  for (const state of ['queued', 'running', 'failed']) assert.equal(C.scanApproval({ ...version, scan: { ...version.scan, state } }).ok, false);
-  assert.equal(C.releaseState({ ...version, publication: 'automatic' }).label, 'Publication pending');
+  assert.equal(C.releaseState({ ...version, publication: 'manual' }).label, 'Publication pending');
+  assert.equal(C.releaseState({ ...version, status: 'approved', publication: 'manual' }).label, 'Published after review');
   assert.equal(C.releaseState({ ...version, status: 'approved', publication: 'automatic' }).label, 'Published automatically');
+  assert.equal(C.releaseState({ ...version, status: 'changes' }).label, 'Changes requested');
   assert.equal(C.releaseState({ ...version, pulled: true }).label, 'Pulled');
 });

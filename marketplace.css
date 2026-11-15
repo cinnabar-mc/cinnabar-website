@@ -196,7 +196,7 @@ label { cursor: pointer; }
 .facts { display: grid; gap: 4px 0; margin: 20px 0; }
 .facts dt { margin-top: 12px; color: var(--quiet); font-size: 14px; }
 .facts dd { margin: 0; color: var(--ink); font-size: 15px; overflow-wrap: anywhere; }
-.scan-evidence .facts, .release-detail .facts { overflow-wrap: anywhere; }
+.release-detail .facts { overflow-wrap: anywhere; }
 
 /* Creator editor. */
 .editor-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin: 16px 0 32px; }
@@ -230,10 +230,9 @@ label { cursor: pointer; }
 .preview-card p { margin: 8px 0 16px; color: var(--soft); font-size: 15px; }
 .editor-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
 .editor-actions .btn.primary { margin-left: auto; }
-.scan-status { display: grid; margin-top: 16px; }
-.scan-status div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
-.scan-evidence { margin-block: 24px; }
-.scan-findings { padding-inline-start: 22px; color: var(--soft); overflow-wrap: anywhere; }
+.status-rows { display: grid; margin-top: 16px; }
+.status-rows div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.review-status { margin-block: 24px; }
 .code-block { padding: 18px 20px; border: 1px solid var(--line); border-radius: 0; background: var(--raise); color: #e6e1da; font: 400 13.5px/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Staff review. */
