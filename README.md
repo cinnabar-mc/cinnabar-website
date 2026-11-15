@@ -184,11 +184,10 @@ reselect the file after reloading. Link Xbox from the account controls to send m
 to your game; enter the website link code in Cinnabar under Settings → Account →
 Link website account.
 
-Your projects and the review workspace refresh server scan/publication states every
+Your projects and the review workspace refresh server review/publication states every
 ten seconds while visible. Staff notes survive refreshes and failed requests.
-Approval requires the API's current readiness result; AI flags require an explanation.
-Staff can request rescans and administrators can manage project-specific creator
-trust. The server authorizes every action and publishes eligible established updates.
+No automated scan runs: staff download each release and review it by hand on their own
+devices. The server authorizes every action and publishes a release once its approvals are complete.
 Library removal works for public and unavailable selections, matching the exact
 saved hash and send timestamp. Installed mods are managed in Cinnabar.
 See [docs/marketplace.md](docs/marketplace.md)

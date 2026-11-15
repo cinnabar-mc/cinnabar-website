@@ -475,29 +475,12 @@
     }) : h('li', { class: 'muted' }, 'No optional permissions declared.'));
   }
 
-  /** Render server-backed scan evidence as inert text, including explicit pending/error states. */
-  function scanEvidence(version) {
-    if (!version.scan) return h('div', { class: 'notice' }, h('b', {}, previewMode ? 'Server scan evidence is not connected.' : 'Scan evidence is unavailable.'),
-      h('p', {}, previewMode ? 'Preview decisions simulate review. They do not certify code safety.' : 'Refresh to retrieve the release status. Missing evidence cannot authorize approval.'));
-    const scan = version.scan;
-    const report = scan.report;
-    const verdict = report?.ai?.verdict;
+  /** Show where a release stands in staff review; staff check each file by hand before it goes live. */
+  function reviewStatus(version) {
     const state = C.releaseState(version);
-    const status = h('section', { class: 'scan-evidence', 'aria-label': 'Server scan evidence' },
-      h('div', { class: 'row between' }, h('h3', {}, 'Release checks'), h('span', { class: 'tag ' + state.tone }, state.label)),
-      h('div', { class: 'scan-status' },
-        h('div', {}, h('span', {}, 'Scan job'), h('span', {}, scan.state)),
-        h('div', {}, h('span', {}, 'Component & media validation'), h('span', {}, report?.deterministic || 'Pending')),
-        h('div', {}, h('span', {}, 'AI-assisted review'), h('span', {}, verdict === 'clear' ? 'No concerns flagged' : verdict === 'flag' ? (version.status === 'approved' ? 'Flagged · staff-reviewed' : 'Flagged for staff review') : verdict === 'error' ? 'Failed · publication held' : 'Pending')),
-        h('div', {}, h('span', {}, 'Publication'), h('span', {}, version.publication || 'Eligibility evaluated by the API'))),
-      h('p', { class: 'small muted' }, 'Static checks and AI triage do not certify safety. Cinnabar asks before enabling permissions.'));
-    for (const [name, findings] of [['Validation findings', report?.findings], ['AI findings', report?.ai?.findings]]) {
-      if (Array.isArray(findings) && findings.length) status.append(h('h4', { class: 'gap' }, name), h('ul', { class: 'scan-findings' }, findings.slice(0, 32).map(text => h('li', {}, String(text)))));
-    }
-    if (report) status.append(h('dl', { class: 'facts small' }, h('dt', {}, 'Validator / policy'), h('dd', {}, [report.validator, report.policy].filter(Boolean).join(' · ')),
-      h('dt', {}, 'AI model / prompt'), h('dd', {}, [report.ai?.model, report.ai?.prompt].filter(Boolean).join(' · ')),
-      h('dt', {}, 'Completed'), h('dd', {}, scan.completed_at ? new Date(scan.completed_at).toLocaleString() : 'Pending')));
-    return status;
+    return h('section', { class: 'review-status', 'aria-label': 'Review status' },
+      h('div', { class: 'row between' }, h('h3', {}, 'Review'), h('span', { class: 'tag ' + state.tone }, state.label)),
+      h('p', { class: 'small muted' }, 'Staff review every release by hand before it goes live. Cinnabar asks before enabling permissions.'));
   }
 
   /** Display only safe API-derived or locally re-encoded gallery images; private previews include credentials. */
@@ -671,8 +654,8 @@
             h('td', {}, version.pulled ? 'Pulled' : version.publication === 'automatic' ? 'Published automatically' : 'Approved'),
             h('td', {}, (version.reviewers || []).join(', ') || (version.publication === 'automatic' ? 'Automatic checks' : 'Not provided')), h('td', {}, version.notes || 'Not provided')))))));
       } else if (tab === 'permissions') {
-        content.replaceChildren(h('h2', {}, 'Permissions & checks'), permissions(mod, mod.grants),
-          scanEvidence(mod),
+        content.replaceChildren(h('h2', {}, 'Permissions'), permissions(mod, mod.grants),
+          reviewStatus(mod),
           h('dl', { class: 'facts' }, h('dt', {}, 'SHA-256'), h('dd', {}, mod.sha256), h('dt', {}, 'Size'), h('dd', {}, mod.bytes + ' bytes')));
       } else {
         content.replaceChildren(galleryView(mod), C.markdown(document, mod.description));
@@ -892,8 +875,8 @@
       const checked = Boolean(draft.file && draft.parsed && draft.check);
       const rights = h('input', { type: 'checkbox', id: 'distribution-rights', checked: distributionRights,
         onchange: event => { distributionRights = event.target.checked; clearEditorError('rights'); } });
-      panel.append(h('h2', {}, 'Ready to submit'), h('p', { class: 'small muted' }, 'After you upload, we check your mod. A reviewer approves it before it goes live, and you can follow its status in Your projects.'),
-        h('div', { class: 'scan-status' },
+      panel.append(h('h2', {}, 'Ready to submit'), h('p', { class: 'small muted' }, 'After you upload, staff review your mod by hand before it goes live. You can follow its status in Your projects.'),
+        h('div', { class: 'status-rows' },
           h('div', {}, h('span', {}, 'Your mod file'), h('span', { class: checked ? 'good' : 'warning' }, checked ? '✓ Looks good' : validationPending ? 'Checking…' : 'Choose a file')),
           h('div', {}, h('span', {}, 'Review'), h('span', { class: 'muted' }, 'After upload'))),
         previewMode ? h('p', { class: 'notice gap' }, 'This is a preview. Your submission stays in this browser and will not go live.') : null,
@@ -945,7 +928,7 @@
         if (M.parseRoute(location.hash).view === 'submit') await render();
         return announce(result.body.error, true);
       }
-      announce(previewMode ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded. Follow its checks and publication status in Your projects.');
+      announce(previewMode ? 'Preview release submitted for review. No file was distributed.' : 'Release uploaded. Follow its review in Your projects.');
       storage.removeItem(draftKey(owner));
       draft = null; editorErrors = {}; distributionRights = false; step = 'project'; location.hash = '#/mine';
     });
@@ -953,14 +936,14 @@
       h('div', { class: 'editor-layout' }, h('aside', {}, h('ol', { class: 'steps' }, stepButtons)), form, preview)));
   }
 
-  /** Display immutable submitted releases and any staff note without fabricating scans. */
+  /** Display immutable submitted releases, their review state and any staff note. */
   async function mine(token, route) {
     if (!session.account) return editor(token);
     const result = await call('GET', '/me/mods');
     if (result.status !== 200) return mount(token, failure(result.body.error));
     const selected = result.body.find(version => String(version.id) === route.id) || result.body[0];
     const detail = selected ? h('section', { class: 'release-detail gap' }, h('h2', {}, selected.name + ' ' + selected.version),
-      scanEvidence(selected), selected.note ? h('p', { class: 'notice gap' }, 'Staff note: ' + selected.note) : null,
+      reviewStatus(selected), selected.note ? h('p', { class: 'notice gap' }, 'Staff note: ' + selected.note) : null,
       h('div', { class: 'detail-layout gap' }, h('div', {}, galleryView(selected), C.markdown(document, selected.description)),
         h('div', {}, h('h3', {}, 'Requested permissions'), permissions(selected, selected.grants),
           h('dl', { class: 'facts' }, h('dt', {}, 'SHA-256'), h('dd', {}, selected.sha256))))) : null;
@@ -986,8 +969,8 @@
     else if (route.tab === 'reports') staffReports(body, response.body);
     else if (route.tab === 'people') staffPeople(body, response.body);
     else staffAudit(body, response.body);
-    mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Review the evidence.'),
-      h('p', { class: 'muted' }, 'Every decision is recorded. AI findings require evidence.'))), tabs, body));
+    mount(token, h('section', {}, h('div', { class: 'editor-heading' }, h('div', {}, h('h1', {}, 'Review each release.'),
+      h('p', { class: 'muted' }, 'Download the file and check it on your own device. Every decision is recorded.'))), tabs, body));
   }
 
   /** Compute value-level changes from raw grants, ignoring an API's name-only diff. */
@@ -1010,13 +993,12 @@
     const noteKey = session.account.id + ':' + version.id;
     const notes = h('textarea', { id: 'review-note', 'data-focus-key': 'review:note', value: reviewNotes.get(noteKey) || '',
       placeholder: 'Explain the decision or requested change.', maxlength: 1000,
-      oninput: event => { reviewNotes.set(noteKey, event.target.value); updateApprove(); } });
+      oninput: event => reviewNotes.set(noteKey, event.target.value) });
     const approve = M.can(session.account, 'approve', { version });
     if (approve.ok && version.previous && version.grants?.commands?.length && !version.previous.grants && !diff?.commands) {
       approve.ok = false;
       approve.reason = 'This API does not provide the previous command values. Upgrade the API before approving command-bearing updates.';
     }
-    if (approve.ok && liveMode) Object.assign(approve, C.scanApproval(version));
     const allowed = M.can(session.account, 'review', { version });
     const decisionStatus = h('p', { class: 'error', role: 'alert' });
     /** Commit a review decision only to the selected version, retaining a failed note. */
@@ -1030,59 +1012,30 @@
       location.hash = '#/staff/queue/' + version.id; await render(); announce('Review decision recorded for ' + version.name + ' ' + version.version + '.');
     }
     const decisions = h('div', { class: 'stack gap' });
-    let approvalControl;
-    /** A flagged finding needs an explicit explanation as well as the server's ready state. */
-    function updateApprove() {
-      if (approvalControl) approvalControl.disabled = !approve.ok || (version.scan?.report?.ai?.verdict === 'flag' && !notes.value.trim());
-    }
     for (const [decision, label] of [['changes', 'Request changes'], ['approve', 'Approve release'], ['reject', 'Reject release']]) {
       const control = button(label, () => decide(decision, control), decision === 'changes' ? 'btn primary' : 'btn quiet', 'decision:' + decision);
       control.disabled = decision === 'approve' ? !approve.ok : !allowed.ok;
-      if (decision === 'approve') approvalControl = control;
       decisions.append(control);
-    }
-    updateApprove();
-    const trust = h('div');
-    if (liveMode) {
-      trust.append(h('p', { class: 'small gap' }, version.trust?.trusted
-        ? 'Established creator for this project until ' + new Date(version.trust.expires_at).toLocaleDateString() + '.' : 'Automatic publication has not been established for this project.'));
-      if (M.atLeast(session.account, 'admin') && version.creator !== session.account.id) {
-        const key = noteKey + ':trust';
-        const reason = h('input', { id: 'trust-reason', value: reviewNotes.get(key) || '', maxlength: 500, 'data-focus-key': 'review:trust-reason',
-          oninput: event => reviewNotes.set(key, event.target.value) });
-        trust.append(h('label', { class: 'field gap', for: 'trust-reason' }, 'Reason for changing creator trust', reason),
-          button(version.trust?.trusted ? 'Revoke project trust' : 'Establish project trust', async () => {
-            const result = await call('POST', '/staff/mods/' + encodeURIComponent(version.slug) + '/trust', { trusted: !version.trust?.trusted, reason: reason.value });
-            if (result.status !== 200) { decisionStatus.textContent = result.body.error; reason.focus(); return; }
-            reviewNotes.delete(key); await render(); announce('Project trust updated. The API still checks each release before publishing.');
-          }, 'btn quiet', 'review:trust'), h('p', { class: 'hint' }, 'Requires a recent sign-in and a human-approved release. Trust is scoped to this creator and project.'));
-      }
     }
     const state = C.releaseState(version);
     const review = h('div', {}, h('div', { class: 'review-top' }, h('div', {}, h('h2', {}, version.name + ' ' + version.version),
       h('p', { class: 'small muted' }, 'by ' + version.creator_name + (version.previous ? ' · Compare with ' + version.previous.version : ' · First release'))),
       h('span', { class: 'tag ' + state.tone }, state.label)),
     h('div', { class: 'review-columns' }, h('div', {},
-      scanEvidence(version), h('h3', { class: 'gap' }, 'Submitted description'), C.markdown(document, version.description), galleryView(version),
+      h('h3', {}, 'Submitted description'), C.markdown(document, version.description), galleryView(version),
       h('h3', { class: 'gap' }, 'Requested permissions'), permissions(version, version.grants),
       diff ? h('section', { class: 'rule' }, h('h3', {}, 'Changes from ' + version.previous.version),
         h('p', { class: 'small gap' }, 'Added: ' + (diff.added.join(', ') || 'None')),
         h('p', { class: 'small' }, 'Removed: ' + (diff.removed.join(', ') || 'None')),
         diff.commands ? h('div', { class: 'code-block gap' }, 'Commands added: ' + (diff.commands.added.join(', ') || 'None') + '\nCommands removed: ' + (diff.commands.removed.join(', ') || 'None'))
           : h('p', { class: 'warning small gap' }, 'This API response does not include command-value changes. Compare the exact grant lists before approving.'),
-        diff.expanded ? h('p', { class: 'warning small gap' }, 'This release expands authority and cannot publish automatically.') : null) : null,
+        diff.expanded ? h('p', { class: 'warning small gap' }, 'This release asks for more than the last approved one.') : null) : null,
       h('dl', { class: 'facts' }, h('dt', {}, 'Artifact SHA-256'), h('dd', {}, version.sha256),
         h('dt', {}, 'Approvals'), h('dd', {}, version.approvals.map(person => person.username || 'Cinnabar player').join(', ') || 'None'),
         h('dt', {}, 'Source'), h('dd', {}, C.externalUrl(version.source) ? h('a', { href: C.externalUrl(version.source), rel: 'noopener noreferrer' }, version.source) : 'Not linked'))),
-    h('aside', { class: 'verdict' }, h('h3', {}, 'Decision'), h('p', { class: 'small muted gap' }, approve.ok ? 'Compare the file, permissions and description before approving. Explain any AI flags in your note.' : approve.reason),
+    h('aside', { class: 'verdict' }, h('h3', {}, 'Decision'), h('p', { class: 'small muted gap' }, approve.ok ? 'Download the component and check it on your own device. Compare the file, permissions and description before approving.' : approve.reason),
       backend.fileUrl && backend.fileUrl(version.id) ? h('a', { class: 'btn quiet gap', href: backend.fileUrl(version.id), rel: 'noopener noreferrer', target: '_blank' }, 'Download component') : null,
       h('label', { class: 'field gap', for: 'review-note' }, 'Note to creator', notes), decisions, decisionStatus,
-      liveMode && version.status === 'submitted' ? button('Request a rescan', async () => {
-        const response = await call('POST', '/staff/versions/' + encodeURIComponent(version.id) + '/rescan');
-        if (response.status !== 200) { decisionStatus.textContent = response.body.error; return; }
-        await render(); announce('New scan queued. Earlier scan claims and approvals were invalidated.');
-      }, 'btn quiet', 'review:rescan') : null,
-      trust,
       h('p', { class: 'small muted gap' }, 'No self-review. Every decision is tied to this version.'))));
     body.append(h('div', { class: 'review-layout' }, h('aside', { class: 'queue' }, queue.map(entry => h('a', {
       href: '#/staff/queue/' + entry.id, class: entry.id === id ? 'active' : '', 'data-focus-key': 'queue:' + entry.id,

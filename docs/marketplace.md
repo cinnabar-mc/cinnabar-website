@@ -78,17 +78,17 @@ No SPA fallback or dynamic Worker is required.
   imported or evaluated. New selections and account changes cancel stale checks.
 - Review diffs show exact command additions/removals. An older API's name-only
   diff cannot authorize a command-bearing update: approval is disabled until it
-  supplies previous grants or a value-level diff. No AI results are fabricated.
+  supplies previous grants or a value-level diff.
 - Pending project metadata is versioned by the API and cannot change public
   descriptions or images before publication. The preview simulates this behavior.
-- Creator releases show queued/running/failed scans, AI flags, staff review,
-  interrupted publication and signed manual/automatic publication states. Creator
+- Creator releases show staff review, change requests, rejections, interrupted
+  publication and signed publication states. Creator
   and review workspaces refresh every ten seconds while visible and cancel timers
   on navigation. Refresh failures preserve review notes; session expiry removes
   staff controls. A manual Refresh status action is always available there.
-- Review controls require the server's `scan.review_ready` result and complete
-  scan evidence. AI flags need an explanatory note. Staff can rescan a pending
-  release; admins can establish/revoke project trust with an audit reason.
+- No automated scan runs. Staff download the exact component and review it by hand
+  on their own devices; approval needs only the role and reach rules the API enforces.
+  Releases the retired scanner published still show as published automatically.
 
 ## Service contract
 
@@ -134,9 +134,8 @@ Public gallery URLs derive from `/mods/media/<sha256>`. Pending images use
 `/me/mods/<id>/media/<sha256>` with credentials and exact origin CORS; only the
 creator and active staff may read them. API-provided URL strings do not override
 the digest-derived route. Staff download the exact artifact from
-`/staff/versions/<id>/file`. Scan findings are inert text, and public summaries omit
-private scanner evidence. Automatic publication is reported only after the API
-marks the release approved. Local roles never authorize a write.
+`/staff/versions/<id>/file`. Publication is reported only after the API marks the
+release approved. Local roles never authorize a write.
 
 `POST /mods/:slug/remove` sends `{sha256, sent_at}` from `/me`'s saved selection.
 The API requires the browser session and CSRF token, scopes deletion to that
@@ -159,22 +158,18 @@ client value types fail the build rather than silently becoming booleans.
    account-switch isolation and Xbox linking on the real site/API/game domains.
 2. Merge and deploy [the API implementation](https://github.com/cinnabar-mc/cinnabar-api/pull/32)
    before deploying this website. Provision the private artifact bucket,
-   the separate scanner and its limited credentials, signing and Google OAuth secrets.
-   The API owns static validation, raster decoding, bounded AI triage, trust,
+   signing and Google OAuth secrets. The API owns upload validation, approval rules,
    signed publication and recovery. Browser checks can be bypassed.
-3. Verify scanner failures, expired evidence, trust revocation and interrupted
-   promotions against the deployed API. Missing/failed/timed-out checks must hold
-   publication. AI cannot override deterministic blocks or establish creator trust.
+3. Verify approvals and interrupted publications against the deployed API.
 4. Verify same-site private image cookies, caption/alt text, real artifact uploads
-   and polling on the deployed site/API domains. No scanner or signing credentials
+   and polling on the deployed site/API domains. No signing credentials
    belong in the browser or website configuration.
 5. The client verifies signed manifests/hashes, compatibility and exact permission
    consent, installs atomically and honors signed revocations with a documented
    offline/freshness policy.
 
 This change wires the UI to the API; it does not deploy infrastructure or certify
-mods as safe. The scanner uses static evidence and AI triage, with no guest-code
-execution or full source audit. Website secrets stay in GitHub's `website`
+mods as safe; staff review releases by hand. Website secrets stay in GitHub's `website`
 environment; only `main` deploys. Use an explicit mock build for local design demos.
 
 ## Regression coverage
@@ -183,7 +178,7 @@ Run the README commands after changes. Security fixtures cover malformed framing
 duplicate/escaped keys, command expansion, full type/bytecode validation, a start
 that must never run, inert Markdown/media, private pending metadata and removable
 unavailable entries. Controller tests cover focus/search retention, identity-scoped
-drafts/libraries, stale file checks, server scan gates, AI flag notes, status polling,
+drafts/libraries, stale file checks, review states, status polling,
 session expiry and upload recovery. HTTP tests assert multipart bytes/metadata,
 digest-derived private/public gallery routes, Google return URLs, credentialed
 link writes, empty unlink responses and CSRF cleanup. Account UI tests cover

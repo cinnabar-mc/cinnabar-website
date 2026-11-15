@@ -381,7 +381,7 @@ test('staff queue shows exact command changes and rejected decisions preserve th
   memory.set(Mock.STORAGE_KEY, JSON.stringify(state));
   const p = await page('#/staff/queue/' + next.id, memory);
   await p.signIn('RedstoneRook');
-  assert.match(p.text(), /Server scan evidence is not connected/);
+  assert.match(p.text(), /Awaiting staff review/);
   assert.match(p.text(), /Commands added: op/);
   assert.match(p.text(), /Commands removed: say/);
   const request = p.document.querySelector('[data-focus-key="decision:changes"]');
@@ -424,13 +424,10 @@ test('resolved reports do not expose a pull action without an editable reason', 
 });
 
 /** A normalized live API release; all outcomes below come from response fixtures, never UI simulation. */
-function liveRelease(state = 'queued') {
+function liveRelease() {
   return { id: '42', slug: 'live-mod', name: 'Live mod', version: '1.0.0', status: 'submitted',
     creator: 'creator', creator_name: 'Creator', approvals: [], grants: { hud: true }, capabilities: ['hud'], reach: 0,
-    description: '## HUD\n<script>unsafe()</script>', sha256: 'a'.repeat(64), gallery: [], publication: null,
-    scan: { state, review_ready: state === 'complete', completed_at: Date.now(), expires_at: Date.now() + 60000,
-      report: state === 'complete' ? { deterministic: 'pass', validator: 'test-validator', policy: 'test-policy',
-        findings: [], ai: { verdict: 'clear', model: 'test-model', prompt: 'test-prompt', findings: [] } } : null } };
+    description: '## HUD\n<script>unsafe()</script>', sha256: 'a'.repeat(64), gallery: [], publication: null };
 }
 
 /** HTTP-shaped fixture keeps session, reads and mutation responses observable. */
@@ -450,35 +447,33 @@ function liveApi(version, role = 'moderator') {
   return api;
 }
 
-test('live review requires server readiness and explanatory notes for AI flags, with inert evidence', async () => {
-  const version = liveRelease('queued');
+test('live review approves without a scan or note, renders creator text inertly and keeps a failed note', async () => {
+  const version = liveRelease();
   const api = liveApi(version);
   const p = await page('#/staff/queue/42', undefined, api);
-  assert.equal(p.document.querySelector('[data-focus-key="decision:approve"]').disabled, true);
-  assert.match(p.text(), /Queued for scanning/);
+  assert.match(p.text(), /Awaiting staff review/);
+  assert.match(p.text(), /check it on your own device/);
+  assert.doesNotMatch(p.text(), /scan|\bAI\b/i);
   assert.equal(p.document.querySelector('#app script'), null);
-  Object.assign(version, liveRelease('complete'));
-  version.scan.report.ai = { verdict: 'flag', findings: ['<img src=x onerror=unsafe()>'], model: 'review-model', prompt: 'v1' };
-  await p.tick();
-  assert.match(p.text(), /Flagged for staff review/);
-  assert.equal(p.document.querySelector('.scan-findings img'), null);
-  assert.equal(p.document.querySelector('[data-focus-key="decision:approve"]').disabled, true);
-  await p.input('#review-note', 'Inspected the artifact and resolved the flagged string.');
-  assert.equal(p.document.querySelector('[data-focus-key="decision:approve"]').disabled, false);
-  await p.click(p.document.querySelector('[data-focus-key="decision:approve"]'));
+  assert.equal(p.document.querySelector('[data-focus-key="review:rescan"]'), null);
+  assert.equal(p.document.querySelector('[data-focus-key="review:trust"]'), null);
+  const approve = p.document.querySelector('[data-focus-key="decision:approve"]');
+  assert.equal(approve.disabled, false);
+  await p.input('#review-note', 'Checked the component on my own device.');
+  await p.click(approve);
+  assert.ok(api.calls.some(call => call.method === 'POST' && call.path === '/staff/versions/42/decision'));
   assert.match(p.text(), /A fresh sign-in is required/);
   await p.tick();
-  assert.equal(p.document.querySelector('#review-note').value, 'Inspected the artifact and resolved the flagged string.');
+  assert.equal(p.document.querySelector('#review-note').value, 'Checked the component on my own device.');
   assert.equal(p.document.activeElement.id, 'review-note');
 });
 
-test('creator status refreshes through scanning and automatic publication, pausing when hidden or navigating', async () => {
+test('creator status refreshes through review and publication, pausing when hidden or navigating', async () => {
   const version = liveRelease(); const api = liveApi(version, 'player');
   const p = await page('#/mine/42', undefined, api);
-  assert.match(p.text(), /Queued for scanning/);
-  version.scan.state = 'running'; await p.tick(); assert.match(p.text(), /Scanning/);
-  version.status = 'approved'; version.publication = 'automatic'; await p.tick();
-  assert.match(p.text(), /Published automatically/);
+  assert.match(p.text(), /Awaiting staff review/);
+  version.status = 'approved'; version.publication = 'manual'; await p.tick();
+  assert.match(p.text(), /Published after review/);
   Object.defineProperty(p.document, 'hidden', { configurable: true, value: true });
   p.document.dispatchEvent(new p.window.Event('visibilitychange'));
   assert.equal(p.timers.size, 0);
@@ -489,7 +484,7 @@ test('creator status refreshes through scanning and automatic publication, pausi
 });
 
 test('status refresh preserves review notes on network errors and removes staff controls after session expiry', async () => {
-  const version = liveRelease('complete'); const api = liveApi(version);
+  const version = liveRelease(); const api = liveApi(version);
   const p = await page('#/staff/queue/42', undefined, api);
   await p.input('#review-note', 'Unfinished review note');
   const original = api.request;
@@ -531,7 +526,7 @@ function accountApi(linked = false) {
   api.account = { id: 'google-account-1', username: 'ChosenPlayer', email: 'player@example.test', role: 'admin', suspended: false,
     xbox: linked ? { xuid: 'xbox-1', gamertag: 'Game Player' } : null };
   api.library = [];
-  const mod = { ...liveRelease('complete'), status: 'approved', summary: 'A real API response fixture.', history: [] };
+  const mod = { ...liveRelease(), status: 'approved', summary: 'A real API response fixture.', history: [] };
   api.mods = [mod];
   api.send = () => ({ status: 200, body: { game_online: true } });
   api.me = () => ({ status: 200, body: structuredClone({ account: api.account, library: api.library, csrf: 'csrf-1', game_online: false }) });
@@ -945,8 +940,8 @@ test('checks use plain language, required rights and a notice only in preview mo
     const p = await page('#/submit', undefined, live ? liveApi(liveRelease(), 'player') : undefined);
     if (!live) await p.signIn('BlockSmith42');
     await p.click(p.document.querySelector('[data-focus-key="step:checks"]'));
-    assert.match(p.text(), /Ready to submit/); assert.match(p.text(), /After you upload, we check your mod/);
-    assert.match(p.text(), /A reviewer approves it before it goes live/); assert.match(p.text(), /Your projects/);
+    assert.match(p.text(), /Ready to submit/); assert.match(p.text(), /After you upload, staff review your mod by hand before it goes live/);
+    assert.match(p.text(), /Your projects/);
     assert.match(p.text(), /Your mod fileChoose a file/); assert.match(p.text(), /ReviewAfter upload/);
     assert.doesNotMatch(p.text(), /AI triage|Publication route|Established creators|independently validate|browser check cannot|Server validation|Automatic publication/);
     assert.match(p.text(), /I have permission to share this mod/);
