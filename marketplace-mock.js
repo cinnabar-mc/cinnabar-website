@@ -340,12 +340,18 @@
         return ok(versionView(v));
       }],
       ["POST", /^\/staff\/mods\/([a-z0-9-]+)\/hide$/, function (body, slug) {
-        const check = core.can(me(), "hide");
-        if (!check.ok) return fail(403, check.reason);
+        const denied = staffOnly();
+        if (denied) return denied;
         const listing = state.listings[slug];
         if (!listing) return fail(404, "No such mod.");
-        listing.hidden = Boolean(body.hidden);
-        log(listing.hidden ? "hid listing" : "restored listing", slug, body.reason);
+        // Mirrors the API: never your own listing, a reason for the audit log, and only admins restore.
+        if (listing.creator === state.session) return fail(403, "You can't hide or restore your own mod.");
+        const reason = String(body.reason || "").trim();
+        if (!reason) return fail(400, "Note why, for the audit log.");
+        if (typeof body.hidden !== "boolean") return fail(422, "Supply hidden as true or false.");
+        if (!body.hidden && !core.atLeast(me(), "admin")) return fail(403, "Only admins can restore a hidden listing.");
+        listing.hidden = body.hidden;
+        log(listing.hidden ? "hid listing" : "restored listing", slug, reason);
         return ok({ hidden: listing.hidden });
       }],
       ["GET", /^\/staff\/reports$/, function () {

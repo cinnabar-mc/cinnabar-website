@@ -643,6 +643,8 @@
       h('details', { class: 'sidebox permission-disclosure' }, h('summary', {}, 'Permissions (' + (mod.capabilities || []).length + ')'),
         h('p', { class: 'small muted' }, 'You choose what to allow in Cinnabar.'), permissions(mod, mod.grants)),
       M.atLeast(session.account, 'moderator') && mod.version_id ? h('a', { class: 'btn quiet', href: '#/staff/queue/' + mod.version_id }, 'Review this release') : null,
+      M.can(session.account, 'hide', { listing: mod }).ok
+        ? button('Remove from marketplace', () => removeListingForm(mod, content, () => select('description')), 'btn quiet', 'project:remove') : null,
       button('Report a concern', () => reportForm(mod, content), 'btn quiet report-link', 'project:report'));
     /** Keep the selected information tab local so it does not discard catalogue state. */
     function select(tab) {
@@ -686,6 +688,26 @@
       announce('Report received.'); render();
     } }, h('label', { class: 'field', for: 'report-reason' }, 'Reason', reason),
     h('label', { class: 'field', for: 'report-details' }, 'What happened?', details), error, h('button', { class: 'btn primary', type: 'submit' }, 'Send report')));
+    reason.focus();
+  }
+
+  /** Take a listing off the marketplace for a recorded reason; an admin can restore it from Audit history. */
+  function removeListingForm(mod, content, cancel) {
+    const reason = h('textarea', { id: 'remove-reason', maxlength: 500, required: true });
+    const error = h('p', { class: 'error', role: 'alert' });
+    const submit = h('button', { class: 'btn primary', type: 'submit' }, 'Remove from marketplace');
+    content.replaceChildren(h('h2', {}, 'Remove ' + mod.name),
+      h('p', { class: 'muted gap' }, 'The mod leaves the catalogue and players can no longer add it. Your reason goes in the audit log, and an admin can restore the mod from Audit history.'),
+      h('form', { class: 'gap', onsubmit: async event => {
+        event.preventDefault();
+        if (!reason.value.trim()) { error.textContent = 'Note why, for the audit log.'; reason.focus(); return; }
+        submit.disabled = true;
+        const result = await call('POST', '/staff/mods/' + encodeURIComponent(mod.slug) + '/hide', { hidden: true, reason: reason.value });
+        submit.disabled = false;
+        if (result.status !== 200) { error.textContent = result.body.error; return; }
+        location.hash = '#/'; await render(); announce(mod.name + ' was removed from the marketplace.');
+      } }, h('label', { class: 'field', for: 'remove-reason' }, 'Why are you removing it?', reason), error,
+      h('div', { class: 'review-actions' }, submit, button('Cancel', cancel, 'btn quiet', 'remove:cancel'))));
     reason.focus();
   }
 
@@ -1058,9 +1080,14 @@
         const result = await call('POST', '/staff/versions/' + report.version_id + '/pull', { reason: note.value });
         if (result.status !== 200) { error.textContent = result.body.error; return; } render(); announce('Release pulled.');
       }));
+      if (M.can(session.account, 'hide').ok && report.status !== 'resolved') actions.append(button('Remove from marketplace', async () => {
+        if (!note.value.trim()) { error.textContent = 'Note why, for the audit log.'; note.focus(); return; }
+        const result = await call('POST', '/staff/mods/' + encodeURIComponent(report.slug) + '/hide', { hidden: true, reason: note.value });
+        if (result.status !== 200) { error.textContent = result.body.error; return; } render(); announce(report.name + ' was removed from the marketplace.');
+      }));
       return h('article', { class: 'sidebox' }, h('h2', {}, report.name + ' ' + report.version),
         h('p', { class: 'small muted gap' }, report.reason + ' · ' + report.reporter_name + ' · ' + report.status), h('p', { class: 'gap' }, report.details),
-        report.status === 'resolved' ? h('p', { class: 'small gap' }, report.resolved_by_name + ': ' + report.resolution) : h('label', { class: 'field gap' }, 'Resolution / pull reason', note), actions, error);
+        report.status === 'resolved' ? h('p', { class: 'small gap' }, report.resolved_by_name + ': ' + report.resolution) : h('label', { class: 'field gap' }, 'Resolution or removal reason', note), actions, error);
     })));
   }
 
@@ -1080,11 +1107,29 @@
     h('button', { type: 'submit', class: 'btn primary' }, 'Save assignment')) : null);
   }
 
-  /** Show named, attributable audit rows without interpreting staff notes as HTML. */
+  /** Show named, attributable audit rows without interpreting staff notes as HTML; admins restore removed mods here. */
   function staffAudit(body, entries) {
-    body.append(entries.length ? h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Who', 'Action', 'Target', 'Note'].map(name => h('th', {}, name)))),
-      h('tbody', {}, entries.map(entry => h('tr', {}, h('td', {}, entry.actor_name), h('td', {}, entry.action), h('td', {}, entry.target), h('td', {}, entry.note))))))
+    // Entries arrive newest first, so the first hide or restore row per listing is its current state.
+    const latest = new Map();
+    for (const entry of entries) if ((entry.action === 'hid listing' || entry.action === 'restored listing') && !latest.has(entry.target)) latest.set(entry.target, entry);
+    const restorable = M.can(session.account, 'restore').ok ? new Set([...latest.values()].filter(entry => entry.action === 'hid listing')) : new Set();
+    const columns = ['Who', 'Action', 'Target', 'Note'].concat(restorable.size ? ['Restore'] : []);
+    body.append(entries.length ? h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, columns.map(name => h('th', {}, name)))),
+      h('tbody', {}, entries.map(entry => h('tr', {}, h('td', {}, entry.actor_name), h('td', {}, entry.action), h('td', {}, entry.target), h('td', {}, entry.note),
+        restorable.size ? h('td', {}, restorable.has(entry) ? restoreControl(entry.target) : null) : null)))))
       : h('p', { class: 'empty' }, 'No audit entries.'));
+  }
+
+  /** Put a removed listing back in the marketplace, with its own reason for the audit log. */
+  function restoreControl(slug) {
+    const reason = h('input', { type: 'text', maxlength: 500, 'aria-label': 'Reason to restore ' + slug });
+    const error = h('p', { class: 'error small', role: 'alert' });
+    return h('div', { class: 'restore-control' }, reason, button('Restore', async () => {
+      if (!reason.value.trim()) { error.textContent = 'Note why, for the audit log.'; reason.focus(); return; }
+      const result = await call('POST', '/staff/mods/' + encodeURIComponent(slug) + '/hide', { hidden: false, reason: reason.value });
+      if (result.status !== 200) { error.textContent = result.body.error; return; }
+      render(); announce(slug + ' is back in the marketplace.');
+    }, 'btn quiet', 'restore:' + slug), error);
   }
 
   /** Keep refresh outcomes local to status workspaces without announcing background successes repeatedly. */

@@ -212,6 +212,14 @@ ul#mdbook-searchresults span.teaser em { color: var(--ink); font-weight: 500; }
     .content pre { margin-inline: -8px; }
     .table-wrapper { margin-inline: -8px; }
 }
+/* The menu bar sits at a fixed offset after the wordmark, so the book keeps the wordmark until the phone layout. */
+@media (min-width: 481px) {
+    .site-header .brand-home span { display: inline; }
+}
+/* Below 1080px the marketplace link would run into the sidebar and search controls, so the book drops it there. */
+@media (max-width: 1079px) {
+    .site-header .socials a.marketplace-link { display: none; }
+}
 @media (max-width: 480px) {
     html .page #mdbook-menu-bar { left: 44px; }
     #mdbook-menu-bar .left-buttons { gap: 0; }

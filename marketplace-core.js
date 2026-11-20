@@ -117,6 +117,12 @@
         return { ok: true };
       }
       case "hide":
+        // Removal hides the whole listing. Staff remove other creators' mods; the API refuses their own.
+        if (!atLeast(actor, "moderator")) return deny("Only staff can remove mods.");
+        if (ctx.listing && ctx.listing.creator === actor.id) return deny("You can't remove your own mod.");
+        return { ok: true };
+      case "restore":
+        return atLeast(actor, "admin") ? { ok: true } : deny("Only admins can restore a removed mod.");
       case "resolve-report":
         return atLeast(actor, "moderator") ? { ok: true } : deny("Only staff can do this.");
       case "pull":

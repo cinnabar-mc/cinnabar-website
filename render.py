@@ -18,9 +18,15 @@ from mdbook import binary
 
 
 HERE = Path(__file__).resolve().parent
-# On a phone the label shortens to "Mods" so the pixel-caps nav fits at 16px; the visible text is always the link's name.
-MARKETPLACE_LINK = ('      <a class="marketplace-link" href="/mods/" aria-current="page">'
+# On a phone the label shortens to "Market" so the pixel-caps nav fits at 16px; the visible text is always the link's name.
+# Every page, the book included, links to the marketplace; @@CURRENT@@ marks the link on the marketplace itself.
+MARKETPLACE_LINK = ('      <a class="marketplace-link" href="/mods/"@@CURRENT@@>'
                     '<span class="nav-long">Marketplace</span><span class="nav-short">Market</span></a>\n')
+
+
+def marketplace_link(current):
+    """Return the header's marketplace link, marked as the current page when `current` is true."""
+    return MARKETPLACE_LINK.replace("@@CURRENT@@", ' aria-current="page"' if current else "")
 INPUTS = load_config()["inputs"]
 # In-game screenshots of the mod shown on /mod/.
 MOD_CAPTURES = ("mods.webp", "settings.webp", "layout.webp")
@@ -53,7 +59,7 @@ def build_book(repository, output, red, header):
         stylesheet = theme / "cinnabar.css"
         stylesheet.write_text((HERE / "site-header.css").read_text(encoding="utf-8")
                               + stylesheet.read_text(encoding="utf-8").replace("@@RED@@", red))
-        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"').replace("@@MOD_CURRENT@@", "").replace("@@MARKETPLACE_LINK@@", ""))
+        (theme / "header.hbs").write_text(header.replace("@@DOCS_CURRENT@@", ' aria-current="page"').replace("@@MOD_CURRENT@@", "").replace("@@MARKETPLACE_LINK@@", marketplace_link(False)))
         environment = dict(os.environ, **{
             "MDBOOK_OUTPUT__HTML__THEME": "theme",
             "MDBOOK_OUTPUT__HTML__ADDITIONAL_CSS": '["theme/cinnabar.css"]',
@@ -177,8 +183,7 @@ def build(repository, output, marketplace_backend="http"):
     for template, target in PAGES:
         page_header = header.replace("@@DOCS_CURRENT@@", "").replace(
             "@@MOD_CURRENT@@", ' aria-current="page"' if target.startswith("mod/") else "").replace(
-            # The marketplace is hidden from the rest of the site for now; only its own page links to itself.
-            "@@MARKETPLACE_LINK@@", MARKETPLACE_LINK if target.startswith("mods/") else "")
+            "@@MARKETPLACE_LINK@@", marketplace_link(target.startswith("mods/")))
         page = (HERE / template).read_text(encoding="utf-8").replace("@@SITE_HEADER@@", page_header)
         for marker, value in replacements.items():
             page = page.replace(marker, value)

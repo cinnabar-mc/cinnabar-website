@@ -178,18 +178,18 @@ class RenderTests(unittest.TestCase):
             self.assertEqual(links[0].get("aria-current"),
                              "page" if route == "mod/index.html" else None)
         self.assertIn((SITE / "site-header.css").read_text(encoding="utf-8"), mod_html)
-        for route in ["index.html", "mod/index.html", "mods/index.html", "docs/modding/index.html"]:
+        for route in ["index.html", "mod/index.html", "mods/index.html", "404.html", "docs/modding/index.html"]:
             html = (self.output / route).read_text(encoding="utf-8")
             self.assertNotIn("@@", html)
             page = Page()
             page.feed(html)
             links = [attrs for tag, attrs, _ in page.elements
                      if tag == "a" and attrs.get("class") == "marketplace-link"]
-            # The marketplace stays reachable at /mods/ but only its own page links to it.
+            # Every page's header links to the marketplace and only the marketplace marks it current.
             if route == "mods/index.html":
                 self.assertEqual(links, [{"class": "marketplace-link", "href": "/mods/", "aria-current": "page"}])
             else:
-                self.assertEqual(links, [])
+                self.assertEqual(links, [{"class": "marketplace-link", "href": "/mods/"}])
 
     def test_direct_downloads_are_real_links_before_any_script_runs(self):
         """Give every platform link its Beta address at build time, and make the main key lead to them without scripts."""
