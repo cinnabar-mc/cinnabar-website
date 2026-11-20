@@ -86,6 +86,14 @@ No SPA fallback or dynamic Worker is required.
   and review workspaces refresh every ten seconds while visible and cancel timers
   on navigation. Refresh failures preserve review notes; session expiry removes
   staff controls. A manual Refresh status action is always available there.
+- Staff (moderator and up) remove a mod from the marketplace with Remove from
+  marketplace on its page, or from an open report using the report's reason field.
+  Removal hides the whole listing through `POST /staff/mods/:slug/hide`
+  `{hidden: true, reason}`: it leaves the catalogue and players can no longer add it.
+  The reason is required and goes in the audit log. Staff cannot remove their own
+  mods; the API refuses them. Admins restore a removed listing from Audit history,
+  with its own reason (`{hidden: false, reason}`); the restore control appears on the
+  latest hide of each listing that has not been restored since.
 - No automated scan runs. Staff download the exact component and review it by hand
   on their own devices; approval needs only the role and reach rules the API enforces.
   Releases the retired scanner published still show as published automatically.

@@ -423,6 +423,54 @@ test('resolved reports do not expose a pull action without an editable reason', 
   assert.ok(pulls[0].closest('article').querySelector('textarea'));
 });
 
+test('staff remove a mod from its page with a reason and an admin restores it from audit history', async () => {
+  const p = await page('#/mod/keystrokes');
+  assert.equal(p.document.querySelector('[data-focus-key="project:remove"]'), null);
+  await p.signIn('MossyCobble');
+  assert.equal(p.document.querySelector('[data-focus-key="project:remove"]'), null);
+  await p.signIn('PixelWarden');
+  await p.click(p.document.querySelector('[data-focus-key="project:remove"]'));
+  assert.equal(p.document.activeElement.id, 'remove-reason');
+  const form = () => p.document.querySelector('#remove-reason').closest('form');
+  form().dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true })); await p.tick(0);
+  assert.match(p.text(), /Note why, for the audit log/);
+  await p.input('#remove-reason', 'Covers the hotbar on phones');
+  form().dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true })); await p.tick(0);
+  assert.equal(p.document.getElementById('feedback').textContent, 'Keystrokes was removed from the marketplace.');
+  assert.equal(p.document.querySelector('[data-focus-key="project:remove"]'), null);
+  await p.route('#/');
+  assert.doesNotMatch(p.text(), /Keystrokes/);
+
+  await p.route('#/staff/audit');
+  assert.equal(p.document.querySelector('[data-focus-key="restore:keystrokes"]'), null, 'moderators cannot restore');
+  await p.signIn('RedstoneRook'); await p.route('#/staff/audit');
+  const restore = p.document.querySelector('[data-focus-key="restore:keystrokes"]');
+  await p.click(restore);
+  assert.match(restore.closest('td').textContent, /Note why/);
+  await p.input('[aria-label="Reason to restore keystrokes"]', 'Fixed in 1.1.1');
+  await p.click(p.document.querySelector('[data-focus-key="restore:keystrokes"]'));
+  assert.equal(p.document.getElementById('feedback').textContent, 'keystrokes is back in the marketplace.');
+  assert.equal(p.document.querySelector('[data-focus-key="restore:keystrokes"]'), null, 'restored listings offer no second restore');
+  await p.route('#/mod/keystrokes');
+  assert.match(p.text(), /Keystrokes/);
+});
+
+test('staff cannot remove their own mod from its page', async () => {
+  const p = await page('#/mod/time-changer'); await p.signIn('BlockSmith42');
+  assert.equal(p.document.querySelector('[data-focus-key="project:remove"]'), null);
+});
+
+test('moderators remove a reported mod using the report\'s removal reason', async () => {
+  const p = await page('#/staff/reports'); await p.signIn('PixelWarden');
+  const remove = [...p.document.querySelectorAll('#app button')].filter(control => control.textContent === 'Remove from marketplace');
+  assert.equal(remove.length, 1, 'only the open report offers removal');
+  remove[0].closest('article').querySelector('textarea').value = 'Breaks the hotbar';
+  await p.click(remove[0]);
+  assert.equal(p.document.getElementById('feedback').textContent, 'Keystrokes was removed from the marketplace.');
+  await p.route('#/mod/keystrokes');
+  assert.doesNotMatch(p.text(), /Add to Cinnabar/);
+});
+
 /** A normalized live API release; all outcomes below come from response fixtures, never UI simulation. */
 function liveRelease() {
   return { id: '42', slug: 'live-mod', name: 'Live mod', version: '1.0.0', status: 'submitted',

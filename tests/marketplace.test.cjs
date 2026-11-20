@@ -275,6 +275,38 @@ test('pulling a version removes it from the catalogue and the audit log records 
   assert.equal((await client.request('GET', '/mods')).body.some(m => m.slug === 'clear-skies'), false);
 });
 
+test('staff of every rank remove other creators\' mods; only admins restore them', () => {
+  const listing = { creator: creator.id };
+  assert.equal(M.can(player, 'hide', { listing }).ok, false);
+  for (const staff of [mod1, admin, owner]) assert.ok(M.can(staff, 'hide', { listing }).ok);
+  assert.equal(M.can(owner, 'hide', { listing: { creator: owner.id } }).ok, false);
+  assert.equal(M.can({ ...mod1, suspended: true }, 'hide', { listing }).ok, false);
+  assert.equal(M.can(mod1, 'restore').ok, false);
+  assert.ok(M.can(admin, 'restore').ok);
+  assert.ok(M.can(owner, 'restore').ok);
+});
+
+test('removing a mod hides its listing with a reason, and only an admin brings it back', async () => {
+  const client = await api('MossyCobble');
+  const remove = (slug, body) => client.request('POST', `/staff/mods/${slug}/hide`, body);
+  assert.equal((await remove('keystrokes', { hidden: true, reason: 'Spam' })).status, 403);
+  await client.as('PixelWarden');
+  assert.equal((await remove('keystrokes', { hidden: true, reason: ' ' })).status, 400);
+  assert.equal((await remove('keystrokes', { hidden: 'yes', reason: 'Spam' })).status, 422);
+  assert.equal((await remove('keystrokes', { hidden: true, reason: 'Covers the hotbar' })).status, 200);
+  assert.equal((await client.request('GET', '/mods/keystrokes')).status, 404);
+  assert.equal((await client.request('GET', '/mods')).body.some(m => m.slug === 'keystrokes'), false);
+  assert.equal((await remove('keystrokes', { hidden: false, reason: 'Fixed' })).status, 403);
+  await client.as('BlockSmith42');
+  assert.equal((await remove('time-changer', { hidden: true, reason: 'Mine' })).status, 403);
+  await client.as('RedstoneRook');
+  assert.equal((await remove('keystrokes', { hidden: false, reason: 'Fixed in 1.1.1' })).status, 200);
+  assert.equal((await client.request('GET', '/mods/keystrokes')).status, 200);
+  const audit = (await client.request('GET', '/staff/audit')).body;
+  assert.deepEqual(audit.slice(0, 2).map(entry => [entry.actor_name, entry.action, entry.target, entry.note]),
+    [['RedstoneRook', 'restored listing', 'keystrokes', 'Fixed in 1.1.1'], ['PixelWarden', 'hid listing', 'keystrokes', 'Covers the hotbar']]);
+});
+
 test('role changes follow the account and need a reason', async () => {
   const client = await api('RedstoneRook');
   assert.equal((await client.request('POST', '/staff/people/role', { username: 'MossyCobble', role: 'admin', reason: 'x' })).status, 403);

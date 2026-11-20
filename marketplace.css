@@ -450,3 +450,8 @@ body { overflow-x: clip; }
   .tabs { flex-wrap: wrap; row-gap: 8px; }
   .tabs .publish-link { flex-basis: 100%; justify-content: center; margin: 0 0 8px; }
 }
+
+/* An admin's inline restore form inside an audit row. */
+.restore-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 220px; }
+.restore-control input { flex: 1 1 140px; min-width: 0; }
+.restore-control .error:empty { display: none; }

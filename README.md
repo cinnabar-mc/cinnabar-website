@@ -103,7 +103,10 @@ page, the mod and the book), also with status 404. No route falls back to the la
 `/mod/` introduces the official HUD and module pack: its module list, settings,
 HUD Layout, profiles and import steps. The download button uses the shared API origin
 and the anonymous `/v1/mod/download` endpoint. The home page, mod page and book
-share the same navigation, with the current destination marked on each page.
+share the same navigation, with the current destination marked on each page. Every
+page also links to the marketplace; the book hides that link below 1080 px, where it
+would run into the sidebar and search controls. Below 760 px the header uses short labels
+("Market", "Mod"), and below 560 px it drops the wordmark.
 
 `assets/mod/` holds three in-game screenshots of the released mod in a
 local world, taken at 1920×1080 and saved as WebP: the Mods menu (`mods.webp`), Keystrokes settings
@@ -188,6 +191,8 @@ Your projects and the review workspace refresh server review/publication states 
 ten seconds while visible. Staff notes survive refreshes and failed requests.
 No automated scan runs: staff download each release and review it by hand on their own
 devices. The server authorizes every action and publishes a release once its approvals are complete.
+Moderators, admins and owners can remove another creator's mod from its page or from a report,
+with a reason for the audit log; admins restore removed mods from Audit history.
 Library removal works for public and unavailable selections, matching the exact
 saved hash and send timestamp. Installed mods are managed in Cinnabar.
 See [docs/marketplace.md](docs/marketplace.md)

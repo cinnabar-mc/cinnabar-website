@@ -127,6 +127,16 @@ input, textarea { caret-color: var(--red-line); }
 .channel-option[aria-checked="true"]::before { background: var(--red-line); box-shadow: inset 0 0 0 2px var(--red-line), inset 0 0 0 4px var(--raise); }
 .channel-option .hint { display: block; margin-top: 8px; color: var(--soft); font: 400 14px/1.4 var(--sans); text-transform: none; }
 
+/* Five nav links need their short labels below 760px, and the wordmark gives way below 560px, so the row never
+   overflows the screen. */
+@media (max-width: 760px) {
+  .site-header .nav-long { display: none; }
+  .site-header .nav-short { display: inline; }
+}
+@media (max-width: 560px) {
+  .site-header .brand-home span { display: none; }
+}
+
 @media (max-width: 480px) {
   .site-header { gap: 4px; padding-inline: 12px; }
   .site-header .brand-home span { display: none; }
